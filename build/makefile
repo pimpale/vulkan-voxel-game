@@ -23,10 +23,10 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: Vulkan\ Rotating\ Cube
+all: plant-simulator
 
 # Tool invocations
-Vulkan\ Rotating\ Cube: $(OBJS) $(USER_OBJS)
+plant-simulator: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
 	gcc  -o "plant-simulator" $(OBJS) $(USER_OBJS) $(LIBS)

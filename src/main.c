@@ -12,6 +12,12 @@
 #include "utils.h"
 #include "vulkan_helper.h"
 
+struct __attribute__ ((packed)) Node {
+	uint32_t id;
+
+
+};
+
 int main(void) {
 	glfwInit();
 
