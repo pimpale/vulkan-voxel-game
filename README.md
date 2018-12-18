@@ -10,5 +10,8 @@ $ make
 ```
 
 Run from the project root directory.
+````bash
+$ ./build 
+```
 
 

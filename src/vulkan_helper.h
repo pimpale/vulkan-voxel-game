@@ -65,7 +65,7 @@ uint32_t new_Device(VkDevice* pDevice,
 void delete_Device(VkDevice *pDevice);
 
 uint32_t getDeviceQueueIndex(uint32_t *deviceQueueIndex,
-		VkPhysicalDevice device, VkQueueFlags bit);
+		const VkPhysicalDevice device, const VkQueueFlags bit);
 
 uint32_t getPresentQueueIndex(uint32_t* pPresentQueueIndex,
 		const VkPhysicalDevice physicalDevice, const VkSurfaceKHR surface);

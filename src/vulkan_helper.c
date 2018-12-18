@@ -115,7 +115,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	return (VK_FALSE);
 }
 
-/* Get required extensions */
+/* Get required extensions for a VkInstance */
 uint32_t new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 					char ***pppEnabledExtensionNames) {
 	/* define our own extensions */
@@ -150,6 +150,7 @@ uint32_t new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 	return (ESUCCESS);
 }
 
+/* Deletes char arrays allocated in new_RequiredInstanceExtensions */
 void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 				       char ***pppEnabledExtensionNames) {
 	for (uint32_t i = 0; i < *pEnabledExtensionCount; i++) {
@@ -158,6 +159,7 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 	free(*pppEnabledExtensionNames);
 }
 
+/* Get required layer names for validation layers */
 uint32_t new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
 	*pLayerCount = 1;
 	*pppLayerNames = malloc(sizeof(char *) * sizeof(*pLayerCount));
@@ -165,11 +167,13 @@ uint32_t new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
 	return (ESUCCESS);
 }
 
+/* Delete validation layer names allocated in new_ValidationLayers */
 void delete_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
 	UNUSED(pLayerCount);
 	free(*pppLayerNames);
 }
 
+/* Get array of required device extensions for running graphics (swapchain) */
 uint32_t new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
 				      char ***pppEnabledExtensionNames) {
 	*pEnabledExtensionCount = 1;
@@ -179,12 +183,14 @@ uint32_t new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
 	return (ESUCCESS);
 }
 
+/* Delete array allocated in new_RequiredDeviceExtensions */
 void delete_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
 				     char ***pppEnabledExtensionNames) {
 	UNUSED(pEnabledExtensionCount);
 	free(*pppEnabledExtensionNames);
 }
 
+/* Creates new VkInstance with sensible defaults */
 uint32_t new_Instance(VkInstance *pInstance,
 		      const uint32_t enabledExtensionCount,
 		      const char *const *ppEnabledExtensionNames,
@@ -217,14 +223,16 @@ uint32_t new_Instance(VkInstance *pInstance,
 	return (ESUCCESS);
 }
 
+/* Destroys instance created in new_Instance */
 void delete_Instance(VkInstance *pInstance) {
 	vkDestroyInstance(*pInstance, NULL);
 }
 
 /**
  * Requires the debug utils extension
+ *
+ * Creates a new debug callback that prints validation layer errors to stdout or stderr, depending on their severity
  */
-
 uint32_t new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 			   const VkInstance instance) {
 	VkDebugUtilsMessengerCreateInfoEXT createInfo = {0};
@@ -259,6 +267,7 @@ uint32_t new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 
 /**
  * Requires the debug utils extension
+ * Deletes callback created in new_DebugCallback
  */
 void delete_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 			  const VkInstance instance) {
@@ -269,7 +278,9 @@ void delete_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 		func(instance, *pCallback, NULL);
 	}
 }
-
+/**
+ * gets the best physical device, checks if it has all necessary capabilities.
+ */
 uint32_t getPhysicalDevice(VkPhysicalDevice *pDevice,
 			   const VkInstance instance) {
 	uint32_t deviceCount = 0;
@@ -309,10 +320,16 @@ uint32_t getPhysicalDevice(VkPhysicalDevice *pDevice,
 	return (ESUCCESS);
 }
 
+/**
+ * Deletes VkDevice created in new_Device
+ */
 void delete_Device(VkDevice *pDevice) { vkDestroyDevice(*pDevice, NULL); }
 
+/**
+ * Sets deviceQueueIndex to queue family index corresponding to the bit passed in for the device
+ */
 uint32_t getDeviceQueueIndex(uint32_t *deviceQueueIndex,
-			     VkPhysicalDevice device, VkQueueFlags bit) {
+		const VkPhysicalDevice device, const VkQueueFlags bit) {
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
 						 NULL);
