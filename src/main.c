@@ -175,7 +175,7 @@ int main(void) {
 		    pImageAvailableSemaphores, pRenderFinishedSemaphores,
 		    graphicsQueue, presentQueue);
 
-		if (result == EOUTOFDATE) {
+		if (result == ERR_OUTOFDATE) {
 			vkDeviceWaitIdle(device);
 			delete_Fences(&pInFlightFences, swapChainImageCount,
 				      device);
