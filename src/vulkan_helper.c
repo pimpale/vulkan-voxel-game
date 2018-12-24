@@ -5,13 +5,12 @@
 
 #include <vulkan/vulkan.h>
 
-#include "include/linmath.h"
-
 #include "constants.h"
 #include "errors.h"
 #include "utils.h"
 
 #include "vulkan_helper.h"
+#include "../include/linmath.h"
 
 char *vkstrerror(VkResult err) {
 	switch (err) {
