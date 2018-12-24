@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "include/linmath.h"
+
 #include "constants.h"
 #include "errors.h"
 #include "utils.h"
@@ -89,34 +91,34 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	UNUSED(pUserData);
 
 	/* set severity */
-	uint32_t errcode;
+	uint32_t errSeverity;
 	switch (messageSeverity) {
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-			errcode = INFO;
+			errSeverity = INFO;
 			break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-			errcode = INFO;
+			errSeverity = INFO;
 			break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-			errcode = WARN;
+			errSeverity = WARN;
 			break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-			errcode = ERROR;
+			errSeverity = ERROR;
 			break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-			errcode = UNKNOWN;
+			errSeverity = UNKNOWN;
 			break;
 		default:
-			errcode = UNKNOWN;
+			errSeverity = UNKNOWN;
 			break;
 	}
 	/* log error */
-	errLog(errcode, "Vulkan validation layer: %s", pCallbackData->pMessage);
+	errLog(errSeverity, "vulkan validation layer: %s", pCallbackData->pMessage);
 	return (VK_FALSE);
 }
 
 /* Get required extensions for a VkInstance */
-uint32_t new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
+ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 					char ***pppEnabledExtensionNames) {
 	/* define our own extensions */
 	/* get GLFW extensions to use */
@@ -160,7 +162,7 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 }
 
 /* Get required layer names for validation layers */
-uint32_t new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
+ErrVal new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
 	*pLayerCount = 1;
 	*pppLayerNames = malloc(sizeof(char *) * sizeof(*pLayerCount));
 	**pppLayerNames = "VK_LAYER_LUNARG_standard_validation";
@@ -174,7 +176,7 @@ void delete_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
 }
 
 /* Get array of required device extensions for running graphics (swapchain) */
-uint32_t new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
+ErrVal new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
 				      char ***pppEnabledExtensionNames) {
 	*pEnabledExtensionCount = 1;
 	*pppEnabledExtensionNames =
@@ -191,7 +193,7 @@ void delete_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
 }
 
 /* Creates new VkInstance with sensible defaults */
-uint32_t new_Instance(VkInstance *pInstance,
+ErrVal new_Instance(VkInstance *pInstance,
 		      const uint32_t enabledExtensionCount,
 		      const char *const *ppEnabledExtensionNames,
 		      const uint32_t enabledLayerCount,
@@ -233,7 +235,7 @@ void delete_Instance(VkInstance *pInstance) {
  *
  * Creates a new debug callback that prints validation layer errors to stdout or stderr, depending on their severity
  */
-uint32_t new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
+ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 			   const VkInstance instance) {
 	VkDebugUtilsMessengerCreateInfoEXT createInfo = {0};
 	createInfo.sType =
@@ -281,7 +283,7 @@ void delete_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 /**
  * gets the best physical device, checks if it has all necessary capabilities.
  */
-uint32_t getPhysicalDevice(VkPhysicalDevice *pDevice,
+ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice,
 			   const VkInstance instance) {
 	uint32_t deviceCount = 0;
 	VkResult res = vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
@@ -328,7 +330,7 @@ void delete_Device(VkDevice *pDevice) { vkDestroyDevice(*pDevice, NULL); }
 /**
  * Sets deviceQueueIndex to queue family index corresponding to the bit passed in for the device
  */
-uint32_t getDeviceQueueIndex(uint32_t *deviceQueueIndex,
+ErrVal getDeviceQueueIndex(uint32_t *deviceQueueIndex,
 		const VkPhysicalDevice device, const VkQueueFlags bit) {
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
@@ -358,7 +360,7 @@ uint32_t getDeviceQueueIndex(uint32_t *deviceQueueIndex,
 	return (ERR_NOTSUPPORTED);
 }
 
-uint32_t getPresentQueueIndex(uint32_t *pPresentQueueIndex,
+ErrVal getPresentQueueIndex(uint32_t *pPresentQueueIndex,
 			      const VkPhysicalDevice physicalDevice,
 			      const VkSurfaceKHR surface) {
 	uint32_t queueFamilyCount = 0;
@@ -391,7 +393,7 @@ uint32_t getPresentQueueIndex(uint32_t *pPresentQueueIndex,
 	return (ERR_NOTSUPPORTED);
 }
 
-uint32_t new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
+ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
 		    const uint32_t deviceQueueIndex,
 		    const uint32_t enabledExtensionCount,
 		    const char *const *ppEnabledExtensionNames,
@@ -425,13 +427,13 @@ uint32_t new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
 	return (ERR_OK);
 }
 
-uint32_t getQueue(VkQueue *pQueue, const VkDevice device,
+ErrVal getQueue(VkQueue *pQueue, const VkDevice device,
 		  const uint32_t deviceQueueIndex) {
 	vkGetDeviceQueue(device, deviceQueueIndex, 0, pQueue);
 	return (ERR_OK);
 }
 
-uint32_t new_SwapChain(VkSwapchainKHR *pSwapChain,
+ErrVal new_SwapChain(VkSwapchainKHR *pSwapChain,
 		       uint32_t *pSwapChainImageCount,
 		       const VkSwapchainKHR oldSwapChain,
 		       const VkSurfaceFormatKHR surfaceFormat,
@@ -490,7 +492,7 @@ void delete_SwapChain(VkSwapchainKHR *pSwapChain, const VkDevice device) {
 	vkDestroySwapchainKHR(device, *pSwapChain, NULL);
 }
 
-uint32_t getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
+ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
 				   const VkPhysicalDevice physicalDevice,
 				   const VkSurfaceKHR surface) {
 	uint32_t formatCount = 0;
@@ -542,7 +544,7 @@ uint32_t getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
 	return (VK_SUCCESS);
 }
 
-uint32_t new_SwapChainImages(VkImage **ppSwapChainImages, uint32_t *pImageCount,
+ErrVal new_SwapChainImages(VkImage **ppSwapChainImages, uint32_t *pImageCount,
 			     const VkDevice device,
 			     const VkSwapchainKHR swapChain) {
 	vkGetSwapchainImagesKHR(device, swapChain, pImageCount, NULL);
@@ -574,7 +576,7 @@ void delete_SwapChainImages(VkImage **ppImages) {
 	*ppImages = NULL;
 }
 
-uint32_t new_ImageView(VkImageView *pImageView, const VkDevice device,
+ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
 		       const VkImage image, const VkFormat format) {
 	VkImageViewCreateInfo createInfo = {0};
 	createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -603,7 +605,7 @@ void delete_ImageView(VkImageView *pImageView, VkDevice device) {
 	vkDestroyImageView(device, *pImageView, NULL);
 }
 
-uint32_t new_SwapChainImageViews(VkImageView **ppImageViews,
+ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
 				 const VkDevice device, const VkFormat format,
 				 const uint32_t imageCount,
 				 const VkImage *pSwapChainImages) {
@@ -642,7 +644,7 @@ void delete_SwapChainImageViews(VkImageView **ppImageViews, uint32_t imageCount,
 	*ppImageViews = NULL;
 }
 
-uint32_t new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
+ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
 			  const uint32_t codeSize, const uint32_t *pCode) {
 	VkShaderModuleCreateInfo createInfo = {0};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -656,7 +658,7 @@ uint32_t new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
 	return (ERR_OK);
 }
 
-uint32_t new_ShaderModuleFromFile(VkShaderModule *pShaderModule,
+ErrVal new_ShaderModuleFromFile(VkShaderModule *pShaderModule,
 				  const VkDevice device, char *filename) {
 	uint32_t *shaderFileContents;
 	uint32_t shaderFileLength;
@@ -671,7 +673,7 @@ void delete_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device) {
 	vkDestroyShaderModule(device, *pShaderModule, NULL);
 }
 
-uint32_t new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
+ErrVal new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
 			const VkFormat swapChainImageFormat) {
 	VkAttachmentDescription colorAttachment = {0};
 	colorAttachment.format = swapChainImageFormat;
@@ -725,7 +727,7 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
 	vkDestroyRenderPass(device, *pRenderPass, NULL);
 }
 
-uint32_t new_PipelineLayout(VkPipelineLayout *pPipelineLayout,
+ErrVal new_PipelineLayout(VkPipelineLayout *pPipelineLayout,
 			    const VkDevice device) {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
 	pipelineLayoutInfo.sType =
@@ -747,7 +749,7 @@ void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
 	vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
 }
 
-uint32_t new_GraphicsPipeline(VkPipeline *pGraphicsPipeline,
+ErrVal new_GraphicsPipeline(VkPipeline *pGraphicsPipeline,
 			      const VkDevice device,
 			      const VkShaderModule vertShaderModule,
 			      const VkShaderModule fragShaderModule,
@@ -866,7 +868,7 @@ void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device) {
 	vkDestroyPipeline(device, *pPipeline, NULL);
 }
 
-uint32_t new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
+ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
 			 const VkRenderPass renderPass,
 			 const VkImageView imageView,
 			 const VkExtent2D swapChainExtent) {
@@ -893,7 +895,7 @@ void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device) {
 	vkDestroyFramebuffer(device, *pFramebuffer, NULL);
 }
 
-uint32_t new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
+ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
 				   const VkDevice device,
 				   const VkRenderPass renderPass,
 				   const VkExtent2D swapChainExtent,
@@ -932,7 +934,7 @@ void delete_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
 	*ppFramebuffers = NULL;
 }
 
-uint32_t new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
+ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
 			 const uint32_t queueFamilyIndex) {
 	VkCommandPoolCreateInfo poolInfo = {0};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -947,7 +949,7 @@ void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
 	vkDestroyCommandPool(device, *pCommandPool, NULL);
 }
 
-uint32_t new_GraphicsCommandBuffers(
+ErrVal new_GraphicsCommandBuffers(
     VkCommandBuffer **ppCommandBuffers, const VkDevice device,
     const VkRenderPass renderPass, const VkPipeline graphicsPipeline,
     const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
@@ -967,13 +969,13 @@ uint32_t new_GraphicsCommandBuffers(
 		panic();
 	}
 
-	VkResult ret =
+	VkResult allocateCommandBuffersRetVal =
 	    vkAllocateCommandBuffers(device, &allocInfo, pCommandBuffers);
-	if (ret != VK_SUCCESS) {
+	if (allocateCommandBuffersRetVal != VK_SUCCESS) {
 		errLog(
 		    FATAL,
 		    "Failed to create graphics command buffers, error code: %d",
-		    (uint32_t)ret);
+		    (uint32_t)allocateCommandBuffersRetVal);
 		panic();
 	}
 
@@ -1016,12 +1018,12 @@ uint32_t new_GraphicsCommandBuffers(
 
 		vkCmdEndRenderPass(pCommandBuffers[i]);
 
-		VkResult ret = vkEndCommandBuffer(pCommandBuffers[i]);
-		if (ret != VK_SUCCESS) {
+		VkResult endCommandBufferRetVal = vkEndCommandBuffer(pCommandBuffers[i]);
+		if (endCommandBufferRetVal != VK_SUCCESS) {
 			errLog(
 			    FATAL,
 			    "Failed to record command buffer, error code: %d",
-			    (uint32_t)ret);
+			    (uint32_t)endCommandBufferRetVal );
 			panic();
 		}
 	}
@@ -1035,7 +1037,7 @@ void delete_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers) {
 	*ppCommandBuffers = NULL;
 }
 
-uint32_t new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
+ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
 	VkSemaphoreCreateInfo semaphoreInfo = {0};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	return (vkCreateSemaphore(device, &semaphoreInfo, NULL, pSemaphore));
@@ -1045,7 +1047,7 @@ void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
 	vkDestroySemaphore(device, *pSemaphore, NULL);
 }
 
-uint32_t new_Semaphores(VkSemaphore **ppSemaphores,
+ErrVal new_Semaphores(VkSemaphore **ppSemaphores,
 			const uint32_t semaphoreCount, const VkDevice device) {
 	if (semaphoreCount == 0) {
 		errLog(WARN, "failed to create semaphores: %s",
@@ -1071,7 +1073,7 @@ void delete_Semaphores(VkSemaphore **ppSemaphores,
 	free(*ppSemaphores);
 }
 
-uint32_t new_Fence(VkFence *pFence, const VkDevice device) {
+ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
 	VkFenceCreateInfo fenceInfo = {0};
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -1082,7 +1084,7 @@ void delete_Fence(VkFence *pFence, const VkDevice device) {
 	vkDestroyFence(device, *pFence, NULL);
 }
 
-uint32_t new_Fences(VkFence **ppFences, const uint32_t fenceCount,
+ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
 		    const VkDevice device) {
 	if (fenceCount == 0) {
 		errLog(WARN, "cannot allocate 0 bytes of memory");
@@ -1193,7 +1195,7 @@ void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance) {
 	vkDestroySurfaceKHR(instance, *pSurface, NULL);
 }
 
-uint32_t getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
+ErrVal getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
 	int width;
 	int height;
 	glfwGetFramebufferSize(pWindow, &width, &height);
@@ -1202,7 +1204,7 @@ uint32_t getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
 	return (ERR_OK);
 }
 
-uint32_t new_GLFWwindow(GLFWwindow **ppGLFWwindow) {
+ErrVal new_GLFWwindow(GLFWwindow **ppGLFWwindow) {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	*ppGLFWwindow =
@@ -1213,7 +1215,7 @@ uint32_t new_GLFWwindow(GLFWwindow **ppGLFWwindow) {
 	return (ERR_OK);
 }
 
-uint32_t new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
+ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
 		     const VkInstance instance) {
 	VkResult res =
 	    glfwCreateWindowSurface(instance, pWindow, NULL, pSurface);
@@ -1223,3 +1225,11 @@ uint32_t new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
 	}
 	return (ERR_OK);
 }
+
+struct Vertex {
+	vec2 position;
+	vec3 color;
+};
+
+ErrVal getVertex(struct Vertex* )
+

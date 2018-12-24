@@ -12,11 +12,6 @@
 #include "utils.h"
 #include "vulkan_helper.h"
 
-struct __attribute__ ((packed)) Node {
-	uint32_t id;
-
-
-};
 
 int main(void) {
 	glfwInit();
@@ -111,26 +106,9 @@ int main(void) {
 				pSwapChainImages);
 
 	VkShaderModule fragShaderModule;
-	{
-		uint32_t* fragShaderFileContents;
-		uint32_t fragShaderFileLength;
-		readShaderFile("assets/shaders/shader.frag.spv",
-			       &fragShaderFileLength, &fragShaderFileContents);
-		new_ShaderModule(&fragShaderModule, device,
-				 fragShaderFileLength, fragShaderFileContents);
-		free(fragShaderFileContents);
-	}
-
+	new_ShaderModuleFromFile(&fragShaderModule, device, "assets/shaders/shader.frag.spv");
 	VkShaderModule vertShaderModule;
-	{
-		uint32_t* vertShaderFileContents;
-		uint32_t vertShaderFileLength;
-		readShaderFile("assets/shaders/shader.vert.spv",
-			       &vertShaderFileLength, &vertShaderFileContents);
-		new_ShaderModule(&vertShaderModule, device,
-				 vertShaderFileLength, vertShaderFileContents);
-		free(vertShaderFileContents);
-	}
+	new_ShaderModuleFromFile(&vertShaderModule, device, "assets/shaders/shader.vert.spv");
 
 	/* Create graphics pipeline */
 	VkRenderPass renderPass;

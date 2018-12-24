@@ -104,6 +104,9 @@ void delete_SwapChainImageViews(VkImageView** ppImageViews, uint32_t imageCount,
 ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
 		const uint32_t codeSize, const uint32_t* pCode);
 
+ErrVal new_ShaderModuleFromFile(VkShaderModule *pShaderModule,
+				  const VkDevice device, char *filename);
+
 void delete_ShaderModule(VkShaderModule* pShaderModule, const VkDevice device);
 
 ErrVal new_RenderPass(VkRenderPass* pRenderPass, const VkDevice device,
