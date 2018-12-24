@@ -218,8 +218,8 @@ ErrVal new_Instance(VkInstance *pInstance,
 	/* Actually create instance */
 	VkResult result = vkCreateInstance(&createInfo, NULL, pInstance);
 	if (result != VK_SUCCESS) {
-		errLog(FATAL, "Failed to create instance, error code: %d",
-		       (uint32_t)result);
+		errLog(FATAL, "Failed to create instance, error code: %s",
+		       vkstrerror(result));
 		panic();
 	}
 	return (ERR_OK);
@@ -260,8 +260,8 @@ ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
 	}
 	VkResult result = func(instance, &createInfo, NULL, pCallback);
 	if (result != VK_SUCCESS) {
-		errLog(FATAL, "Failed to create debug callback, error code: %d",
-		       (uint32_t)result);
+		errLog(FATAL, "Failed to create debug callback, error code: %s",
+		       vkstrerror(result));
 		panic();
 	}
 	return (ERR_NOTSUPPORTED);
@@ -420,8 +420,8 @@ ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
 	VkResult res =
 	    vkCreateDevice(physicalDevice, &createInfo, NULL, pDevice);
 	if (res != VK_SUCCESS) {
-		errLog(ERROR, "Failed to create device, error code: %d",
-		       (uint32_t)res);
+		errLog(ERROR, "Failed to create device, error code: %s",
+		       vkstrerror(res));
 		panic();
 	}
 	return (ERR_OK);
@@ -481,8 +481,8 @@ ErrVal new_SwapChain(VkSwapchainKHR *pSwapChain,
 	VkResult res =
 	    vkCreateSwapchainKHR(device, &createInfo, NULL, pSwapChain);
 	if (res != VK_SUCCESS) {
-		errLog(ERROR, "Failed to create swap chain, error code: %d",
-		       (uint32_t)res);
+		errLog(ERROR, "Failed to create swap chain, error code: %s",
+		       vkstrerror(res));
 		panic();
 	}
 	return (ERR_OK);
@@ -594,8 +594,8 @@ ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
 	createInfo.subresourceRange.layerCount = 1;
 	VkResult ret = vkCreateImageView(device, &createInfo, NULL, pImageView);
 	if (ret != VK_SUCCESS) {
-		errLog(FATAL, "could not create image view, error code: %d",
-		       (uint32_t)ret);
+		errLog(FATAL, "could not create image view, error code: %s",
+		       vkstrerror(ret));
 		panic();
 	}
 	return (ERR_OK);
@@ -625,8 +625,8 @@ ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
 					     pSwapChainImages[i], format);
 		if (ret != VK_SUCCESS) {
 			errLog(FATAL,
-			       "could not create image view, error code: %d",
-			       (uint32_t)ret);
+			       "could not create image view, error code: %s",
+			       vkstrerror(ret));
 			panic();
 		}
 	}
@@ -716,8 +716,8 @@ ErrVal new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
 	VkResult res =
 	    vkCreateRenderPass(device, &renderPassInfo, NULL, pRenderPass);
 	if (res != VK_SUCCESS) {
-		errLog(FATAL, "Could not create render pass, error: %d",
-		       (uint32_t)res);
+		errLog(FATAL, "Could not create render pass, error: %s",
+		       vkstrerror(res));
 		panic();
 	}
 	return (ERR_OK);
@@ -737,8 +737,8 @@ ErrVal new_PipelineLayout(VkPipelineLayout *pPipelineLayout,
 	VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
 					      pPipelineLayout);
 	if (res != VK_SUCCESS) {
-		errLog(FATAL, "failed to create pipeline layout with error: %d",
-		       (uint32_t)res);
+		errLog(FATAL, "failed to create pipeline layout with error: %s",
+		       vkstrerror(res));
 		panic();
 	}
 	return (ERR_OK);
@@ -935,8 +935,8 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
 				    pSwapChainImageViews[i], swapChainExtent);
 		if (res != VK_SUCCESS) {
 			errLog(ERROR,
-			       "could not create framebuffer, error code: %d",
-			       res);
+			       "could not create framebuffer, error code: %s",
+			       vkstrerror(res));
 			return (res);
 		}
 	}
@@ -995,8 +995,8 @@ ErrVal new_GraphicsCommandBuffers(
 	if (allocateCommandBuffersRetVal != VK_SUCCESS) {
 		errLog(
 		    FATAL,
-		    "Failed to create graphics command buffers, error code: %d",
-		    (uint32_t)allocateCommandBuffersRetVal);
+		    "Failed to create graphics command buffers, error code: %s",
+		    vkstrerror(allocateCommandBuffersRetVal));
 		panic();
 	}
 
@@ -1043,8 +1043,8 @@ ErrVal new_GraphicsCommandBuffers(
 		if (endCommandBufferRetVal != VK_SUCCESS) {
 			errLog(
 			    FATAL,
-			    "Failed to record command buffer, error code: %d",
-			    (uint32_t)endCommandBufferRetVal );
+			    "Failed to record command buffer, error code: %s",
+			    vkstrerror(endCommandBufferRetVal));
 			panic();
 		}
 	}
