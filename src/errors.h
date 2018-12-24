@@ -8,7 +8,6 @@
 #ifndef ERRORS_H_
 #define ERRORS_H_
 
-
 #define DEBUG 1
 #define INFO 2
 #define WARN 3
@@ -31,11 +30,12 @@
 #define ERR_UNSAFE 3
 #define ERR_BADARGS 4
 #define ERR_OUTOFDATE 5
+#define ERR_ALLOCFAIL 6
+#define ERR_MEMORY 7
 
 typedef uint32_t ErrVal;
 
-void errLog(int level, const char* message, ...);
-
+void errLog(int level, const char *message, ...);
 
 void panic();
 

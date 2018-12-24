@@ -18,7 +18,6 @@ void findMatchingStrings(const char *const *ppData, uint32_t dataLen,
                          char **ppResult, uint32_t resultLen,
                          uint32_t *pMatches);
 
-void readShaderFile(const char* filename, uint32_t* length, uint32_t** code);
-
+void readShaderFile(const char *filename, uint32_t *length, uint32_t **code);
 
 #endif /* UTILS_H_ */
