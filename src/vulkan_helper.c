@@ -5,12 +5,13 @@
 
 #include <vulkan/vulkan.h>
 
+#include "linmath.h"
+
 #include "constants.h"
 #include "errors.h"
 #include "utils.h"
 
 #include "vulkan_helper.h"
-#include "../include/linmath.h"
 
 char *vkstrerror(VkResult err) {
 	switch (err) {
@@ -772,11 +773,32 @@ ErrVal new_GraphicsPipeline(VkPipeline *pGraphicsPipeline,
 	VkPipelineShaderStageCreateInfo shaderStages[2] = {vertShaderStageInfo,
 							   fragShaderStageInfo};
 
+
+
+	VkVertexInputBindingDescription bindingDescription = { 0 };
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(struct Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription attributeDescriptions[2];
+
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[0].offset = offsetof(struct Vertex, position);
+
+	attributeDescriptions[1].binding = 0;
+	attributeDescriptions[1].location = 1;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[1].offset = offsetof(struct Vertex, color);
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {0};
 	vertexInputInfo.sType =
 	    VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = 2;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {0};
 	inputAssembly.sType =
@@ -1225,10 +1247,6 @@ ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
 	return (ERR_OK);
 }
 
-struct Vertex {
-	vec2 position;
-	vec3 color;
-};
 
-ErrVal getVertex(struct Vertex* )
+
 
