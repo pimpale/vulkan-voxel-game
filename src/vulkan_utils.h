@@ -120,19 +120,19 @@ ErrVal new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
 
 void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device);
 
-ErrVal new_PipelineLayout(VkPipelineLayout *pPipelineLayout,
-                          const VkDevice device);
+ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                       const VkDevice device);
 
 void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
                            const VkDevice device);
 
-ErrVal new_GraphicsPipeline(VkPipeline *pGraphicsPipeline,
-                            const VkDevice device,
-                            const VkShaderModule vertShaderModule,
-                            const VkShaderModule fragShaderModule,
-                            const VkExtent2D extent,
-                            const VkRenderPass renderPass,
-                            const VkPipelineLayout pipelineLayout);
+ErrVal new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
+                                 const VkDevice device,
+                                 const VkShaderModule vertShaderModule,
+                                 const VkShaderModule fragShaderModule,
+                                 const VkExtent2D extent,
+                                 const VkRenderPass renderPass,
+                                 const VkPipelineLayout pipelineLayout);
 
 void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device);
 
@@ -152,16 +152,15 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
 
 void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device);
 
-ErrVal new_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers,
-                                  const VkDevice device,
-                                  const VkRenderPass renderPass,
-                                  const VkPipeline graphicsPipeline,
-                                  const VkCommandPool commandPool,
-                                  const VkExtent2D swapChainExtent,
-                                  const uint32_t swapChainFramebufferCount,
-                                  const VkFramebuffer *pSwapChainFramebuffers);
+ErrVal new_VertexDisplayCommandBuffers(
+    VkCommandBuffer **ppCommandBuffers, const VkBuffer vertexBuffer,
+    const uint32_t vertexCount, const VkDevice device,
+    const VkRenderPass renderPass, const VkPipeline graphicsPipeline,
+    const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
+    const uint32_t swapChainFramebufferCount,
+    const VkFramebuffer *pSwapChainFramebuffers);
 
-void delete_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers);
+void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers);
 
 ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device);
 
@@ -187,8 +186,8 @@ ErrVal drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
                  const VkSemaphore *pRenderFinishedSemaphores,
                  const VkQueue graphicsQueue, const VkQueue presentQueue);
 
-ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
-                   const VkInstance instance);
+ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
+                           const VkInstance instance);
 
 void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance);
 
@@ -199,6 +198,12 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                                const VkBufferUsageFlags usage,
                                const VkMemoryPropertyFlags properties);
 
+ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                        const struct Vertex *pVertices,
+                        const uint32_t vertexCount, const VkDevice device,
+                        const VkPhysicalDevice physicalDevice,
+                        const VkCommandPool commandPool, const VkQueue queue);
+
 ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
                   const VkDeviceSize size, const VkCommandPool commandPool,
                   const VkQueue queue, const VkDevice device);
@@ -206,5 +211,14 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device);
 
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device);
+
+ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+                                            const VkDevice device,
+                                            const VkCommandPool commandPool);
+
+ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+                                             const VkDevice device,
+                                             const VkQueue queue,
+                                             const VkCommandPool commandPool);
 
 #endif /* VULKAN_HELPER_H_ */

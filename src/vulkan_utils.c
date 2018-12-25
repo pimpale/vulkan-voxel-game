@@ -1,3 +1,5 @@
+#include "vulkan_utils.h"
+
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -10,8 +12,6 @@
 #include "constants.h"
 #include "errors.h"
 #include "utils.h"
-
-#include "vulkan_helper.h"
 
 char *vkstrerror(VkResult err) {
   switch (err) {
@@ -704,8 +704,8 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
   vkDestroyRenderPass(device, *pRenderPass, NULL);
 }
 
-ErrVal new_PipelineLayout(VkPipelineLayout *pPipelineLayout,
-                          const VkDevice device) {
+ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                       const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
@@ -725,13 +725,13 @@ void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
   vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
 }
 
-ErrVal new_GraphicsPipeline(VkPipeline *pGraphicsPipeline,
-                            const VkDevice device,
-                            const VkShaderModule vertShaderModule,
-                            const VkShaderModule fragShaderModule,
-                            const VkExtent2D extent,
-                            const VkRenderPass renderPass,
-                            const VkPipelineLayout pipelineLayout) {
+ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
+                                 const VkDevice device,
+                                 const VkShaderModule vertShaderModule,
+                                 const VkShaderModule fragShaderModule,
+                                 const VkExtent2D extent,
+                                 const VkRenderPass renderPass,
+                                 const VkPipelineLayout pipelineLayout) {
   VkPipelineShaderStageCreateInfo vertShaderStageInfo = {0};
   vertShaderStageInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -939,14 +939,14 @@ void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
   vkDestroyCommandPool(device, *pCommandPool, NULL);
 }
 
-ErrVal new_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers,
-                                  const VkDevice device,
-                                  const VkRenderPass renderPass,
-                                  const VkPipeline graphicsPipeline,
-                                  const VkCommandPool commandPool,
-                                  const VkExtent2D swapChainExtent,
-                                  const uint32_t swapChainFramebufferCount,
-                                  const VkFramebuffer *pSwapChainFramebuffers) {
+ErrVal new_VertexDisplayCommandBuffers(
+    VkCommandBuffer **ppCommandBuffers, const VkBuffer vertexBuffer,
+    const uint32_t vertexCount, const VkDevice device,
+    const VkRenderPass renderPass, const VkPipeline graphicsPipeline,
+    const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
+    const uint32_t swapChainFramebufferCount,
+    const VkFramebuffer *pSwapChainFramebuffers) {
+
   VkCommandBufferAllocateInfo allocInfo = {0};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = commandPool;
@@ -1001,8 +1001,10 @@ ErrVal new_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers,
     vkCmdBindPipeline(pCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       graphicsPipeline);
 
-    vkCmdDraw(pCommandBuffers[i], 3, 1, 0, 0);
-
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(pCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+    vkCmdDraw(pCommandBuffers[i], vertexCount, 1, 0, 0);
     vkCmdEndRenderPass(pCommandBuffers[i]);
 
     VkResult endCommandBufferRetVal = vkEndCommandBuffer(pCommandBuffers[i]);
@@ -1017,7 +1019,7 @@ ErrVal new_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers,
   return (VK_SUCCESS);
 }
 
-void delete_GraphicsCommandBuffers(VkCommandBuffer **ppCommandBuffers) {
+void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers) {
   free(*ppCommandBuffers);
   *ppCommandBuffers = NULL;
 }
@@ -1098,6 +1100,8 @@ void delete_Fences(VkFence **ppFences, const uint32_t fenceCount,
   *ppFences = NULL;
 }
 
+/* Draws a frame to the surface provided, and sets things up for the next frame
+ */
 uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
                    const VkDevice device, const VkSwapchainKHR swapChain,
                    const VkCommandBuffer *pCommandBuffers,
@@ -1105,6 +1109,7 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
                    const VkSemaphore *pImageAvailableSemaphores,
                    const VkSemaphore *pRenderFinishedSemaphores,
                    const VkQueue graphicsQueue, const VkQueue presentQueue) {
+  /* Waits for the the current frame to finish processing */
   VkResult fenceWait = vkWaitForFences(
       device, 1, &pInFlightFences[*pCurrentFrame], VK_TRUE, UINT64_MAX);
   if (fenceWait != VK_SUCCESS) {
@@ -1118,11 +1123,13 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
     errLog(FATAL, "failed to reset fence while drawing frame: %s",
            vkstrerror(fenceResetResult));
   }
+  /* Gets the next image from the swap Chain */
   uint32_t imageIndex;
   VkResult nextImageResult = vkAcquireNextImageKHR(
       device, swapChain, UINT64_MAX, pImageAvailableSemaphores[*pCurrentFrame],
       VK_NULL_HANDLE, &imageIndex);
-
+  /* If the window has been resized, the result will be an out of date error,
+   * meaning that the swap chain must be resized */
   if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR) {
     return (ERR_OUTOFDATE);
   } else if (nextImageResult != VK_SUCCESS) {
@@ -1133,6 +1140,7 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   VkSubmitInfo submitInfo = {0};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
+  /* Sets up for next frame */
   VkSemaphore waitSemaphores[] = {pImageAvailableSemaphores[*pCurrentFrame]};
   VkPipelineStageFlags waitStages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -1154,6 +1162,7 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
     panic();
   }
 
+  /* Present frame to screen */
   VkPresentInfoKHR presentInfo = {0};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -1167,16 +1176,19 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   presentInfo.pImageIndices = &imageIndex;
 
   vkQueuePresentKHR(presentQueue, &presentInfo);
+  /* Increments the current frame by one */ /* TODO come up with more graceful
+                                               solution */
   *pCurrentFrame = (*pCurrentFrame + 1) % maxFramesInFlight;
-
   return (ERR_OK);
 }
 
+/* Deletes a VkSurfaceKHR */
 void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance) {
   vkDestroySurfaceKHR(instance, *pSurface, NULL);
   *pSurface = VK_NULL_HANDLE;
 }
 
+/* Gets the extent of the given GLFW window */
 ErrVal getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
   int width;
   int height;
@@ -1186,19 +1198,24 @@ ErrVal getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
   return (ERR_OK);
 }
 
+/* Creates a new window using the GLFW library. */
 ErrVal new_GLFWwindow(GLFWwindow **ppGLFWwindow) {
+  /* Not resizable */
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   *ppGLFWwindow =
       glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, APPNAME, NULL, NULL);
   if (*ppGLFWwindow == NULL) {
+    errLog(ERROR, "failed to create GLFW window");
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
 }
 
-ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
-                   const VkInstance instance) {
+/* Creates a new window surface using the glfw libraries. This must be deleted
+ * with the delete_Surface function*/
+ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
+                           const VkInstance instance) {
   VkResult res = glfwCreateWindowSurface(instance, pWindow, NULL, pSurface);
   if (res != VK_SUCCESS) {
     errLog(FATAL, "failed to create surface, quitting");
@@ -1207,14 +1224,20 @@ ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
   return (ERR_OK);
 }
 
+/* returns any errors encountered. Finds the index of the correct type of memory
+ * to allocate for a given physical device using the bits and flags that are
+ * requested. */
 ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
                           const uint32_t memoryTypeBits,
                           const VkMemoryPropertyFlags memoryPropertyFlags,
                           const VkPhysicalDevice physicalDevice) {
+  /* Retrieve memory properties */
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+  /* Check each memory type to see if it conforms to our requirements */
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((memoryTypeBits & (1 << i)) &&
+    if ((memoryTypeBits &
+         (1 << i)) && /* TODO figure out what's going on over here */
         (memProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) ==
             memoryPropertyFlags) {
       *memoryTypeIndex = i;
@@ -1225,12 +1248,11 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
   return (ERR_MEMORY);
 }
 
-ErrVal createVertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                          const struct Vertex *pVertices,
-                          const uint32_t vertexCount, const VkDevice device,
-                          const VkPhysicalDevice physicalDevice,
-                          const VkCommandPool commandPool,
-                          const VkQueue queue) {
+ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                        const struct Vertex *pVertices,
+                        const uint32_t vertexCount, const VkDevice device,
+                        const VkPhysicalDevice physicalDevice,
+                        const VkCommandPool commandPool, const VkQueue queue) {
   /* Construct staging buffers */
   VkDeviceSize bufferSize = sizeof(struct Vertex) * vertexCount;
   VkBuffer stagingBuffer;
@@ -1247,9 +1269,12 @@ ErrVal createVertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
     return stagingBufferCreateResult;
   }
 
+  /* Map memory and copy the vertices to the staging buffer */
   void *data;
   VkResult mapMemoryResult =
       vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+
+  /* On failure */
   if (mapMemoryResult != VK_SUCCESS) {
     /* Delete the temporary staging buffers */
     delete_Buffer(&stagingBuffer, device);
@@ -1259,13 +1284,17 @@ ErrVal createVertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
     return (ERR_MEMORY);
   }
 
+  /* If it was successful, go on and actually copy it, making sure to unmap once
+   * done */
   memcpy(data, pVertices, (size_t)bufferSize);
   vkUnmapMemory(device, stagingBufferMemory);
+
   /* Create vertex buffer and allocate memory for it */
   VkResult vertexBufferCreateResult = new_Buffer_DeviceMemory(
       pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
   /* Handle errors */
   if (vertexBufferCreateResult != VK_SUCCESS) {
     /* Delete the temporary staging buffers */
@@ -1274,15 +1303,13 @@ ErrVal createVertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
     errLog(ERROR, "failed to create vertex buffer");
     return (vertexBufferCreateResult);
   }
+
   /* Copy the data over from the staging buffer to the vertex buffer */
   copyBuffer(*pBuffer, stagingBuffer, bufferSize, commandPool, queue, device);
 
   /* Delete the temporary staging buffers */
   delete_Buffer(&stagingBuffer, device);
   delete_DeviceMemory(&stagingBufferMemory, device);
-
-  /* If mapping or unmapping the memory fails for any reason, we should
-   * deallocate the staging buffers */
 
   return (ERR_OK);
 }
@@ -1337,41 +1364,97 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
 ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
                   const VkDeviceSize size, const VkCommandPool commandPool,
                   const VkQueue queue, const VkDevice device) {
-  VkCommandBufferAllocateInfo allocInfo = {0};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = commandPool;
-  allocInfo.commandBufferCount = 1;
 
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+  VkCommandBuffer copyCommandBuffer;
+  ErrVal beginResult = new_begin_OneTimeSubmitCommandBuffer(
+      &copyCommandBuffer, device, commandPool);
 
-  VkCommandBufferBeginInfo beginInfo = {0};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  if (beginResult != VK_SUCCESS) {
+    errLog(ERROR, "failed to begin command buffer");
+    return (beginResult);
+  }
 
   VkBufferCopy copyRegion = {0};
   copyRegion.size = size;
   copyRegion.srcOffset = 0;
   copyRegion.dstOffset = 0;
-  vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1,
+  vkCmdCopyBuffer(copyCommandBuffer, sourceBuffer, destinationBuffer, 1,
                   &copyRegion);
 
-  vkEndCommandBuffer(commandBuffer);
+  ErrVal endResult = delete_end_OneTimeSubmitCommandBuffer(
+      &copyCommandBuffer, device, queue, commandPool);
+
+  if (endResult != VK_SUCCESS) {
+    errLog(ERROR, "failed to end command buffer");
+    return endResult;
+  }
+
+  return (ERR_OK);
+}
+
+ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+                                            const VkDevice device,
+                                            const VkCommandPool commandPool) {
+  VkCommandBufferAllocateInfo allocateInfo = {0};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocateInfo.commandPool = commandPool;
+  allocateInfo.commandBufferCount = 1;
+
+  VkResult allocateResult =
+      vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
+  if (allocateResult != VK_SUCCESS) {
+    errLog(ERROR, "failed to allocate command buffers: %s",
+           vkstrerror(allocateResult));
+    return (ERR_MEMORY);
+  }
+
+  VkCommandBufferBeginInfo beginInfo = {0};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  VkResult res = vkBeginCommandBuffer(*pCommandBuffer, &beginInfo);
+  if (res != VK_SUCCESS) {
+    errLog(ERROR, "failed to create command buffer: %s", vkstrerror(res));
+    return (ERR_UNKNOWN);
+  }
+
+  return (ERR_OK);
+}
+
+ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+                                             const VkDevice device,
+                                             const VkQueue queue,
+                                             const VkCommandPool commandPool) {
+  ErrVal retVal = ERR_OK;
+  VkResult bufferEndResult = vkEndCommandBuffer(*pCommandBuffer);
+  if (bufferEndResult != VK_SUCCESS) {
+    /* Clean up resources */
+    errLog(ERROR, "failed to end one time submit command buffer: %s",
+           vkstrerror(bufferEndResult));
+    retVal = ERR_UNKNOWN;
+    goto FREEALL;
+  }
 
   VkSubmitInfo submitInfo = {0};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  submitInfo.pCommandBuffers = pCommandBuffer;
 
-  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  VkResult queueSubmitResult =
+      vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  if (queueSubmitResult != VK_SUCCESS) {
+    errLog(ERROR,
+           "failed to submit one time submit command buffer to queue: %s",
+           vkstrerror(queueSubmitResult));
+    retVal = ERR_UNKNOWN;
+    goto FREEALL;
+  }
+
+FREEALL:
   vkQueueWaitIdle(queue);
-
-  vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-
-  return (ERR_OK);
+  vkFreeCommandBuffers(device, commandPool, 1, pCommandBuffer);
+  pCommandBuffer = VK_NULL_HANDLE;
+  return (retVal);
 }
 
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
