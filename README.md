@@ -10,8 +10,12 @@ $ make
 ```
 
 Run from the project root directory.
-````bash
-$ ./build 
+
+```bash
+$ ./build/plant-simulator
 ```
 
+Part of this project is based upon 
+<https://vulkan-tutorial.com>
 
+In addition, it uses the linmath.h library, which can be found at <https://github.com/datenwolf/linmath.h>

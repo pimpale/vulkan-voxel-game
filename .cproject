@@ -30,6 +30,7 @@
 									<listOptionValue builtIn="false" value="include"/>
 									<listOptionValue builtIn="false" value="../include"/>
 								</option>
+								<option id="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std.1877501073" superClass="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.c.compiler.dialect.c11" valueType="enumerated"/>
 								<inputType id="cdt.managedbuild.tool.llvm.c.compiler.input.1090369570" superClass="cdt.managedbuild.tool.llvm.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.llvm.clang.linux.cpp.compiler.exe.debug.97762056" name="LLVM Clang++" superClass="cdt.managedbuild.tool.llvm.clang.linux.cpp.compiler.exe.debug">

@@ -305,14 +305,14 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
       break;
     }
   }
-
+  free(arr);
   if (selectedDevice == VK_NULL_HANDLE) {
     errLog(WARN, "no suitable Vulkan device found");
     return (ERR_NOTSUPPORTED);
+  } else {
+    *pDevice = selectedDevice;
+    return (ERR_OK);
   }
-  free(arr);
-  *pDevice = selectedDevice;
-  return (ERR_OK);
 }
 
 /**
@@ -517,7 +517,8 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
     }
   } else {
     errLog(ERROR, "no formats available");
-    panic();
+    free(pSurfaceFormats);
+    return (ERR_NOTSUPPORTED);
   }
 
   free(pSurfaceFormats);
@@ -884,6 +885,7 @@ ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
 
 void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device) {
   vkDestroyFramebuffer(device, *pFramebuffer, NULL);
+  *pFramebuffer = VK_NULL_HANDLE;
 }
 
 ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
@@ -904,6 +906,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
     if (res != VK_SUCCESS) {
       errLog(ERROR, "could not create framebuffer, error code: %s",
              vkstrerror(res));
+      free(tmp);
       return (res);
     }
   }
@@ -1027,6 +1030,7 @@ ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
 
 void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
   vkDestroySemaphore(device, *pSemaphore, NULL);
+  *pSemaphore = NULL;
 }
 
 ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
@@ -1052,6 +1056,7 @@ void delete_Semaphores(VkSemaphore **ppSemaphores,
     delete_Semaphore(&((*ppSemaphores)[i]), device);
   }
   free(*ppSemaphores);
+  *ppSemaphores = NULL;
 }
 
 ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
@@ -1063,6 +1068,7 @@ ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
 
 void delete_Fence(VkFence *pFence, const VkDevice device) {
   vkDestroyFence(device, *pFence, NULL);
+  *pFence = VK_NULL_HANDLE;
 }
 
 ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
@@ -1089,6 +1095,7 @@ void delete_Fences(VkFence **ppFences, const uint32_t fenceCount,
     delete_Fence(&(*ppFences)[i], device);
   }
   free(*ppFences);
+  *ppFences = NULL;
 }
 
 uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
@@ -1167,6 +1174,7 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
 
 void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance) {
   vkDestroySurfaceKHR(instance, *pSurface, NULL);
+  *pSurface = VK_NULL_HANDLE;
 }
 
 ErrVal getWindowExtent(VkExtent2D *pExtent, GLFWwindow *pWindow) {
@@ -1199,9 +1207,10 @@ ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
   return (ERR_OK);
 }
 
-ErrVal getMemoryType(uint32_t *memoryTypeIndex, const uint32_t memoryTypeBits,
-                     const VkMemoryPropertyFlags memoryPropertyFlags,
-                     const VkPhysicalDevice physicalDevice) {
+ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
+                          const uint32_t memoryTypeBits,
+                          const VkMemoryPropertyFlags memoryPropertyFlags,
+                          const VkPhysicalDevice physicalDevice) {
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -1216,10 +1225,74 @@ ErrVal getMemoryType(uint32_t *memoryTypeIndex, const uint32_t memoryTypeBits,
   return (ERR_MEMORY);
 }
 
-ErrVal createBuffer(VkBuffer *buffer, VkDeviceMemory *bufferMemory,
-                    const VkDevice device, const VkDeviceSize size,
-                    const VkBufferUsageFlags usage,
-                    const VkMemoryPropertyFlags properties) {
+ErrVal createVertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                          const struct Vertex *pVertices,
+                          const uint32_t vertexCount, const VkDevice device,
+                          const VkPhysicalDevice physicalDevice,
+                          const VkCommandPool commandPool,
+                          const VkQueue queue) {
+  /* Construct staging buffers */
+  VkDeviceSize bufferSize = sizeof(struct Vertex) * vertexCount;
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+  VkResult stagingBufferCreateResult = new_Buffer_DeviceMemory(
+      &stagingBuffer, &stagingBufferMemory, bufferSize, physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  if (stagingBufferCreateResult != VK_SUCCESS) {
+    errLog(ERROR,
+           "failed to create vertex buffer: failed to create staging buffer");
+    return stagingBufferCreateResult;
+  }
+
+  void *data;
+  VkResult mapMemoryResult =
+      vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+  if (mapMemoryResult != VK_SUCCESS) {
+    /* Delete the temporary staging buffers */
+    delete_Buffer(&stagingBuffer, device);
+    delete_DeviceMemory(&stagingBufferMemory, device);
+    errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
+           vkstrerror(mapMemoryResult));
+    return (ERR_MEMORY);
+  }
+
+  memcpy(data, pVertices, (size_t)bufferSize);
+  vkUnmapMemory(device, stagingBufferMemory);
+  /* Create vertex buffer and allocate memory for it */
+  VkResult vertexBufferCreateResult = new_Buffer_DeviceMemory(
+      pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  /* Handle errors */
+  if (vertexBufferCreateResult != VK_SUCCESS) {
+    /* Delete the temporary staging buffers */
+    delete_Buffer(&stagingBuffer, device);
+    delete_DeviceMemory(&stagingBufferMemory, device);
+    errLog(ERROR, "failed to create vertex buffer");
+    return (vertexBufferCreateResult);
+  }
+  /* Copy the data over from the staging buffer to the vertex buffer */
+  copyBuffer(*pBuffer, stagingBuffer, bufferSize, commandPool, queue, device);
+
+  /* Delete the temporary staging buffers */
+  delete_Buffer(&stagingBuffer, device);
+  delete_DeviceMemory(&stagingBufferMemory, device);
+
+  /* If mapping or unmapping the memory fails for any reason, we should
+   * deallocate the staging buffers */
+
+  return (ERR_OK);
+}
+
+ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                               const VkDeviceSize size,
+                               const VkPhysicalDevice physicalDevice,
+                               const VkDevice device,
+                               const VkBufferUsageFlags usage,
+                               const VkMemoryPropertyFlags properties) {
   VkBufferCreateInfo bufferInfo = {0};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;
@@ -1227,44 +1300,86 @@ ErrVal createBuffer(VkBuffer *buffer, VkDeviceMemory *bufferMemory,
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   /* Create buffer */
   VkResult bufferCreateResult =
-      vkCreateBuffer(device, &bufferInfo, NULL, &buffer);
+      vkCreateBuffer(device, &bufferInfo, NULL, pBuffer);
   if (bufferCreateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to create buffer: %s", vksterror(bufferCreateResult));
+    errLog(ERROR, "failed to create buffer: %s",
+           vkstrerror(bufferCreateResult));
     return (ERR_UNKNOWN);
   }
   /* Allocate memory for buffer */
   VkMemoryRequirements memoryRequirements;
-  vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
+  vkGetBufferMemoryRequirements(device, *pBuffer, &memoryRequirements);
 
   VkMemoryAllocateInfo allocateInfo = {0};
   allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocateInfo.allocationSize = memoryRequirements.size;
-  ErrVal getMemoryTypeRetVal =
-      getMemoryTypeIndex(&allocateInfo.memoryTypeIndex,
-                         memoryRequirements.memoryTypeBits, properties);
+  /* Get the type of memory required, handle errors */
+  ErrVal getMemoryTypeRetVal = getMemoryTypeIndex(
+      &allocateInfo.memoryTypeIndex, memoryRequirements.memoryTypeBits,
+      properties, physicalDevice);
   if (getMemoryTypeRetVal != ERR_OK) {
     errLog(ERROR, "failed to get type of memory to allocate");
     return (ERR_MEMORY);
   }
 
+  /* Actually allocate memory */
   VkResult memoryAllocateResult =
-      vkAllocateMemory(device, &allocateInfo, NULL, &bufferMemory);
+      vkAllocateMemory(device, &allocateInfo, NULL, pBufferMemory);
   if (memoryAllocateResult != VK_SUCCESS) {
     errLog(ERROR, "failed to allocate memory for buffer: %s",
            vkstrerror(memoryAllocateResult));
     return (ERR_ALLOCFAIL);
   }
-  vkBindBufferMemory(device, buffer, bufferMemory, 0);
+  vkBindBufferMemory(device, *pBuffer, *pBufferMemory, 0);
   return (ERR_OK);
 }
 
-void delete_Buffer(VkBuffer *buffer,
-                   VkDeviceMemory deviceMemoryconst VkDevice device) {
-  vkDestroyBuffer(*buffer, device);
-}
+ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
+                  const VkDeviceSize size, const VkCommandPool commandPool,
+                  const VkQueue queue, const VkDevice device) {
+  VkCommandBufferAllocateInfo allocInfo = {0};
+  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = commandPool;
+  allocInfo.commandBufferCount = 1;
 
-ErrVal new_DeviceMemory(VkDeviceMemory *deviceMemory,
-                        const VkPhysicalDevice physicalDevice) {
+  VkCommandBuffer commandBuffer;
+  vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+  VkCommandBufferBeginInfo beginInfo = {0};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+  VkBufferCopy copyRegion = {0};
+  copyRegion.size = size;
+  copyRegion.srcOffset = 0;
+  copyRegion.dstOffset = 0;
+  vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1,
+                  &copyRegion);
+
+  vkEndCommandBuffer(commandBuffer);
+
+  VkSubmitInfo submitInfo = {0};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+
+  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueWaitIdle(queue);
+
+  vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 
   return (ERR_OK);
+}
+
+void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
+  vkDestroyBuffer(device, *pBuffer, NULL);
+  *pBuffer = VK_NULL_HANDLE;
+}
+
+void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device) {
+  vkFreeMemory(device, *pDeviceMemory, NULL);
+  *pDeviceMemory = VK_NULL_HANDLE;
 }

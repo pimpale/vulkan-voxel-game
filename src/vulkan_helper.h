@@ -192,4 +192,19 @@ ErrVal new_Surface(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
 
 void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance);
 
+ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                               const VkDeviceSize size,
+                               const VkPhysicalDevice physicalDevice,
+                               const VkDevice device,
+                               const VkBufferUsageFlags usage,
+                               const VkMemoryPropertyFlags properties);
+
+ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
+                  const VkDeviceSize size, const VkCommandPool commandPool,
+                  const VkQueue queue, const VkDevice device);
+
+void delete_Buffer(VkBuffer *pBuffer, const VkDevice device);
+
+void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device);
+
 #endif /* VULKAN_HELPER_H_ */
