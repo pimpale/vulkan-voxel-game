@@ -136,6 +136,11 @@ ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
   /* Allocate buffers for extensions */
   for (uint32_t i = 0; i < *pEnabledExtensionCount; i++) {
     (*pppEnabledExtensionNames)[i] = malloc(VK_MAX_EXTENSION_NAME_SIZE);
+    if (!((*pppEnabledExtensionNames)[i])) /* If it's null */
+    {
+      errLog(FATAL, "failed to get required extensions: %s", strerror(errno));
+      panic();
+    }
   }
   /* Copy our extensions in  (we're malloccing everything to make it
    * simple to deallocate at the end without worrying about what needs to
@@ -162,6 +167,10 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 ErrVal new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
   *pLayerCount = 1;
   *pppLayerNames = malloc(sizeof(char *) * sizeof(*pLayerCount));
+  if (!(*pppLayerNames)) {
+    errLog(FATAL, "failed to get validation layers: %s", strerror(errno));
+    panic();
+  }
   **pppLayerNames = "VK_LAYER_LUNARG_standard_validation";
   return (ERR_OK);
 }
@@ -178,6 +187,11 @@ ErrVal new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
   *pEnabledExtensionCount = 1;
   *pppEnabledExtensionNames =
       malloc(sizeof(char *) * sizeof(*pEnabledExtensionCount));
+  if (!(*pppEnabledExtensionNames)) {
+    errLog(FATAL, "failed to get required device extensions: %s",
+           strerror(errno));
+    panic();
+  }
   **pppEnabledExtensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   return (ERR_OK);
 }
@@ -286,7 +300,7 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
   }
   VkPhysicalDevice *arr = malloc(deviceCount * sizeof(VkPhysicalDevice));
   if (!arr) {
-    errLog(FATAL, "failed to allocate memory: %s", strerror(errno));
+    errLog(FATAL, "failed to get physical device: %s", strerror(errno));
     panic();
   }
   vkEnumeratePhysicalDevices(instance, &deviceCount, arr);
@@ -704,11 +718,14 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
   vkDestroyRenderPass(device, *pRenderPass, NULL);
 }
 
-ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                       const VkDevice device) {
+ErrVal new_VertexDisplayPipelineLayout(
+    VkPipelineLayout *pPipelineLayout,
+    const VkDescriptorSetLayout modelViewProjectionDescriptorSetLayout,
+    const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &modelViewProjectionDescriptorSetLayout;
   pipelineLayoutInfo.pushConstantRangeCount = 0;
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
@@ -725,7 +742,7 @@ void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
   vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
 }
 
-ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
+ErrVal new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
                                  const VkDevice device,
                                  const VkShaderModule vertShaderModule,
                                  const VkShaderModule fragShaderModule,
@@ -807,7 +824,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   rasterizer.lineWidth = 1.0f;
   rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;
 
   VkPipelineMultisampleStateCreateInfo multisampling = {0};
@@ -850,7 +867,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
   if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
-                                pGraphicsPipeline) != VK_SUCCESS) {
+                                pVertexDisplayPipeline) != VK_SUCCESS) {
     errLog(FATAL, "failed to create graphics pipeline!");
     panic();
   }
@@ -894,24 +911,27 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const VkExtent2D swapChainExtent,
                                  const uint32_t imageCount,
                                  const VkImageView *pSwapChainImageViews) {
-  VkFramebuffer *tmp = malloc(imageCount * sizeof(VkFramebuffer));
-  if (!tmp) {
+  if (imageCount == 0) {
+    errLog(ERROR, "could not create zero framebuffers");
+    return (ERR_UNSAFE);
+  }
+
+  *ppFramebuffers = malloc(imageCount * sizeof(VkFramebuffer));
+  if (!(*ppFramebuffers)) {
     errLog(FATAL, "could not create framebuffers: %s", strerror(errno));
     panic();
   }
 
   for (uint32_t i = 0; i < imageCount; i++) {
-    uint32_t res = new_Framebuffer(&(tmp[i]), device, renderPass,
-                                   pSwapChainImageViews[i], swapChainExtent);
+    ErrVal res = new_Framebuffer(&((*ppFramebuffers)[i]), device, renderPass,
+                                 pSwapChainImageViews[i], swapChainExtent);
     if (res != VK_SUCCESS) {
+      delete_SwapChainFramebuffers(ppFramebuffers, i, device);
       errLog(ERROR, "could not create framebuffer, error code: %s",
              vkstrerror(res));
-      free(tmp);
       return (res);
     }
   }
-
-  *ppFramebuffers = tmp;
   return (ERR_OK);
 }
 
@@ -937,24 +957,27 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
 
 void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
   vkDestroyCommandPool(device, *pCommandPool, NULL);
+  *pCommandPool = VK_NULL_HANDLE;
 }
 
 ErrVal new_VertexDisplayCommandBuffers(
     VkCommandBuffer **ppCommandBuffers, const VkBuffer vertexBuffer,
     const uint32_t vertexCount, const VkDevice device,
-    const VkRenderPass renderPass, const VkPipeline graphicsPipeline,
-    const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
-    const uint32_t swapChainFramebufferCount,
+    const VkRenderPass renderPass,
+    const VkPipelineLayout vertexDisplayPipelineLayout,
+    const VkPipeline vertexDisplayPipeline, const VkCommandPool commandPool,
+    const VkExtent2D swapChainExtent, const uint32_t swapChainImageCount,
+    const VkDescriptorSet *pModelViewProjectionDescriptorSets,
     const VkFramebuffer *pSwapChainFramebuffers) {
 
   VkCommandBufferAllocateInfo allocInfo = {0};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = commandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = swapChainFramebufferCount;
+  allocInfo.commandBufferCount = swapChainImageCount;
 
   VkCommandBuffer *pCommandBuffers =
-      malloc(swapChainFramebufferCount * sizeof(VkCommandBuffer));
+      malloc(swapChainImageCount * sizeof(VkCommandBuffer));
   if (!pCommandBuffers) {
     errLog(FATAL, "Failed to create graphics command buffers: %s",
            strerror(errno));
@@ -969,7 +992,7 @@ ErrVal new_VertexDisplayCommandBuffers(
     panic();
   }
 
-  for (size_t i = 0; i < swapChainFramebufferCount; i++) {
+  for (size_t i = 0; i < swapChainImageCount; i++) {
     VkCommandBufferBeginInfo beginInfo = {0};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -999,11 +1022,14 @@ ErrVal new_VertexDisplayCommandBuffers(
                          VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(pCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      graphicsPipeline);
+                      vertexDisplayPipeline);
 
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(pCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+    vkCmdBindDescriptorSets(pCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            vertexDisplayPipelineLayout, 0, 1,
+                            &(pModelViewProjectionDescriptorSets[i]), 0, NULL);
     vkCmdDraw(pCommandBuffers[i], vertexCount, 1, 0, 0);
     vkCmdEndRenderPass(pCommandBuffers[i]);
 
@@ -1047,7 +1073,13 @@ ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
   }
 
   for (uint32_t i = 0; i < semaphoreCount; i++) {
-    new_Semaphore(&(*ppSemaphores)[i], device);
+    ErrVal retVal = new_Semaphore(&(*ppSemaphores)[i], device);
+    if (retVal != ERR_OK) {
+      /* Rollback changes and log error */
+      delete_Semaphores(ppSemaphores, i, device);
+      errLog(ERROR, "failed to create semaphores");
+      return (retVal);
+    }
   }
   return (ERR_OK);
 }
@@ -1176,8 +1208,8 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   presentInfo.pImageIndices = &imageIndex;
 
   vkQueuePresentKHR(presentQueue, &presentInfo);
-  /* Increments the current frame by one */ /* TODO come up with more graceful
-                                               solution */
+  /* Increments the current frame by one */
+  /* TODO come up with more graceful solution */
   *pCurrentFrame = (*pCurrentFrame + 1) % maxFramesInFlight;
   return (ERR_OK);
 }
@@ -1270,25 +1302,15 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   }
 
   /* Map memory and copy the vertices to the staging buffer */
-  void *data;
-  VkResult mapMemoryResult =
-      vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-
-  /* On failure */
-  if (mapMemoryResult != VK_SUCCESS) {
-    /* Delete the temporary staging buffers */
+  ErrVal copyResult =
+      copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
+  if (copyResult != ERR_OK) {
+    errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
+           vkstrerror(copyResult));
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
-    errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
-           vkstrerror(mapMemoryResult));
-    return (ERR_MEMORY);
+    return (copyResult);
   }
-
-  /* If it was successful, go on and actually copy it, making sure to unmap once
-   * done */
-  memcpy(data, pVertices, (size_t)bufferSize);
-  vkUnmapMemory(device, stagingBufferMemory);
-
   /* Create vertex buffer and allocate memory for it */
   VkResult vertexBufferCreateResult = new_Buffer_DeviceMemory(
       pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
@@ -1311,6 +1333,27 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   delete_Buffer(&stagingBuffer, device);
   delete_DeviceMemory(&stagingBufferMemory, device);
 
+  return (ERR_OK);
+}
+
+ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
+                          const VkDeviceSize deviceSize, const void *source,
+                          const VkDevice device) {
+  void *data;
+  VkResult mapMemoryResult =
+      vkMapMemory(device, *pDeviceMemory, 0, deviceSize, 0, &data);
+
+  /* On failure */
+  if (mapMemoryResult != VK_SUCCESS) {
+    errLog(ERROR, "failed to copy to device memory: failed to map memory: %s",
+           vkstrerror(mapMemoryResult));
+    return (ERR_MEMORY);
+  }
+
+  /* If it was successful, go on and actually copy it, making sure to unmap once
+   * done */
+  memcpy(data, source, (size_t)deviceSize);
+  vkUnmapMemory(device, *pDeviceMemory);
   return (ERR_OK);
 }
 
@@ -1371,7 +1414,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
 
   if (beginResult != VK_SUCCESS) {
     errLog(ERROR, "failed to begin command buffer");
-    return (beginResult);
+    return (ERR_UNKNOWN);
   }
 
   VkBufferCopy copyRegion = {0};
@@ -1386,12 +1429,16 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
 
   if (endResult != VK_SUCCESS) {
     errLog(ERROR, "failed to end command buffer");
-    return endResult;
+    return (ERR_UNKNOWN);
   }
 
   return (ERR_OK);
 }
 
+/*
+ * Allocates, creates and begins one command buffer to be used.
+ * Must be ended with delete_end_OneTimeSubmitCommandBuffer
+ */
 ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
                                             const VkDevice device,
                                             const VkCommandPool commandPool) {
@@ -1421,6 +1468,10 @@ ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
   return (ERR_OK);
 }
 
+/*
+ * Ends, submits, and deletes one command buffer that was previously created in
+ * new_begin_OneTimeSubmitCommandBuffer
+ */
 ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
                                              const VkDevice device,
                                              const VkQueue queue,
@@ -1449,20 +1500,222 @@ ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
     retVal = ERR_UNKNOWN;
     goto FREEALL;
   }
-
+  /* Deallocate the buffer */
 FREEALL:
   vkQueueWaitIdle(queue);
   vkFreeCommandBuffers(device, commandPool, 1, pCommandBuffer);
-  pCommandBuffer = VK_NULL_HANDLE;
+  *pCommandBuffer = VK_NULL_HANDLE;
   return (retVal);
 }
 
+/* Deletes a VkBuffer */
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
   vkDestroyBuffer(device, *pBuffer, NULL);
   *pBuffer = VK_NULL_HANDLE;
 }
 
+/* Deletes a VkDeviceMemory */
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device) {
   vkFreeMemory(device, *pDeviceMemory, NULL);
   *pDeviceMemory = VK_NULL_HANDLE;
+}
+
+ErrVal new_ModelViewProjectionDescriptorSetLayout(
+    VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device) {
+  VkDescriptorSetLayoutBinding uboLayoutBinding = {0};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.pImmutableSamplers = NULL;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo = {0};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &uboLayoutBinding;
+  VkResult retVal = vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
+                                                pDescriptorSetLayout);
+  if (retVal != VK_SUCCESS) {
+    errLog(ERROR, "failed to create descriptor set layout: %s",
+           vkstrerror(retVal));
+    return (ERR_UNKNOWN);
+  }
+
+  return (ERR_OK);
+}
+
+void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
+                                const VkDevice device) {
+  vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
+  *pDescriptorSetLayout = VK_NULL_HANDLE;
+}
+
+ErrVal new_ModelViewProjectionUniformBuffer(
+    VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+    const VkPhysicalDevice physicalDevice, const VkDevice device) {
+
+  ErrVal retVal = new_Buffer_DeviceMemory(
+      pBuffer, pBufferMemory, sizeof(struct ModelViewProjectionMatrices),
+      physicalDevice, device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  if (retVal != ERR_OK) {
+    errLog(ERROR, "failed to create new model view projection uniform buffer");
+  }
+  return (retVal);
+}
+
+ErrVal new_ModelViewProjectionUniformBuffers(
+    VkBuffer **ppBuffers, VkDeviceMemory **ppBufferMemories,
+    const uint32_t bufferCount, const VkPhysicalDevice physicalDevice,
+    VkDevice device) {
+  /* Ensure we are not allocating zero */
+  if (bufferCount == 0) {
+    /* Set pointers to zero to ensure they can be freed safely */
+    *ppBuffers = NULL;
+    *ppBufferMemories = NULL;
+    errLog(ERROR, "cannot create zero buffers");
+    return (ERR_UNSAFE);
+  }
+
+  *ppBuffers = malloc(sizeof(VkBuffer) * bufferCount);
+  *ppBufferMemories = malloc(sizeof(VkDeviceMemory) * bufferCount);
+
+  if (!(*ppBuffers) || !(*ppBufferMemories)) {
+    errLog(FATAL, "failed to create model view projection uniform buffers: %s",
+           strerror(errno));
+    panic();
+  }
+
+  for (int i = 0; i < bufferCount; i++) {
+    ErrVal retVal = new_ModelViewProjectionUniformBuffer(
+        &((*ppBuffers)[i]), &((*ppBufferMemories)[i]), physicalDevice, device);
+    if (retVal != ERR_OK) {
+      /* Rollback */
+      delete_ModelViewProjectionUniformBuffers(ppBuffers, ppBufferMemories, i,
+                                               device);
+      return (ERR_UNKNOWN);
+    }
+  }
+  return (ERR_OK);
+}
+
+void delete_ModelViewProjectionUniformBuffers(VkBuffer **ppBuffers,
+                                              VkDeviceMemory **ppBufferMemories,
+                                              const uint32_t bufferCount,
+                                              VkDevice device) {
+  for (int i = 0; i < bufferCount; i++) {
+    delete_Buffer(&((*ppBuffers)[i]), device);
+    delete_DeviceMemory(&((*ppBufferMemories)[i]), device);
+  }
+  free(*ppBuffers);
+  free(*ppBufferMemories);
+  *ppBuffers = NULL;
+  *ppBufferMemories = NULL;
+  return;
+}
+
+ErrVal new_ModelViewProjectionDescriptorPool(VkDescriptorPool *pDescriptorPool,
+                                             const uint32_t swapChainImageCount,
+                                             const VkDevice device) {
+  VkDescriptorPoolSize descriptorPoolSize;
+  descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  descriptorPoolSize.descriptorCount = swapChainImageCount;
+
+  VkDescriptorPoolCreateInfo poolInfo = {0};
+  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  poolInfo.poolSizeCount = 1;
+  poolInfo.pPoolSizes = &descriptorPoolSize;
+  poolInfo.maxSets = swapChainImageCount;
+
+  /* Actually create descriptor pool */
+  VkResult ret =
+      vkCreateDescriptorPool(device, &poolInfo, NULL, pDescriptorPool);
+
+  if (ret != VK_SUCCESS) {
+    errLog(ERROR, "failed to create descriptor pool; %s", vkstrerror(ret));
+    return (ERR_UNKNOWN);
+  } else {
+    return (ERR_OK);
+  }
+}
+
+void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
+                           const VkDevice device) {
+  vkDestroyDescriptorPool(device, *pDescriptorPool, NULL);
+  *pDescriptorPool = VK_NULL_HANDLE;
+}
+
+ErrVal new_ModelViewProjectionDescriptorSets(
+    VkDescriptorSet **ppDescriptorSets,
+    const VkBuffer *pModelViewProjectionUniformBuffers,
+    const uint32_t swapChainImageCount,
+    const VkDescriptorSetLayout descriptorSetLayout,
+    const VkDescriptorPool descriptorPool, const VkDevice device) {
+
+  if (swapChainImageCount == 0) {
+    errLog(ERROR, "cannot create 0 descriptor sets");
+    return (ERR_UNSAFE);
+  }
+
+  *ppDescriptorSets = malloc(swapChainImageCount * sizeof(VkDescriptorSet));
+  if (!(*ppDescriptorSets)) {
+    errLog(FATAL, "failed to create descriptor sets: %s", strerror(errno));
+    panic();
+  }
+
+  /* Create array of descriptor set layouts, because we need one for each image
+   */
+  VkDescriptorSetLayout *pDescriptorSetLayouts =
+      malloc(swapChainImageCount * sizeof(VkDescriptorSetLayout));
+  if (!pDescriptorSetLayouts) {
+    errLog(FATAL, "failed to create descriptor sets: %s", strerror(errno));
+    panic();
+  }
+  /* Memcpy original into each one */
+  for (uint32_t i = 0; i < swapChainImageCount; i++) {
+    memcpy(&(pDescriptorSetLayouts[i]), &(descriptorSetLayout),
+           sizeof(VkDescriptorSetLayout));
+  }
+
+  VkDescriptorSetAllocateInfo allocateInfo = {0};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocateInfo.descriptorPool = descriptorPool;
+  allocateInfo.descriptorSetCount = swapChainImageCount;
+  allocateInfo.pSetLayouts = pDescriptorSetLayouts;
+  VkResult allocateDescriptorSetRetVal =
+      vkAllocateDescriptorSets(device, &allocateInfo, *ppDescriptorSets);
+  if (allocateDescriptorSetRetVal != VK_SUCCESS) {
+    errLog(ERROR, "failed to allocate descriptor sets: %s",
+           vkstrerror(allocateDescriptorSetRetVal));
+    free(*ppDescriptorSets);
+    free(pDescriptorSetLayouts);
+    return (ERR_MEMORY);
+  }
+
+  for (size_t i = 0; i < swapChainImageCount; i++) {
+    VkDescriptorBufferInfo bufferInfo = {0};
+    bufferInfo.buffer = pModelViewProjectionUniformBuffers[i];
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(struct ModelViewProjectionMatrices);
+
+    VkWriteDescriptorSet descriptorWrites = {0};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = (*ppDescriptorSets)[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+    descriptorWrites.pImageInfo = NULL;
+    descriptorWrites.pTexelBufferView = NULL;
+    vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, NULL);
+  }
+  free(pDescriptorSetLayouts);
+  return (ERR_OK);
+}
+
+void delete_DescriptorSets(VkDescriptorSet **ppDescriptorSets) {
+  free(*ppDescriptorSets);
+  *ppDescriptorSets = NULL;
 }

@@ -111,8 +111,14 @@ int main(void) {
   VkRenderPass renderPass;
   new_RenderPass(&renderPass, device, surfaceFormat.format);
 
+  VkDescriptorSetLayout modelViewProjectionDescriptorSetLayout;
+  new_ModelViewProjectionDescriptorSetLayout(
+      &modelViewProjectionDescriptorSetLayout, device);
+
   VkPipelineLayout vertexDisplayPipelineLayout;
-  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
+  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout,
+                                  modelViewProjectionDescriptorSetLayout,
+                                  device);
 
   VkPipeline vertexDisplayPipeline;
   new_VertexDisplayPipeline(&vertexDisplayPipeline, device, vertShaderModule,
@@ -126,26 +132,43 @@ int main(void) {
 
   VkCommandPool commandPool;
   new_CommandPool(&commandPool, device, graphicsIndex);
-
-  struct Vertex vertices[6] = {
-      {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+#define VERTEXNUM 6
+  struct Vertex vertices[VERTEXNUM] = {
+      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
 
-      {{0.9f, -0.5f}, {1.0f, 1.0f, 0.0f}}, {{0.9f, 0.5f}, {1.0f, 0.0f, 1.0f}},
-      {{-0.9f, 0.5f}, {0.0f, 1.0f, 1.0f}}
-
+      {{0.5f, -0.5f}, {1.0f, 0.0f, 1.0f}}, {{1.0f, 0.5f}, {0.0f, 1.0f, 1.0f}},
+      {{0.0f, 0.5f}, {1.0f, 1.0f, 0.0f}},
   };
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, 6, device,
-                   physicalDevice, commandPool, graphicsQueue);
+  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, VERTEXNUM,
+                   device, physicalDevice, commandPool, graphicsQueue);
+
+  VkDescriptorPool modelViewProjectionDescriptorPool;
+  new_ModelViewProjectionDescriptorPool(&modelViewProjectionDescriptorPool,
+                                        swapChainImageCount, device);
+
+  VkBuffer *pModelViewProjectionUniformBuffers;
+  VkDeviceMemory *pModelViewProjectionUniformBufferMemories;
+  new_ModelViewProjectionUniformBuffers(
+      &pModelViewProjectionUniformBuffers,
+      &pModelViewProjectionUniformBufferMemories, swapChainImageCount,
+      physicalDevice, device);
+
+  VkDescriptorSet *pModelViewProjectionDescriptorSets;
+  new_ModelViewProjectionDescriptorSets(
+      &pModelViewProjectionDescriptorSets, pModelViewProjectionUniformBuffers,
+      swapChainImageCount, modelViewProjectionDescriptorSetLayout,
+      modelViewProjectionDescriptorPool, device);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
-  new_VertexDisplayCommandBuffers(&pVertexDisplayCommandBuffers, vertexBuffer,
-                                  6, device, renderPass, vertexDisplayPipeline,
-                                  commandPool, swapChainExtent,
-                                  swapChainImageCount, pSwapChainFramebuffers);
+  new_VertexDisplayCommandBuffers(
+      &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
+      renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
+      commandPool, swapChainExtent, swapChainImageCount,
+      pModelViewProjectionDescriptorSets, pSwapChainFramebuffers);
 
   VkSemaphore *pImageAvailableSemaphores;
   VkSemaphore *pRenderFinishedSemaphores;
@@ -197,7 +220,9 @@ int main(void) {
 
       /* Create graphics pipeline */
       new_RenderPass(&renderPass, device, surfaceFormat.format);
-      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
+      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout,
+                                      modelViewProjectionDescriptorSetLayout,
+                                      device);
       new_VertexDisplayPipeline(
           &vertexDisplayPipeline, device, vertShaderModule, fragShaderModule,
           swapChainExtent, renderPass, vertexDisplayPipelineLayout);
@@ -207,9 +232,10 @@ int main(void) {
       new_CommandPool(&commandPool, device, graphicsIndex);
 
       new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, 3, device, renderPass,
-          vertexDisplayPipeline, commandPool, swapChainExtent,
-          swapChainImageCount, pSwapChainFramebuffers);
+          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
+          renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
+          commandPool, swapChainExtent, swapChainImageCount,
+          pModelViewProjectionDescriptorSets, pSwapChainFramebuffers);
       new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
       new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
       new_Fences(&pInFlightFences, swapChainImageCount, device);
@@ -225,6 +251,12 @@ int main(void) {
   delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
   delete_CommandBuffers(&pVertexDisplayCommandBuffers);
   delete_CommandPool(&commandPool, device);
+  delete_DescriptorSets(&pModelViewProjectionDescriptorSets);
+  delete_ModelViewProjectionUniformBuffers(
+      &pModelViewProjectionUniformBuffers,
+      &pModelViewProjectionUniformBufferMemories, swapChainImageCount, device);
+  delete_DescriptorPool(&modelViewProjectionDescriptorPool, device);
+  delete_DescriptorSetLayout(&modelViewProjectionDescriptorSetLayout, device);
   delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
                                device);
   delete_Pipeline(&vertexDisplayPipeline, device);
