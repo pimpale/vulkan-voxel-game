@@ -1606,6 +1606,7 @@ ErrVal new_ModelViewProjectionUniformBuffers(
 				&((*ppBuffers)[i]), &((*ppBufferMemories)[i]), physicalDevice, device);
 		if (retVal != ERR_OK) {
 			/* Rollback */
+			errLog(ERROR, "failed to create model view projection uniform buffer");
 			delete_ModelViewProjectionUniformBuffers(ppBuffers, ppBufferMemories, i,
 					device);
 			return (ERR_UNKNOWN);
