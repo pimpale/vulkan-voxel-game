@@ -189,12 +189,15 @@ void delete_Fences(VkFence **ppFences, const uint32_t fenceCount,
                    const VkDevice device);
 
 ErrVal drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
-                 const VkDevice device, const VkSwapchainKHR swapChain,
-                 const VkCommandBuffer *pCommandBuffers,
-                 const VkFence *pInFlightFences,
-                 const VkSemaphore *pImageAvailableSemaphores,
-                 const VkSemaphore *pRenderFinishedSemaphores,
-                 const VkQueue graphicsQueue, const VkQueue presentQueue);
+		VkDeviceMemory* pModelViewProjectionBufferMemories,
+		const struct ModelViewProjectionMatrices modelViewProjectionMatrices,
+		const VkDevice device, const VkSwapchainKHR swapChain,
+		const VkCommandBuffer *pCommandBuffers,
+		const VkFence *pInFlightFences,
+		const VkSemaphore *pImageAvailableSemaphores,
+		const VkSemaphore *pRenderFinishedSemaphores,
+		const VkQueue graphicsQueue,
+		const VkQueue presentQueue);
 
 ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
                            const VkInstance instance);

@@ -15,8 +15,7 @@
 int main(void) {
   glfwInit();
 
-  /* Extensions, Layers, and Device Extensions declared
-   */
+  /* Extensions, Layers, and Device Extensions declared */
   uint32_t extensionCount;
   char **ppExtensionNames;
   new_RequiredInstanceExtensions(&extensionCount, &ppExtensionNames);
@@ -177,14 +176,25 @@ int main(void) {
   new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
   new_Fences(&pInFlightFences, swapChainImageCount, device);
 
+  struct ModelViewProjectionMatrices cameraView;
+  mat4x4_identity(cameraView.model);
+  mat4x4_identity(cameraView.view);
+  mat4x4_identity(cameraView.projection);
+
   uint32_t currentFrame = 0;
   /*wait till close*/
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
-    uint32_t result = drawFrame(
-        &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
+
+    mat4x4_look_at(cameraView.view, (vec3){2.0f, 2.0f, 2.0f}, (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
+    mat4x4_perspective(cameraView.projection, 1, ((float)swapChainExtent.width)/swapChainExtent.height, 0.1f, 10.0f); /* The 1 is in radians */
+    mat4x4_rotate_Z(cameraView.model, cameraView.model, 0.01);
+
+    ErrVal result = drawFrame(
+        &currentFrame, 2, pModelViewProjectionUniformBufferMemories, cameraView, device, swapChain, pVertexDisplayCommandBuffers,
         pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
         graphicsQueue, presentQueue);
+
 
     if (result == ERR_OUTOFDATE) {
       vkDeviceWaitIdle(device);

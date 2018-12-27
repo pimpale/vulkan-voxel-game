@@ -20,7 +20,6 @@
 void errLog(int level, const char *message, ...) {
   char *errmsg;
   FILE *out;
-
   switch (level) {
   case DEBUG: {
     errmsg = DEBUG_MSG;
