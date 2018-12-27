@@ -15,7 +15,8 @@
 int main(void) {
   glfwInit();
 
-  /* Extensions, Layers, and Device Extensions declared */
+  /* Extensions, Layers, and Device Extensions declared
+   */
   uint32_t extensionCount;
   char **ppExtensionNames;
   new_RequiredInstanceExtensions(&extensionCount, &ppExtensionNames);
@@ -110,14 +111,8 @@ int main(void) {
   VkRenderPass renderPass;
   new_RenderPass(&renderPass, device, surfaceFormat.format);
 
-  VkDescriptorSetLayout modelViewProjectionDescriptorSetLayout;
-  new_ModelViewProjectionDescriptorSetLayout(
-      &modelViewProjectionDescriptorSetLayout, device);
-
   VkPipelineLayout vertexDisplayPipelineLayout;
-  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout,
-                                  modelViewProjectionDescriptorSetLayout,
-                                  device);
+  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
 
   VkPipeline vertexDisplayPipeline;
   new_VertexDisplayPipeline(&vertexDisplayPipeline, device, vertShaderModule,
@@ -131,43 +126,26 @@ int main(void) {
 
   VkCommandPool commandPool;
   new_CommandPool(&commandPool, device, graphicsIndex);
-#define VERTEXNUM 6
-  struct Vertex vertices[VERTEXNUM] = {
-      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+
+  struct Vertex vertices[6] = {
+      {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
 
-      {{0.5f, -0.5f}, {1.0f, 0.0f, 1.0f}}, {{1.0f, 0.5f}, {0.0f, 1.0f, 1.0f}},
-      {{0.0f, 0.5f}, {1.0f, 1.0f, 0.0f}},
+      {{0.9f, -0.5f}, {1.0f, 1.0f, 0.0f}}, {{0.9f, 0.5f}, {1.0f, 0.0f, 1.0f}},
+      {{-0.9f, 0.5f}, {0.0f, 1.0f, 1.0f}}
+
   };
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, VERTEXNUM,
-                   device, physicalDevice, commandPool, graphicsQueue);
-
-  VkDescriptorPool modelViewProjectionDescriptorPool;
-  new_ModelViewProjectionDescriptorPool(&modelViewProjectionDescriptorPool,
-                                        swapChainImageCount, device);
-
-  VkBuffer *pModelViewProjectionUniformBuffers;
-  VkDeviceMemory *pModelViewProjectionUniformBufferMemories;
-  new_ModelViewProjectionUniformBuffers(
-      &pModelViewProjectionUniformBuffers,
-      &pModelViewProjectionUniformBufferMemories, swapChainImageCount,
-      physicalDevice, device);
-
-  VkDescriptorSet *pModelViewProjectionDescriptorSets;
-  new_ModelViewProjectionDescriptorSets(
-      &pModelViewProjectionDescriptorSets, pModelViewProjectionUniformBuffers,
-      swapChainImageCount, modelViewProjectionDescriptorSetLayout,
-      modelViewProjectionDescriptorPool, device);
+  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, 6, device,
+                   physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
-  new_VertexDisplayCommandBuffers(
-      &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
-      renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-      commandPool, swapChainExtent, swapChainImageCount,
-      pModelViewProjectionDescriptorSets, pSwapChainFramebuffers);
+  new_VertexDisplayCommandBuffers(&pVertexDisplayCommandBuffers, vertexBuffer,
+                                  6, device, renderPass, vertexDisplayPipeline,
+                                  commandPool, swapChainExtent,
+                                  swapChainImageCount, pSwapChainFramebuffers);
 
   VkSemaphore *pImageAvailableSemaphores;
   VkSemaphore *pRenderFinishedSemaphores;
@@ -176,25 +154,14 @@ int main(void) {
   new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
   new_Fences(&pInFlightFences, swapChainImageCount, device);
 
-  struct ModelViewProjectionMatrices cameraView;
-  mat4x4_identity(cameraView.model);
-  mat4x4_identity(cameraView.view);
-  mat4x4_identity(cameraView.projection);
-
   uint32_t currentFrame = 0;
   /*wait till close*/
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
-
-    mat4x4_look_at(cameraView.view, (vec3){2.0f, 2.0f, 2.0f}, (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
-    mat4x4_perspective(cameraView.projection, 1, ((float)swapChainExtent.width)/swapChainExtent.height, 0.1f, 10.0f); /* The 1 is in radians */
-    mat4x4_rotate_Z(cameraView.model, cameraView.model, 0.01);
-
-    ErrVal result = drawFrame(
-        &currentFrame, 2, pModelViewProjectionUniformBufferMemories, cameraView, device, swapChain, pVertexDisplayCommandBuffers,
+    uint32_t result = drawFrame(
+        &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
         pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
         graphicsQueue, presentQueue);
-
 
     if (result == ERR_OUTOFDATE) {
       vkDeviceWaitIdle(device);
@@ -230,9 +197,7 @@ int main(void) {
 
       /* Create graphics pipeline */
       new_RenderPass(&renderPass, device, surfaceFormat.format);
-      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout,
-                                      modelViewProjectionDescriptorSetLayout,
-                                      device);
+      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
       new_VertexDisplayPipeline(
           &vertexDisplayPipeline, device, vertShaderModule, fragShaderModule,
           swapChainExtent, renderPass, vertexDisplayPipelineLayout);
@@ -242,10 +207,9 @@ int main(void) {
       new_CommandPool(&commandPool, device, graphicsIndex);
 
       new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
-          renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-          commandPool, swapChainExtent, swapChainImageCount,
-          pModelViewProjectionDescriptorSets, pSwapChainFramebuffers);
+          &pVertexDisplayCommandBuffers, vertexBuffer, 3, device, renderPass,
+          vertexDisplayPipeline, commandPool, swapChainExtent,
+          swapChainImageCount, pSwapChainFramebuffers);
       new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
       new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
       new_Fences(&pInFlightFences, swapChainImageCount, device);
@@ -261,12 +225,6 @@ int main(void) {
   delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
   delete_CommandBuffers(&pVertexDisplayCommandBuffers);
   delete_CommandPool(&commandPool, device);
-  delete_DescriptorSets(&pModelViewProjectionDescriptorSets);
-  delete_ModelViewProjectionUniformBuffers(
-      &pModelViewProjectionUniformBuffers,
-      &pModelViewProjectionUniformBufferMemories, swapChainImageCount, device);
-  delete_DescriptorPool(&modelViewProjectionDescriptorPool, device);
-  delete_DescriptorSetLayout(&modelViewProjectionDescriptorSetLayout, device);
   delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
                                device);
   delete_Pipeline(&vertexDisplayPipeline, device);

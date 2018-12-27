@@ -30,7 +30,7 @@
 									<listOptionValue builtIn="false" value="include"/>
 									<listOptionValue builtIn="false" value="../include"/>
 								</option>
-								<option id="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std.1877501073" name="Language standard" superClass="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.c.compiler.dialect.c11" valueType="enumerated"/>
+								<option id="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std.1877501073" superClass="cdt.managedbuild.tool.llvm.c.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.c.compiler.dialect.c11" valueType="enumerated"/>
 								<inputType id="cdt.managedbuild.tool.llvm.c.compiler.input.1090369570" superClass="cdt.managedbuild.tool.llvm.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.llvm.clang.linux.cpp.compiler.exe.debug.97762056" name="LLVM Clang++" superClass="cdt.managedbuild.tool.llvm.clang.linux.cpp.compiler.exe.debug">
@@ -41,7 +41,6 @@
 								<option defaultValue="false" id="llvm.c.link.option.nativeCBackEnd.1633991832" name="Create native binary (with C backend code generator)" superClass="llvm.c.link.option.nativeCBackEnd" useByScannerDiscovery="false" valueType="boolean"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="llvm.c.link.option.libs.1788310191" name="Libraries (-l)" superClass="llvm.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
 									<listOptionValue builtIn="false" value="vulkan"/>
-									<listOptionValue builtIn="false" value="m"/>
 									<listOptionValue builtIn="false" value="glfw"/>
 									<listOptionValue builtIn="false" value="stdc++"/>
 								</option>

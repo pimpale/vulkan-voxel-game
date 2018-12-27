@@ -29,11 +29,11 @@ static inline float vec##n##_mul_inner(vec##n const a, vec##n const b) \
 	int i; \
 	for(i=0; i<n; ++i) \
 		p += b[i]*a[i]; \
-	return (p); \
+	return p; \
 } \
 static inline float vec##n##_len(vec##n const v) \
 { \
-	return (sqrtf(vec##n##_mul_inner(v,v))); \
+	return sqrtf(vec##n##_mul_inner(v,v)); \
 } \
 static inline void vec##n##_norm(vec##n r, vec##n const v) \
 { \
@@ -468,7 +468,7 @@ static inline float quat_inner_product(quat a, quat b)
 	int i;
 	for(i=0; i<4; ++i)
 		p += b[i]*a[i];
-	return (p);
+	return p;
 }
 static inline void quat_conj(quat r, quat q)
 {
