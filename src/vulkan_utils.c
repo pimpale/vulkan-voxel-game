@@ -348,7 +348,7 @@ ErrVal getDeviceQueueIndex(uint32_t *deviceQueueIndex,
     }
   }
   free(arr);
-  errLog(WARN, "no suitable device queue found");
+  errLog(ERROR, "no suitable device queue found");
   return (ERR_NOTSUPPORTED);
 }
 
@@ -477,6 +477,7 @@ ErrVal new_SwapChain(VkSwapchainKHR *pSwapChain, uint32_t *pSwapChainImageCount,
 
 void delete_SwapChain(VkSwapchainKHR *pSwapChain, const VkDevice device) {
   vkDestroySwapchainKHR(device, *pSwapChain, NULL);
+  *pSwapChain = VK_NULL_HANDLE;
 }
 
 ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
@@ -602,12 +603,12 @@ ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
   }
 
   for (uint32_t i = 0; i < imageCount; i++) {
-    uint32_t ret =
+    ErrVal ret =
         new_ImageView(&(pImageViews[i]), device, pSwapChainImages[i], format);
-    if (ret != VK_SUCCESS) {
-      errLog(FATAL, "could not create image view, error code: %s",
-             vkstrerror(ret));
-      panic();
+    if (ret != ERR_OK) {
+      errLog(ERROR, "could not create swap chain image views");
+      delete_SwapChainImageViews(ppImageViews, i, device);
+      return (ret);
     }
   }
 
@@ -633,6 +634,7 @@ ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
   VkResult res = vkCreateShaderModule(device, &createInfo, NULL, pShaderModule);
   if (res != VK_SUCCESS) {
     errLog(FATAL, "failed to create shader module");
+    return (ERR_UNKNOWN);
   }
   return (ERR_OK);
 }
@@ -642,14 +644,19 @@ ErrVal new_ShaderModuleFromFile(VkShaderModule *pShaderModule,
   uint32_t *shaderFileContents;
   uint32_t shaderFileLength;
   readShaderFile(filename, &shaderFileLength, &shaderFileContents);
-  uint32_t retval = new_ShaderModule(pShaderModule, device, shaderFileLength,
+  ErrVal retVal = new_ShaderModule(pShaderModule, device, shaderFileLength,
                                      shaderFileContents);
+  if(retVal != ERR_OK)
+  {
+	  errLog(ERROR, "failed to create shader module from file %s", filename);
+  }
   free(shaderFileContents);
-  return (retval);
+  return (retVal);
 }
 
 void delete_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device) {
   vkDestroyShaderModule(device, *pShaderModule, NULL);
+  *pShaderModule = VK_NULL_HANDLE;
 }
 
 ErrVal new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
@@ -702,6 +709,7 @@ ErrVal new_RenderPass(VkRenderPass *pRenderPass, const VkDevice device,
 
 void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
   vkDestroyRenderPass(device, *pRenderPass, NULL);
+  *pRenderPass = VK_NULL_HANDLE;
 }
 
 ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
@@ -729,6 +737,7 @@ ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
 void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
                            const VkDevice device) {
   vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
+  *pPipelineLayout = VK_NULL_HANDLE;
 }
 
 ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
@@ -907,13 +916,12 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
   }
 
   for (uint32_t i = 0; i < imageCount; i++) {
-    uint32_t res = new_Framebuffer(&(tmp[i]), device, renderPass,
+    ErrVal retVal = new_Framebuffer(&(tmp[i]), device, renderPass,
                                    pSwapChainImageViews[i], swapChainExtent);
-    if (res != VK_SUCCESS) {
-      errLog(ERROR, "could not create framebuffer, error code: %s",
-             vkstrerror(res));
-      free(tmp);
-      return (res);
+    if (retVal != VK_SUCCESS) {
+      errLog(ERROR, "could not create framebuffers");
+      delete_SwapChainFramebuffers(ppFramebuffers, i, device);
+      return (retVal);
     }
   }
 
@@ -1055,10 +1063,16 @@ ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
   *ppSemaphores = malloc(semaphoreCount * sizeof(VkSemaphore));
   if (*ppSemaphores == NULL) {
     errLog(FATAL, "Failed to create semaphores: %s", strerror(errno));
+    panic();
   }
 
   for (uint32_t i = 0; i < semaphoreCount; i++) {
-    new_Semaphore(&(*ppSemaphores)[i], device);
+    ErrVal retVal = new_Semaphore(&(*ppSemaphores)[i], device);
+    if(retVal != ERR_OK)
+    {
+    	delete_Semaphores(ppSemaphores, i, device);
+    	return(retVal);
+    }
   }
   return (ERR_OK);
 }
@@ -1097,7 +1111,13 @@ ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
   }
 
   for (uint32_t i = 0; i < fenceCount; i++) {
-    new_Fence(&(*ppFences)[i], device);
+    ErrVal retVal = new_Fence(&(*ppFences)[i], device);
+    if(retVal != ERR_OK)
+    {
+    	/* Clean up memory */
+    	delete_Fences(ppFences, i, device);
+    	return(retVal);
+    }
   }
   return (ERR_OK);
 }
@@ -1280,26 +1300,16 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
     return (stagingBufferCreateResult);
   }
 
-  /*TODO copy data to memory */
-  /* Map memory and copy the vertices to the staging buffer */
-  void *data;
-  VkResult mapMemoryResult =
-      vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-
-  /* On failure */
-  if (mapMemoryResult != VK_SUCCESS) {
-    /* Delete the temporary staging buffers */
-    errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
-           vkstrerror(mapMemoryResult));
-    delete_Buffer(&stagingBuffer, device);
-    delete_DeviceMemory(&stagingBufferMemory, device);
-    return (ERR_MEMORY);
+  /* Copy data to staging buffer, making sure to clean up leaks */
+  ErrVal copyResult =
+  			copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
+  	if (copyResult != ERR_OK) {
+  		errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
+  				vkstrerror(copyResult));
+  		delete_Buffer(&stagingBuffer, device);
+  		delete_DeviceMemory(&stagingBufferMemory, device);
+  		return (copyResult);
   }
-
-  /* If it was successful, go on and actually copy it, making sure to unmap once
-   * done */
-  memcpy(data, pVertices, (size_t)bufferSize);
-  vkUnmapMemory(device, stagingBufferMemory);
 
   /* Create vertex buffer and allocate memory for it */
   VkResult vertexBufferCreateResult = new_Buffer_DeviceMemory(

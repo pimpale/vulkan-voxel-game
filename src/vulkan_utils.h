@@ -222,4 +222,8 @@ ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
                                              const VkQueue queue,
                                              const VkCommandPool commandPool);
 
+ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
+                          const VkDeviceSize deviceSize, const void *source,
+                          const VkDevice device);
+
 #endif /* VULKAN_HELPER_H_ */
