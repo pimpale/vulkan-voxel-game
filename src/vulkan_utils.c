@@ -708,8 +708,9 @@ ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
                                        const VkDevice device) {
   VkPushConstantRange pushConstantRange = {0};
   pushConstantRange.offset = 0;
-  pushConstantRange.stageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
   pushConstantRange.size = sizeof(mat4x4);
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
@@ -1009,11 +1010,11 @@ ErrVal new_VertexDisplayCommandBuffers(
     vkCmdBindPipeline(pCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vertexDisplayPipeline);
 
+    vkCmdPushConstants(pCommandBuffers[i], vertexDisplayPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT , 0, sizeof(mat4x4), cameraTransform);
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(pCommandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-    vkCmdPushConstants(pCommandBuffers[i], vertexDisplayPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(mat4x4), cameraTransform);
 
     vkCmdDraw(pCommandBuffers[i], vertexCount, 1, 0, 0);
     vkCmdEndRenderPass(pCommandBuffers[i]);
