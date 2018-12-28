@@ -152,17 +152,14 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
 
 void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device);
 
-
 ErrVal new_VertexDisplayCommandBuffers(
     VkCommandBuffer **ppCommandBuffers, const VkBuffer vertexBuffer,
     const uint32_t vertexCount, const VkDevice device,
     const VkRenderPass renderPass,
-	const VkPipelineLayout vertexDisplayPipelineLayout,
-	const VkPipeline vertexDisplayPipeline,
-    const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
-    const uint32_t swapChainFramebufferCount,
-    const VkFramebuffer *pSwapChainFramebuffers,
-	const mat4x4 cameraTransform);
+    const VkPipelineLayout vertexDisplayPipelineLayout,
+    const VkPipeline vertexDisplayPipeline, const VkCommandPool commandPool,
+    const VkExtent2D swapChainExtent, const uint32_t swapChainFramebufferCount,
+    const VkFramebuffer *pSwapChainFramebuffers, const mat4x4 cameraTransform);
 
 void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers);
 
