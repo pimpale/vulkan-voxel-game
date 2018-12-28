@@ -706,10 +706,15 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
 
 ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
                                        const VkDevice device) {
+  VkPushConstantRange pushConstantRange = {0};
+  pushConstantRange.offset = 0;
+  pushConstantRange.stageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+  pushConstantRange.size = sizeof(mat4x4);
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {
@@ -942,10 +947,13 @@ void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
 ErrVal new_VertexDisplayCommandBuffers(
     VkCommandBuffer **ppCommandBuffers, const VkBuffer vertexBuffer,
     const uint32_t vertexCount, const VkDevice device,
-    const VkRenderPass renderPass, const VkPipeline graphicsPipeline,
+    const VkRenderPass renderPass,
+	const VkPipelineLayout vertexDisplayPipelineLayout,
+	const VkPipeline vertexDisplayPipeline,
     const VkCommandPool commandPool, const VkExtent2D swapChainExtent,
     const uint32_t swapChainFramebufferCount,
-    const VkFramebuffer *pSwapChainFramebuffers) {
+    const VkFramebuffer *pSwapChainFramebuffers,
+	const mat4x4 cameraTransform) {
 
   VkCommandBufferAllocateInfo allocInfo = {0};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -999,11 +1007,14 @@ ErrVal new_VertexDisplayCommandBuffers(
                          VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(pCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      graphicsPipeline);
+                      vertexDisplayPipeline);
 
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(pCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+    vkCmdPushConstants(pCommandBuffers[i], vertexDisplayPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(mat4x4), cameraTransform);
+
     vkCmdDraw(pCommandBuffers[i], vertexCount, 1, 0, 0);
     vkCmdEndRenderPass(pCommandBuffers[i]);
 
@@ -1266,9 +1277,10 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   if (stagingBufferCreateResult != VK_SUCCESS) {
     errLog(ERROR,
            "failed to create vertex buffer: failed to create staging buffer");
-    return stagingBufferCreateResult;
+    return (stagingBufferCreateResult);
   }
 
+  /*TODO copy data to memory */
   /* Map memory and copy the vertices to the staging buffer */
   void *data;
   VkResult mapMemoryResult =
@@ -1277,10 +1289,10 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   /* On failure */
   if (mapMemoryResult != VK_SUCCESS) {
     /* Delete the temporary staging buffers */
-    delete_Buffer(&stagingBuffer, device);
-    delete_DeviceMemory(&stagingBufferMemory, device);
     errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
            vkstrerror(mapMemoryResult));
+    delete_Buffer(&stagingBuffer, device);
+    delete_DeviceMemory(&stagingBufferMemory, device);
     return (ERR_MEMORY);
   }
 
@@ -1298,9 +1310,9 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   /* Handle errors */
   if (vertexBufferCreateResult != VK_SUCCESS) {
     /* Delete the temporary staging buffers */
+    errLog(ERROR, "failed to create vertex buffer");
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
-    errLog(ERROR, "failed to create vertex buffer");
     return (vertexBufferCreateResult);
   }
 
@@ -1386,75 +1398,10 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
 
   if (endResult != VK_SUCCESS) {
     errLog(ERROR, "failed to end command buffer");
-    return endResult;
+    return (endResult);
   }
 
   return (ERR_OK);
-}
-
-ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
-                                            const VkDevice device,
-                                            const VkCommandPool commandPool) {
-  VkCommandBufferAllocateInfo allocateInfo = {0};
-  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocateInfo.commandPool = commandPool;
-  allocateInfo.commandBufferCount = 1;
-
-  VkResult allocateResult =
-      vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
-  if (allocateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to allocate command buffers: %s",
-           vkstrerror(allocateResult));
-    return (ERR_MEMORY);
-  }
-
-  VkCommandBufferBeginInfo beginInfo = {0};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  VkResult res = vkBeginCommandBuffer(*pCommandBuffer, &beginInfo);
-  if (res != VK_SUCCESS) {
-    errLog(ERROR, "failed to create command buffer: %s", vkstrerror(res));
-    return (ERR_UNKNOWN);
-  }
-
-  return (ERR_OK);
-}
-
-ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
-                                             const VkDevice device,
-                                             const VkQueue queue,
-                                             const VkCommandPool commandPool) {
-  ErrVal retVal = ERR_OK;
-  VkResult bufferEndResult = vkEndCommandBuffer(*pCommandBuffer);
-  if (bufferEndResult != VK_SUCCESS) {
-    /* Clean up resources */
-    errLog(ERROR, "failed to end one time submit command buffer: %s",
-           vkstrerror(bufferEndResult));
-    retVal = ERR_UNKNOWN;
-    goto FREEALL;
-  }
-
-  VkSubmitInfo submitInfo = {0};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = pCommandBuffer;
-
-  VkResult queueSubmitResult =
-      vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-  if (queueSubmitResult != VK_SUCCESS) {
-    errLog(ERROR,
-           "failed to submit one time submit command buffer to queue: %s",
-           vkstrerror(queueSubmitResult));
-    retVal = ERR_UNKNOWN;
-    goto FREEALL;
-  }
-
-FREEALL:
-  vkQueueWaitIdle(queue);
-  vkFreeCommandBuffers(device, commandPool, 1, pCommandBuffer);
-  pCommandBuffer = VK_NULL_HANDLE;
-  return (retVal);
 }
 
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
@@ -1466,3 +1413,98 @@ void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device) {
   vkFreeMemory(device, *pDeviceMemory, NULL);
   *pDeviceMemory = VK_NULL_HANDLE;
 }
+
+/*
+ * Allocates, creates and begins one command buffer to be used.
+ * Must be ended with delete_end_OneTimeSubmitCommandBuffer
+ */
+ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+		const VkDevice device,
+		const VkCommandPool commandPool) {
+	VkCommandBufferAllocateInfo allocateInfo = {0};
+	allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandPool = commandPool;
+	allocateInfo.commandBufferCount = 1;
+
+	VkResult allocateResult =
+			vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
+	if (allocateResult != VK_SUCCESS) {
+		errLog(ERROR, "failed to allocate command buffers: %s",
+				vkstrerror(allocateResult));
+		return (ERR_MEMORY);
+	}
+
+	VkCommandBufferBeginInfo beginInfo = {0};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	VkResult res = vkBeginCommandBuffer(*pCommandBuffer, &beginInfo);
+	if (res != VK_SUCCESS) {
+		errLog(ERROR, "failed to create command buffer: %s", vkstrerror(res));
+		return (ERR_UNKNOWN);
+	}
+
+	return (ERR_OK);
+}
+
+/*
+ * Ends, submits, and deletes one command buffer that was previously created in
+ * new_begin_OneTimeSubmitCommandBuffer
+ */
+ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
+		const VkDevice device,
+		const VkQueue queue,
+		const VkCommandPool commandPool) {
+	ErrVal retVal = ERR_OK;
+	VkResult bufferEndResult = vkEndCommandBuffer(*pCommandBuffer);
+	if (bufferEndResult != VK_SUCCESS) {
+		/* Clean up resources */
+		errLog(ERROR, "failed to end one time submit command buffer: %s",
+				vkstrerror(bufferEndResult));
+		retVal = ERR_UNKNOWN;
+		goto FREEALL;
+	}
+
+	VkSubmitInfo submitInfo = {0};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = pCommandBuffer;
+
+	VkResult queueSubmitResult =
+			vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+	if (queueSubmitResult != VK_SUCCESS) {
+		errLog(ERROR,
+				"failed to submit one time submit command buffer to queue: %s",
+				vkstrerror(queueSubmitResult));
+		retVal = ERR_UNKNOWN;
+		goto FREEALL;
+	}
+	/* Deallocate the buffer */
+	FREEALL:
+	vkQueueWaitIdle(queue);
+	vkFreeCommandBuffers(device, commandPool, 1, pCommandBuffer);
+	*pCommandBuffer = VK_NULL_HANDLE;
+	return (retVal);
+}
+
+ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
+		const VkDeviceSize deviceSize, const void *source,
+		const VkDevice device) {
+	void *data;
+	VkResult mapMemoryResult =
+			vkMapMemory(device, *pDeviceMemory, 0, deviceSize, 0, &data);
+
+	/* On failure */
+	if (mapMemoryResult != VK_SUCCESS) {
+		errLog(ERROR, "failed to copy to device memory: failed to map memory: %s",
+				vkstrerror(mapMemoryResult));
+		return (ERR_MEMORY);
+	}
+
+	/* If it was successful, go on and actually copy it, making sure to unmap once
+	 * done */
+	memcpy(data, source, (size_t)deviceSize);
+	vkUnmapMemory(device, *pDeviceMemory);
+	return (ERR_OK);
+}
+

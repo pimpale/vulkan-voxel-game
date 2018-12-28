@@ -126,26 +126,47 @@ int main(void) {
 
   VkCommandPool commandPool;
   new_CommandPool(&commandPool, device, graphicsIndex);
-
-  struct Vertex vertices[6] = {
-      {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-
-      {{0.9f, -0.5f}, {1.0f, 1.0f, 0.0f}}, {{0.9f, 0.5f}, {1.0f, 0.0f, 1.0f}},
-      {{-0.9f, 0.5f}, {0.0f, 1.0f, 1.0f}}
-
+#define VERTEXNUM 6
+  struct Vertex vertices[VERTEXNUM] = {
+      {{0.0f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}},
+	  {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+      {{0.9f, -0.5f, 0.0f}, {1.0f, 1.0f, 0.0f}},
+	  {{0.9f, 0.5f, 0.0f}, {1.0f, 0.0f, 1.0f}},
+      {{-0.9f, 0.5f, 0.0f}, {0.0f, 1.0f, 1.0f}}
   };
+
+  mat4x4 cameraViewModel;
+  mat4x4 cameraViewView;
+  mat4x4 cameraViewProjection;
+  /* The final result to be pushed */
+  mat4x4 cameraViewProduct;
+
+  mat4x4_identity(cameraViewModel);
+  mat4x4_identity(cameraViewView);
+  mat4x4_identity(cameraViewProjection);
+
+  mat4x4_look_at(cameraViewView, (vec3){2.0f, 2.0f, 2.0f}, (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
+  mat4x4_perspective(cameraViewProjection, 1, ((float)swapChainExtent.width)/swapChainExtent.height, 0.1f, 10.0f); /* The 1 is in radians */
+  mat4x4_rotate_Z(cameraViewModel, cameraViewModel, 0.01);
+
+
+  mat4x4_mul(cameraViewProduct, cameraViewProjection, cameraViewView);
+  mat4x4_mul(cameraViewProduct, cameraViewProduct, cameraViewModel);
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, 6, device,
+  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, VERTEXNUM, device,
                    physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
   new_VertexDisplayCommandBuffers(&pVertexDisplayCommandBuffers, vertexBuffer,
-                                  6, device, renderPass, vertexDisplayPipeline,
+                                  VERTEXNUM, device, renderPass, vertexDisplayPipelineLayout,
+								  vertexDisplayPipeline,
                                   commandPool, swapChainExtent,
-                                  swapChainImageCount, pSwapChainFramebuffers);
+                                  swapChainImageCount,
+								  pSwapChainFramebuffers,
+								  cameraViewProduct);
 
   VkSemaphore *pImageAvailableSemaphores;
   VkSemaphore *pRenderFinishedSemaphores;
@@ -206,10 +227,13 @@ int main(void) {
                                 pSwapChainImageViews);
       new_CommandPool(&commandPool, device, graphicsIndex);
 
-      new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, 3, device, renderPass,
-          vertexDisplayPipeline, commandPool, swapChainExtent,
-          swapChainImageCount, pSwapChainFramebuffers);
+  new_VertexDisplayCommandBuffers(&pVertexDisplayCommandBuffers, vertexBuffer,
+                                  VERTEXNUM, device, renderPass, vertexDisplayPipelineLayout,
+								  vertexDisplayPipeline,
+                                  commandPool, swapChainExtent,
+                                  swapChainImageCount,
+								  pSwapChainFramebuffers,
+								  cameraViewProduct);
       new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
       new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
       new_Fences(&pInFlightFences, swapChainImageCount, device);
