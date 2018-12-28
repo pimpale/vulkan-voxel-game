@@ -126,21 +126,30 @@ int main(void) {
 
   VkCommandPool commandPool;
   new_CommandPool(&commandPool, device, graphicsIndex);
-#define VERTEXNUM 6
+#define VERTEXNUM 12
   struct Vertex vertices[VERTEXNUM] = {
       {{-1, -1, 0}, {1, 0, 0}},
 	  {{1, -1, 0}, {1, 1, 1}},
       {{1, 1, 0}, {0, 1, 0}},
-	  {{1, 1, 4}, {0, 1, 0}},
-      {{-1, 1, 4}, {1, 1, 1}},
-	  {{-1, -1, 4}, {1, 0, 0}}
+	  {{1, 1, 0}, {0, 1, 0}},
+      {{-1, 1, 0}, {1, 1, 1}},
+	  {{-1, -1, 0}, {1, 0, 0}},
+
+	   /* Square 2 */
+      {{-1, 0, 1}, {0, 1, 0}},
+	  {{1, 0, 1}, {1, 1, 1}},
+      {{1, 2, 1}, {0, 1, 0}},
+	  {{1, 2, 1}, {0, 1, 0}},
+      {{-1, 2, 1}, {1, 1, 1}},
+	  {{-1, 0, 1}, {0, 1, 0}}
+
   };
 
+  /* The final result to be pushed */
+  mat4x4 cameraViewProduct;
   mat4x4 cameraViewModel;
   mat4x4 cameraViewView;
   mat4x4 cameraViewProjection;
-  /* The final result to be pushed */
-  mat4x4 cameraViewProduct;
 
   mat4x4_identity(cameraViewModel);
   mat4x4_identity(cameraViewView);
@@ -183,8 +192,9 @@ int main(void) {
         &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
         pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
         graphicsQueue, presentQueue);
+
     /* Rotate model */
-    mat4x4_rotate_Z(cameraViewProduct, cameraViewProduct, 0.001);
+    mat4x4_rotate_Y(cameraViewProduct, cameraViewProduct, 0.001);
 
     delete_CommandBuffers(&pVertexDisplayCommandBuffers);
     new_VertexDisplayCommandBuffers(
