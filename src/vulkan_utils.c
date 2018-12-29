@@ -286,7 +286,7 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
   }
   VkPhysicalDevice *arr = malloc(deviceCount * sizeof(VkPhysicalDevice));
   if (!arr) {
-    errLog(FATAL, "failed to allocate memory: %s", strerror(errno));
+    errLog(FATAL, "failed to get physical device: %s", strerror(errno));
     panic();
   }
   vkEnumeratePhysicalDevices(instance, &deviceCount, arr);
@@ -773,7 +773,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
 
   attributeDescriptions[0].binding = 0;
   attributeDescriptions[0].location = 0;
-  attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+  attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
   attributeDescriptions[0].offset = offsetof(struct Vertex, position);
 
   attributeDescriptions[1].binding = 0;
