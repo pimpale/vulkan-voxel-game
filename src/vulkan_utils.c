@@ -830,14 +830,14 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   scissor.offset.y = 0;
   scissor.extent = extent;
 
-  VkPipelineDepthStencilStateCreateInfo depthStencil = { 0 };
-  depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  VkPipelineDepthStencilStateCreateInfo depthStencil = {0};
+  depthStencil.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depthStencil.depthTestEnable = VK_TRUE;
   depthStencil.depthWriteEnable = VK_TRUE;
   depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
   depthStencil.depthBoundsTestEnable = VK_FALSE;
   depthStencil.stencilTestEnable = VK_FALSE;
-
 
   VkPipelineViewportStateCreateInfo viewportState = {0};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -941,7 +941,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const VkRenderPass renderPass,
                                  const VkExtent2D swapChainExtent,
                                  const uint32_t imageCount,
-								 const VkImageView depthImageView,
+                                 const VkImageView depthImageView,
                                  const VkImageView *pSwapChainImageViews) {
   *ppFramebuffers = malloc(imageCount * sizeof(VkFramebuffer));
   if (!(*ppFramebuffers)) {
@@ -951,7 +951,8 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
 
   for (uint32_t i = 0; i < imageCount; i++) {
     ErrVal retVal = new_Framebuffer(&((*ppFramebuffers)[i]), device, renderPass,
-                                    pSwapChainImageViews[i], depthImageView, swapChainExtent);
+                                    pSwapChainImageViews[i], depthImageView,
+                                    swapChainExtent);
     if (retVal != VK_SUCCESS) {
       errLog(ERROR, "could not create framebuffers");
       delete_SwapChainFramebuffers(ppFramebuffers, i, device);
@@ -1041,7 +1042,6 @@ ErrVal new_VertexDisplayCommandBuffers(
 
     pClearColors[1].depthStencil.depth = 1.0f;
     pClearColors[1].depthStencil.stencil = 0;
-
 
     renderPassInfo.clearValueCount = 2;
     renderPassInfo.pClearValues = pClearColors;
@@ -1610,11 +1610,9 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
   return (ERR_OK);
 }
 
-void delete_Image(VkImage *pImage, const VkDevice device)
-{
+void delete_Image(VkImage *pImage, const VkDevice device) {
   vkDestroyImage(device, *pImage, NULL);
 }
-
 
 /* Gets image format of depth */
 void getDepthFormat(VkFormat *pFormat) {
@@ -1626,7 +1624,7 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                       const VkExtent2D swapChainExtent,
                       const VkPhysicalDevice physicalDevice,
                       const VkDevice device, const VkCommandPool commandPool,
-					  const VkQueue queue) {
+                      const VkQueue queue) {
 
   VkFormat depthFormat = {0};
   getDepthFormat(&depthFormat);
@@ -1640,15 +1638,13 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
     return (retVal);
   }
 
-  ErrVal transitionVal = transitionImageLayout(device,
-                             commandPool,
-                             *pImage, depthFormat,
-                             queue, VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-  if(transitionVal != ERR_OK)
-  {
-	  errLog(ERROR, "failed to create depth image: could not set barriers");
-	  return(transitionVal);
+  ErrVal transitionVal =
+      transitionImageLayout(device, commandPool, *pImage, depthFormat, queue,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+  if (transitionVal != ERR_OK) {
+    errLog(ERROR, "failed to create depth image: could not set barriers");
+    return (transitionVal);
   }
 
   return (ERR_OK);
@@ -1693,7 +1689,8 @@ ErrVal transitionImageLayout(const VkDevice device,
   if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-    if(format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT) {
+    if (format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+        format == VK_FORMAT_D24_UNORM_S8_UINT) {
       barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
     }
   } else {
@@ -1740,10 +1737,11 @@ ErrVal transitionImageLayout(const VkDevice device,
 
   ErrVal endRetVal = delete_end_OneTimeSubmitCommandBuffer(
       &commandBuffer, device, queue, commandPool);
-  if(endRetVal != ERR_OK)
-  {
-	  errLog(ERROR, "failed to transition image layout: failed to submit command buffer");
-	  return (endRetVal);
+  if (endRetVal != ERR_OK) {
+    errLog(
+        ERROR,
+        "failed to transition image layout: failed to submit command buffer");
+    return (endRetVal);
   }
   return (ERR_OK);
 }

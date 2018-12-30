@@ -117,7 +117,6 @@ ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
                                const uint32_t imageCount,
                                const VkImage *pSwapChainImages);
 
-
 void delete_ImageView(VkImageView *pImageView, VkDevice device);
 
 void delete_SwapChainImageViews(VkImageView **ppImageViews, uint32_t imageCount,
@@ -158,7 +157,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const VkRenderPass renderPass,
                                  const VkExtent2D swapChainExtent,
                                  const uint32_t imageCount,
-								 const VkImageView depthImageView,
+                                 const VkImageView depthImageView,
                                  const VkImageView *pSwapChainImageViews);
 
 void delete_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
@@ -259,6 +258,6 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                       const VkExtent2D swapChainExtent,
                       const VkPhysicalDevice physicalDevice,
                       const VkDevice device, const VkCommandPool commandPool,
-					  const VkQueue queue);
+                      const VkQueue queue);
 
 #endif /* VULKAN_HELPER_H_ */
