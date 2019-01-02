@@ -15,69 +15,70 @@
 
 char *vkstrerror(VkResult err) {
   switch (err) {
-  case VK_SUCCESS:
-    return ("VK_SUCCESS");
-  case VK_NOT_READY:
-    return ("VK_NOT_READY");
-  case VK_TIMEOUT:
-    return ("VK_TIMEOUT");
-  case VK_EVENT_SET:
-    return ("VK_EVENT_SET");
-  case VK_EVENT_RESET:
-    return ("VK_EVENT_RESET");
-  case VK_INCOMPLETE:
-    return ("VK_INCOMPLETE");
-  case VK_ERROR_OUT_OF_HOST_MEMORY:
-    return ("VK_ERROR_OUT_OF_HOST_MEMORY");
-  case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-    return ("VK_ERROR_OUT_OF_DEVICE_MEMORY");
-  case VK_ERROR_INITIALIZATION_FAILED:
-    return ("VK_ERROR_INITIALIZATION_FAILED");
-  case VK_ERROR_DEVICE_LOST:
-    return ("VK_ERROR_DEVICE_LOST");
-  case VK_ERROR_MEMORY_MAP_FAILED:
-    return ("VK_ERROR_MEMORY_MAP_FAILED");
-  case VK_ERROR_LAYER_NOT_PRESENT:
-    return ("VK_ERROR_LAYER_NOT_PRESENT");
-  case VK_ERROR_EXTENSION_NOT_PRESENT:
-    return ("VK_ERROR_EXTENSION_NOT_PRESENT");
-  case VK_ERROR_FEATURE_NOT_PRESENT:
-    return ("VK_ERROR_FEATURE_NOT_PRESENT");
-  case VK_ERROR_INCOMPATIBLE_DRIVER:
-    return ("VK_ERROR_INCOMPATIBLE_DRIVER");
-  case VK_ERROR_TOO_MANY_OBJECTS:
-    return ("VK_ERROR_TOO_MANY_OBJECTS");
-  case VK_ERROR_FORMAT_NOT_SUPPORTED:
-    return ("VK_ERROR_FORMAT_NOT_SUPPORTED");
-  case VK_ERROR_FRAGMENTED_POOL:
-    return ("VK_ERROR_FRAGMENTED_POOL");
-  case VK_ERROR_OUT_OF_POOL_MEMORY:
-    return ("VK_ERROR_OUT_OF_POOL_MEMORY");
-  case VK_ERROR_INVALID_EXTERNAL_HANDLE:
-    return ("VK_ERROR_INVALID_EXTERNAL_HANDLE");
-  case VK_ERROR_SURFACE_LOST_KHR:
-    return ("VK_ERROR_SURFACE_LOST_KHR");
-  case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-    return ("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
-  case VK_SUBOPTIMAL_KHR:
-    return ("VK_SUBOPTIMAL_KHR");
-  case VK_ERROR_OUT_OF_DATE_KHR:
-    return ("VK_ERROR_OUT_OF_DATE_KHR");
-  case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-    return ("VK_ERROR_INCOMPATIBLE_DISPLAY_KHR");
-  case VK_ERROR_VALIDATION_FAILED_EXT:
-    return ("VK_ERROR_VALIDATION_FAILED_EXT");
-  case VK_ERROR_INVALID_SHADER_NV:
-    return ("VK_ERROR_INVALID_SHADER_NV");
-  case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
-    return ("VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_"
-            "EXT");
-  case VK_ERROR_FRAGMENTATION_EXT:
-    return ("VK_ERROR_FRAGMENTATION_EXT");
-  case VK_ERROR_NOT_PERMITTED_EXT:
-    return ("VK_ERROR_NOT_PERMITTED_EXT");
-  default:
-    return ("UNKNOWN_ERROR");
+    case VK_SUCCESS:
+      return ("VK_SUCCESS");
+    case VK_NOT_READY:
+      return ("VK_NOT_READY");
+    case VK_TIMEOUT:
+      return ("VK_TIMEOUT");
+    case VK_EVENT_SET:
+      return ("VK_EVENT_SET");
+    case VK_EVENT_RESET:
+      return ("VK_EVENT_RESET");
+    case VK_INCOMPLETE:
+      return ("VK_INCOMPLETE");
+    case VK_ERROR_OUT_OF_HOST_MEMORY:
+      return ("VK_ERROR_OUT_OF_HOST_MEMORY");
+    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+      return ("VK_ERROR_OUT_OF_DEVICE_MEMORY");
+    case VK_ERROR_INITIALIZATION_FAILED:
+      return ("VK_ERROR_INITIALIZATION_FAILED");
+    case VK_ERROR_DEVICE_LOST:
+      return ("VK_ERROR_DEVICE_LOST");
+    case VK_ERROR_MEMORY_MAP_FAILED:
+      return ("VK_ERROR_MEMORY_MAP_FAILED");
+    case VK_ERROR_LAYER_NOT_PRESENT:
+      return ("VK_ERROR_LAYER_NOT_PRESENT");
+    case VK_ERROR_EXTENSION_NOT_PRESENT:
+      return ("VK_ERROR_EXTENSION_NOT_PRESENT");
+    case VK_ERROR_FEATURE_NOT_PRESENT:
+      return ("VK_ERROR_FEATURE_NOT_PRESENT");
+    case VK_ERROR_INCOMPATIBLE_DRIVER:
+      return ("VK_ERROR_INCOMPATIBLE_DRIVER");
+    case VK_ERROR_TOO_MANY_OBJECTS:
+      return ("VK_ERROR_TOO_MANY_OBJECTS");
+    case VK_ERROR_FORMAT_NOT_SUPPORTED:
+      return ("VK_ERROR_FORMAT_NOT_SUPPORTED");
+    case VK_ERROR_FRAGMENTED_POOL:
+      return ("VK_ERROR_FRAGMENTED_POOL");
+    case VK_ERROR_OUT_OF_POOL_MEMORY:
+      return ("VK_ERROR_OUT_OF_POOL_MEMORY");
+    case VK_ERROR_INVALID_EXTERNAL_HANDLE:
+      return ("VK_ERROR_INVALID_EXTERNAL_HANDLE");
+    case VK_ERROR_SURFACE_LOST_KHR:
+      return ("VK_ERROR_SURFACE_LOST_KHR");
+    case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
+      return ("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
+    case VK_SUBOPTIMAL_KHR:
+      return ("VK_SUBOPTIMAL_KHR");
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      return ("VK_ERROR_OUT_OF_DATE_KHR");
+    case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
+      return ("VK_ERROR_INCOMPATIBLE_DISPLAY_KHR");
+    case VK_ERROR_VALIDATION_FAILED_EXT:
+      return ("VK_ERROR_VALIDATION_FAILED_EXT");
+    case VK_ERROR_INVALID_SHADER_NV:
+      return ("VK_ERROR_INVALID_SHADER_NV");
+    case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
+      return (
+          "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_"
+          "EXT");
+    case VK_ERROR_FRAGMENTATION_EXT:
+      return ("VK_ERROR_FRAGMENTATION_EXT");
+    case VK_ERROR_NOT_PERMITTED_EXT:
+      return ("VK_ERROR_NOT_PERMITTED_EXT");
+    default:
+      return ("UNKNOWN_ERROR");
   }
 }
 
@@ -92,24 +93,24 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   /* set severity */
   uint32_t errSeverity;
   switch (messageSeverity) {
-  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-    errSeverity = INFO;
-    break;
-  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-    errSeverity = INFO;
-    break;
-  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-    errSeverity = WARN;
-    break;
-  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-    errSeverity = ERROR;
-    break;
-  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-    errSeverity = UNKNOWN;
-    break;
-  default:
-    errSeverity = UNKNOWN;
-    break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+      errSeverity = INFO;
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+      errSeverity = INFO;
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+      errSeverity = WARN;
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+      errSeverity = ERROR;
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
+      errSeverity = UNKNOWN;
+      break;
+    default:
+      errSeverity = UNKNOWN;
+      break;
   }
   /* log error */
   errLog(errSeverity, "vulkan validation layer: %s", pCallbackData->pMessage);
@@ -994,7 +995,6 @@ ErrVal new_VertexDisplayCommandBuffers(
     const VkPipeline vertexDisplayPipeline, const VkCommandPool commandPool,
     const VkExtent2D swapChainExtent, const uint32_t swapChainFramebufferCount,
     const VkFramebuffer *pSwapChainFramebuffers, const mat4x4 cameraTransform) {
-
   VkCommandBufferAllocateInfo allocInfo = {0};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = commandPool;
@@ -1420,7 +1420,6 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
 ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
                   const VkDeviceSize size, const VkCommandPool commandPool,
                   const VkQueue queue, const VkDevice device) {
-
   VkCommandBuffer copyCommandBuffer;
   ErrVal beginResult = new_begin_OneTimeSubmitCommandBuffer(
       &copyCommandBuffer, device, commandPool);
@@ -1625,7 +1624,6 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                       const VkPhysicalDevice physicalDevice,
                       const VkDevice device, const VkCommandPool commandPool,
                       const VkQueue queue) {
-
   VkFormat depthFormat = {0};
   getDepthFormat(&depthFormat);
   ErrVal retVal =
@@ -1668,7 +1666,6 @@ ErrVal transitionImageLayout(const VkDevice device,
                              const VkImage image, const VkFormat format,
                              const VkQueue queue, const VkImageLayout oldLayout,
                              const VkImageLayout newLayout) {
-
   VkCommandBuffer commandBuffer;
   ErrVal beginRetVal =
       new_begin_OneTimeSubmitCommandBuffer(&commandBuffer, device, commandPool);
@@ -1743,5 +1740,26 @@ ErrVal transitionImageLayout(const VkDevice device,
         "failed to transition image layout: failed to submit command buffer");
     return (endRetVal);
   }
+  return (ERR_OK);
+}
+
+ErrVal new_PlantNodeStatusUpdateComputePipelineLayout(
+
+
+
+    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pPushConstantRanges = NULL;
+  VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                        pPipelineLayout);
+  if (res != VK_SUCCESS) {
+    errLog(FATAL, "failed to create pipeline layout with error: %s",
+           vkstrerror(res));
+    panic();
+  }
+
   return (ERR_OK);
 }

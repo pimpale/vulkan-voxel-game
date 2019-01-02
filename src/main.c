@@ -144,12 +144,12 @@ int main(void) {
                                        {{-1, -1, 0}, {1, 0, 0}},
 
                                        /* Square 2 */
-                                       {{-1, 0, 1}, {0, 1, 0}},
-                                       {{1, 0, 1}, {1, 1, 1}},
-                                       {{1, 2, 1}, {0, 1, 0}},
-                                       {{1, 2, 1}, {0, 1, 0}},
-                                       {{-1, 2, 1}, {1, 1, 1}},
-                                       {{-1, 0, 1}, {0, 1, 0}}
+                                       {{-1, -1, 1}, {0, 1, 0}},
+                                       {{1, -1, 1}, {1, 1, 1}},
+                                       {{1, 1, 1}, {0, 1, 0}},
+                                       {{1, 1, 1}, {0, 1, 0}},
+                                       {{-1, 1, 1}, {1, 1, 1}},
+                                       {{-1, -1, 1}, {0, 1, 0}}
 
   };
 
@@ -163,8 +163,8 @@ int main(void) {
   mat4x4_identity(cameraViewView);
   mat4x4_identity(cameraViewProjection);
 
-  mat4x4_look_at(cameraViewView, (vec3){2.0f, 2.0f, 2.0f},
-                 (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
+  mat4x4_look_at(cameraViewView, (vec3) {2.0f, 2.0f, 2.0f},
+                 (vec3 {0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
   mat4x4_perspective(cameraViewProjection, 1,
                      ((float)swapChainExtent.width) / swapChainExtent.height,
                      0.1f, 10.0f); /* The 1 is in radians */
@@ -179,7 +179,7 @@ int main(void) {
                    device, physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
-  new_VertexDisplayCommandBuffers(
+      new_VertexDisplayCommandBuffers(
       &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount, pSwapChainFramebuffers,
