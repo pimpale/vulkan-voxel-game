@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,51 @@
 #include "errors.h"
 #include "utils.h"
 #include "vulkan_utils.h"
+
+void transformView(bool *pModified, mat4x4 *pTransformation,
+                   GLFWwindow *pWindow) {
+  float dx = 0;
+  float dy = 0;
+  float dz = 0;
+  if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
+    dx += 0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
+    dx += -0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
+    dz += 0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
+    dz -= 0.01;
+  }
+
+  bool translated = !(dx || dy || dz);
+  mat4x4_translate_in_place(*pTransformation, dx, dy, dz);
+
+  float rx = 0;
+  float ry = 0;
+  float rz = 0;
+
+  if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
+    ry += 0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    ry += -0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    rx += 0.01;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    rx -= 0.01;
+  }
+  bool rotated = !(rx || ry || rz);
+  mat4x4_rotate_X(*pTransformation, *pTransformation, rx);
+  mat4x4_rotate_Y(*pTransformation, *pTransformation, ry);
+  mat4x4_rotate_Z(*pTransformation, *pTransformation, rz);
+
+  *pModified = translated || rotated;
+}
 
 int main(void) {
   glfwInit();
@@ -163,12 +209,11 @@ int main(void) {
   mat4x4_identity(cameraViewView);
   mat4x4_identity(cameraViewProjection);
 
-  mat4x4_look_at(cameraViewView, (vec3) {2.0f, 2.0f, 2.0f},
-                 (vec3 {0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
+  mat4x4_look_at(cameraViewView, (vec3){2.0f, 2.0f, 2.0f},
+                 (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
   mat4x4_perspective(cameraViewProjection, 1,
                      ((float)swapChainExtent.width) / swapChainExtent.height,
                      0.1f, 10.0f); /* The 1 is in radians */
-  mat4x4_rotate_Y(cameraViewModel, cameraViewModel, -0.01);
 
   mat4x4_mul(cameraViewProduct, cameraViewProjection, cameraViewView);
   mat4x4_mul(cameraViewProduct, cameraViewProduct, cameraViewModel);
@@ -179,7 +224,7 @@ int main(void) {
                    device, physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
-      new_VertexDisplayCommandBuffers(
+  new_VertexDisplayCommandBuffers(
       &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount, pSwapChainFramebuffers,
@@ -196,20 +241,23 @@ int main(void) {
   /*wait till close*/
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
-    uint32_t result = drawFrame(
+    ErrVal result = drawFrame(
         &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
         pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
         graphicsQueue, presentQueue);
 
-    /* Rotate model */
-    mat4x4_rotate_Y(cameraViewProduct, cameraViewProduct, 0.001);
-
-    delete_CommandBuffers(&pVertexDisplayCommandBuffers);
-    new_VertexDisplayCommandBuffers(
-        &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
-        renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-        commandPool, swapChainExtent, swapChainImageCount,
-        pSwapChainFramebuffers, cameraViewProduct);
+    bool viewModified = false;
+    transformView(&viewModified, &cameraViewProduct, pWindow);
+    if (viewModified) {
+      vkDeviceWaitIdle(device);
+      delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
+                            commandPool, device);
+      new_VertexDisplayCommandBuffers(
+          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
+          renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
+          commandPool, swapChainExtent, swapChainImageCount,
+          pSwapChainFramebuffers, cameraViewProduct);
+    }
 
     if (result == ERR_OUTOFDATE) {
       vkDeviceWaitIdle(device);
@@ -218,7 +266,8 @@ int main(void) {
                         device);
       delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
                         device);
-      delete_CommandBuffers(&pVertexDisplayCommandBuffers);
+      delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
+                            commandPool, device);
       delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
                                    device);
       delete_Pipeline(&vertexDisplayPipeline, device);
@@ -276,7 +325,8 @@ int main(void) {
   delete_Fences(&pInFlightFences, swapChainImageCount, device);
   delete_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
   delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
-  delete_CommandBuffers(&pVertexDisplayCommandBuffers);
+  delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
+                        commandPool, device);
   delete_CommandPool(&commandPool, device);
   delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
                                device);

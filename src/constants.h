@@ -5,8 +5,8 @@
  *      Author: gpi
  */
 
-#ifndef CONSTANTS_H_
-#define CONSTANTS_H_
+#ifndef SRC_CONSTANTS_H_
+#define SRC_CONSTANTS_H_
 
 #define APPNAME "plant-simulator"
 #define DEBUG 1
@@ -16,4 +16,4 @@
 #define WINDOW_HEIGHT 500
 #define WINDOW_WIDTH 500
 
-#endif /* CONSTANTS_H_ */
+#endif /* SRC_CONSTANTS_H_ */

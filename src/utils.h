@@ -5,8 +5,8 @@
  *      Author: gpi
  */
 
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef SRC_UTILS_H_
+#define SRC_UTILS_H_
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -20,4 +20,4 @@ void findMatchingStrings(const char *const *ppData, uint32_t dataLen,
 
 void readShaderFile(const char *filename, uint32_t *length, uint32_t **code);
 
-#endif /* UTILS_H_ */
+#endif /* SRC_UTILS_H_ */

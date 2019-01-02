@@ -5,8 +5,8 @@
  *      Author: gpi
  */
 
-#ifndef ERRORS_H_
-#define ERRORS_H_
+#ifndef SRC_ERRORS_H_
+#define SRC_ERRORS_H_
 
 #define DEBUG 1
 #define INFO 2
@@ -39,4 +39,4 @@ void errLog(int level, const char *message, ...);
 
 void panic();
 
-#endif /* ERRORS_H_ */
+#endif /* SRC_ERRORS_H_ */

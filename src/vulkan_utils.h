@@ -5,8 +5,8 @@
  *      Author: gpi
  */
 
-#ifndef VULKAN_HELPER_H_
-#define VULKAN_HELPER_H_
+#ifndef SRC_VULKAN_UTILS_H_
+#define SRC_VULKAN_UTILS_H_
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -178,7 +178,10 @@ ErrVal new_VertexDisplayCommandBuffers(
     const VkExtent2D swapChainExtent, const uint32_t swapChainFramebufferCount,
     const VkFramebuffer *pSwapChainFramebuffers, const mat4x4 cameraTransform);
 
-void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers);
+void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers,
+                           const uint32_t commandBufferCount,
+                           const VkCommandPool commandPool,
+                           const VkDevice device);
 
 ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device);
 
@@ -260,4 +263,4 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                       const VkDevice device, const VkCommandPool commandPool,
                       const VkQueue queue);
 
-#endif /* VULKAN_HELPER_H_ */
+#endif /* SRC_VULKAN_UTILS_H_ */

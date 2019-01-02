@@ -15,70 +15,69 @@
 
 char *vkstrerror(VkResult err) {
   switch (err) {
-    case VK_SUCCESS:
-      return ("VK_SUCCESS");
-    case VK_NOT_READY:
-      return ("VK_NOT_READY");
-    case VK_TIMEOUT:
-      return ("VK_TIMEOUT");
-    case VK_EVENT_SET:
-      return ("VK_EVENT_SET");
-    case VK_EVENT_RESET:
-      return ("VK_EVENT_RESET");
-    case VK_INCOMPLETE:
-      return ("VK_INCOMPLETE");
-    case VK_ERROR_OUT_OF_HOST_MEMORY:
-      return ("VK_ERROR_OUT_OF_HOST_MEMORY");
-    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-      return ("VK_ERROR_OUT_OF_DEVICE_MEMORY");
-    case VK_ERROR_INITIALIZATION_FAILED:
-      return ("VK_ERROR_INITIALIZATION_FAILED");
-    case VK_ERROR_DEVICE_LOST:
-      return ("VK_ERROR_DEVICE_LOST");
-    case VK_ERROR_MEMORY_MAP_FAILED:
-      return ("VK_ERROR_MEMORY_MAP_FAILED");
-    case VK_ERROR_LAYER_NOT_PRESENT:
-      return ("VK_ERROR_LAYER_NOT_PRESENT");
-    case VK_ERROR_EXTENSION_NOT_PRESENT:
-      return ("VK_ERROR_EXTENSION_NOT_PRESENT");
-    case VK_ERROR_FEATURE_NOT_PRESENT:
-      return ("VK_ERROR_FEATURE_NOT_PRESENT");
-    case VK_ERROR_INCOMPATIBLE_DRIVER:
-      return ("VK_ERROR_INCOMPATIBLE_DRIVER");
-    case VK_ERROR_TOO_MANY_OBJECTS:
-      return ("VK_ERROR_TOO_MANY_OBJECTS");
-    case VK_ERROR_FORMAT_NOT_SUPPORTED:
-      return ("VK_ERROR_FORMAT_NOT_SUPPORTED");
-    case VK_ERROR_FRAGMENTED_POOL:
-      return ("VK_ERROR_FRAGMENTED_POOL");
-    case VK_ERROR_OUT_OF_POOL_MEMORY:
-      return ("VK_ERROR_OUT_OF_POOL_MEMORY");
-    case VK_ERROR_INVALID_EXTERNAL_HANDLE:
-      return ("VK_ERROR_INVALID_EXTERNAL_HANDLE");
-    case VK_ERROR_SURFACE_LOST_KHR:
-      return ("VK_ERROR_SURFACE_LOST_KHR");
-    case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-      return ("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
-    case VK_SUBOPTIMAL_KHR:
-      return ("VK_SUBOPTIMAL_KHR");
-    case VK_ERROR_OUT_OF_DATE_KHR:
-      return ("VK_ERROR_OUT_OF_DATE_KHR");
-    case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-      return ("VK_ERROR_INCOMPATIBLE_DISPLAY_KHR");
-    case VK_ERROR_VALIDATION_FAILED_EXT:
-      return ("VK_ERROR_VALIDATION_FAILED_EXT");
-    case VK_ERROR_INVALID_SHADER_NV:
-      return ("VK_ERROR_INVALID_SHADER_NV");
-    case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
-      return (
-          "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_"
-          "EXT");
-    case VK_ERROR_FRAGMENTATION_EXT:
-      return ("VK_ERROR_FRAGMENTATION_EXT");
-    case VK_ERROR_NOT_PERMITTED_EXT:
-      return ("VK_ERROR_NOT_PERMITTED_EXT");
-    default:
-      return ("UNKNOWN_ERROR");
+  case VK_SUCCESS:
+    return ("VK_SUCCESS");
+  case VK_NOT_READY:
+    return ("VK_NOT_READY");
+  case VK_TIMEOUT:
+    return ("VK_TIMEOUT");
+  case VK_EVENT_SET:
+    return ("VK_EVENT_SET");
+  case VK_EVENT_RESET:
+    return ("VK_EVENT_RESET");
+  case VK_INCOMPLETE:
+    return ("VK_INCOMPLETE");
+  case VK_ERROR_OUT_OF_HOST_MEMORY:
+    return ("VK_ERROR_OUT_OF_HOST_MEMORY");
+  case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+    return ("VK_ERROR_OUT_OF_DEVICE_MEMORY");
+  case VK_ERROR_INITIALIZATION_FAILED:
+    return ("VK_ERROR_INITIALIZATION_FAILED");
+  case VK_ERROR_DEVICE_LOST:
+    return ("VK_ERROR_DEVICE_LOST");
+  case VK_ERROR_MEMORY_MAP_FAILED:
+    return ("VK_ERROR_MEMORY_MAP_FAILED");
+  case VK_ERROR_LAYER_NOT_PRESENT:
+    return ("VK_ERROR_LAYER_NOT_PRESENT");
+  case VK_ERROR_EXTENSION_NOT_PRESENT:
+    return ("VK_ERROR_EXTENSION_NOT_PRESENT");
+  case VK_ERROR_FEATURE_NOT_PRESENT:
+    return ("VK_ERROR_FEATURE_NOT_PRESENT");
+  case VK_ERROR_INCOMPATIBLE_DRIVER:
+    return ("VK_ERROR_INCOMPATIBLE_DRIVER");
+  case VK_ERROR_TOO_MANY_OBJECTS:
+    return ("VK_ERROR_TOO_MANY_OBJECTS");
+  case VK_ERROR_FORMAT_NOT_SUPPORTED:
+    return ("VK_ERROR_FORMAT_NOT_SUPPORTED");
+  case VK_ERROR_FRAGMENTED_POOL:
+    return ("VK_ERROR_FRAGMENTED_POOL");
+  case VK_ERROR_OUT_OF_POOL_MEMORY:
+    return ("VK_ERROR_OUT_OF_POOL_MEMORY");
+  case VK_ERROR_INVALID_EXTERNAL_HANDLE:
+    return ("VK_ERROR_INVALID_EXTERNAL_HANDLE");
+  case VK_ERROR_SURFACE_LOST_KHR:
+    return ("VK_ERROR_SURFACE_LOST_KHR");
+  case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
+    return ("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
+  case VK_SUBOPTIMAL_KHR:
+    return ("VK_SUBOPTIMAL_KHR");
+  case VK_ERROR_OUT_OF_DATE_KHR:
+    return ("VK_ERROR_OUT_OF_DATE_KHR");
+  case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
+    return ("VK_ERROR_INCOMPATIBLE_DISPLAY_KHR");
+  case VK_ERROR_VALIDATION_FAILED_EXT:
+    return ("VK_ERROR_VALIDATION_FAILED_EXT");
+  case VK_ERROR_INVALID_SHADER_NV:
+    return ("VK_ERROR_INVALID_SHADER_NV");
+  case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
+    return ("VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_"
+            "EXT");
+  case VK_ERROR_FRAGMENTATION_EXT:
+    return ("VK_ERROR_FRAGMENTATION_EXT");
+  case VK_ERROR_NOT_PERMITTED_EXT:
+    return ("VK_ERROR_NOT_PERMITTED_EXT");
+  default:
+    return ("UNKNOWN_ERROR");
   }
 }
 
@@ -93,24 +92,24 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   /* set severity */
   uint32_t errSeverity;
   switch (messageSeverity) {
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-      errSeverity = INFO;
-      break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-      errSeverity = INFO;
-      break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-      errSeverity = WARN;
-      break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-      errSeverity = ERROR;
-      break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-      errSeverity = UNKNOWN;
-      break;
-    default:
-      errSeverity = UNKNOWN;
-      break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+    errSeverity = INFO;
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+    errSeverity = INFO;
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+    errSeverity = WARN;
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+    errSeverity = ERROR;
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
+    errSeverity = UNKNOWN;
+    break;
+  default:
+    errSeverity = UNKNOWN;
+    break;
   }
   /* log error */
   errLog(errSeverity, "vulkan validation layer: %s", pCallbackData->pMessage);
@@ -1074,7 +1073,12 @@ ErrVal new_VertexDisplayCommandBuffers(
   return (VK_SUCCESS);
 }
 
-void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers) {
+void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers,
+                           const uint32_t commandBufferCount,
+                           const VkCommandPool commandPool,
+                           const VkDevice device) {
+  vkFreeCommandBuffers(device, commandPool, commandBufferCount,
+                       *ppCommandBuffers);
   free(*ppCommandBuffers);
   *ppCommandBuffers = NULL;
 }
@@ -1685,7 +1689,6 @@ ErrVal transitionImageLayout(const VkDevice device,
 
   if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
     if (format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
         format == VK_FORMAT_D24_UNORM_S8_UINT) {
       barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -1744,9 +1747,6 @@ ErrVal transitionImageLayout(const VkDevice device,
 }
 
 ErrVal new_PlantNodeStatusUpdateComputePipelineLayout(
-
-
-
     VkPipelineLayout *pPipelineLayout, const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
