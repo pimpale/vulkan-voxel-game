@@ -13,13 +13,22 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include "linmath.h"
-
 #include "errors.h"
+#include "linmath.h"
 
 struct Vertex {
   vec3 position;
   vec3 color;
+};
+
+struct Node {
+  uint8_t type;
+  float length;
+  float area;
+  vec3 color;
+  mat4x4 transformation;
+  struct Node *leftChild;
+  struct Node *rightChild;
 };
 
 char *vkstrerror(VkResult err);

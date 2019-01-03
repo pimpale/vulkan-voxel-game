@@ -1746,7 +1746,7 @@ ErrVal transitionImageLayout(const VkDevice device,
   return (ERR_OK);
 }
 
-ErrVal new_PlantNodeStatusUpdateComputePipelineLayout(
+ErrVal new_NodeUpdateComputePipelineLayout(
     VkPipelineLayout *pPipelineLayout, const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1763,3 +1763,109 @@ ErrVal new_PlantNodeStatusUpdateComputePipelineLayout(
 
   return (ERR_OK);
 }
+
+
+ErrVal new_NodeTopologyComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pPushConstantRanges = NULL;
+  VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                        pPipelineLayout);
+  if (res != VK_SUCCESS) {
+    errLog(FATAL, "failed to create pipeline layout with error: %s",
+           vkstrerror(res));
+    panic();
+  }
+
+  return (ERR_OK);
+}
+
+ErrVal new_VertexGenerationComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pPushConstantRanges = NULL;
+  VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                        pPipelineLayout);
+  if (res != VK_SUCCESS) {
+    errLog(FATAL, "failed to create pipeline layout with error: %s",
+           vkstrerror(res));
+    panic();
+  }
+
+  return (ERR_OK);
+}
+
+ErrVal new_ComputePipelines(
+    VkPipeline *pNodeUpdatePipeline, VkPipeline *pNodeTopologyPipeline,
+    VkPipeline *pVertexGenerationPipeline,
+    const VkPipelineLayout nodeUpdatePipelineLayout,
+    const VkPipelineLayout nodeTopologyPipelineLayout,
+    const VkPipelineLayout vertexGenerationPipelineLayout,
+    const VkShaderModule nodeUpdateShaderModule,
+    const VkShaderModule nodeTopologyShaderModule,
+    const VkShaderModule vertexGenerationShaderModule, VkDevice device) {
+
+  VkPipelineShaderStageCreateInfo nodeUpdateShaderStageCreateInfo = {0};
+  nodeUpdateShaderStageCreateInfo.sType =
+      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  nodeUpdateShaderStageCreateInfo.module = nodeUpdateShaderModule;
+  nodeUpdateShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  VkComputePipelineCreateInfo nodeUpdateComputePipelineCreateInfo = {0};
+  nodeUpdateComputePipelineCreateInfo.sType =
+      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  nodeUpdateComputePipelineCreateInfo.layout = nodeUpdatePipelineLayout;
+  nodeUpdateComputePipelineCreateInfo.stage = nodeUpdateShaderStageCreateInfo;
+
+  VkPipelineShaderStageCreateInfo nodeTopologyShaderStageCreateInfo = {0};
+  nodeTopologyShaderStageCreateInfo.sType =
+      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  nodeTopologyShaderStageCreateInfo.module = nodeTopologyShaderModule;
+  nodeTopologyShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  VkComputePipelineCreateInfo nodeTopologyComputePipelineCreateInfo = {0};
+  nodeTopologyComputePipelineCreateInfo.sType =
+      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  nodeTopologyComputePipelineCreateInfo.layout = nodeTopologyPipelineLayout;
+  nodeTopologyComputePipelineCreateInfo.stage =
+      nodeTopologyShaderStageCreateInfo;
+
+  VkPipelineShaderStageCreateInfo vertexGenerationShaderStageCreateInfo = {0};
+  vertexGenerationShaderStageCreateInfo.sType =
+      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  vertexGenerationShaderStageCreateInfo.module = nodeTopologyShaderModule;
+  vertexGenerationShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  VkComputePipelineCreateInfo vertexGenerationComputePipelineCreateInfo = {0};
+  vertexGenerationComputePipelineCreateInfo.sType =
+      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  vertexGenerationComputePipelineCreateInfo.layout = nodeTopologyPipelineLayout;
+  vertexGenerationComputePipelineCreateInfo.stage =
+      vertexGenerationShaderStageCreateInfo;
+
+  VkComputePipelineCreateInfo pComputePipelineCreateInfos[3] = {
+      nodeUpdateComputePipelineCreateInfo,
+      nodeTopologyComputePipelineCreateInfo,
+      vertexGenerationComputePipelineCreateInfo};
+
+  VkPipeline pComputePipelines[3] = {
+      *pNodeUpdatePipeline, *pNodeTopologyPipeline, *pVertexGenerationPipeline};
+
+  VkResult ret = vkCreateComputePipelines(device, VK_NULL_HANDLE, 3,
+                                          pComputePipelineCreateInfos, NULL,
+                                          pComputePipelines);
+  if (ret != VK_SUCCESS) {
+    errLog(ERROR, "failed to create compute pipelines %s", vkstrerror(ret));
+    return (ERR_UNKNOWN);
+  }
+  return (ERR_OK);
+}
+
+
+

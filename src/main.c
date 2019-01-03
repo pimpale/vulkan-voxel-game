@@ -20,18 +20,21 @@ void transformView(bool *pModified, mat4x4 *pTransformation,
   float dz = 0;
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
     dx += 0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
     dx += -0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
     dz += 0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
     dz -= 0.01;
+    *pModified = true;
   }
 
-  bool translated = !(dx || dy || dz);
   mat4x4_translate_in_place(*pTransformation, dx, dy, dz);
 
   float rx = 0;
@@ -40,22 +43,24 @@ void transformView(bool *pModified, mat4x4 *pTransformation,
 
   if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
     ry += 0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
     ry += -0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
     rx += 0.01;
+    *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
     rx -= 0.01;
+    *pModified = true;
   }
-  bool rotated = !(rx || ry || rz);
   mat4x4_rotate_X(*pTransformation, *pTransformation, rx);
   mat4x4_rotate_Y(*pTransformation, *pTransformation, ry);
   mat4x4_rotate_Z(*pTransformation, *pTransformation, rz);
 
-  *pModified = translated || rotated;
 }
 
 int main(void) {
@@ -241,15 +246,11 @@ int main(void) {
   /*wait till close*/
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
-    ErrVal result = drawFrame(
-        &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
-        pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
-        graphicsQueue, presentQueue);
 
     bool viewModified = false;
     transformView(&viewModified, &cameraViewProduct, pWindow);
     if (viewModified) {
-      vkDeviceWaitIdle(device);
+      vkQueueWaitIdle(graphicsQueue);
       delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
                             commandPool, device);
       new_VertexDisplayCommandBuffers(
@@ -259,8 +260,13 @@ int main(void) {
           pSwapChainFramebuffers, cameraViewProduct);
     }
 
+    ErrVal result = drawFrame(
+        &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
+        pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
+        graphicsQueue, presentQueue);
+
     if (result == ERR_OUTOFDATE) {
-      vkDeviceWaitIdle(device);
+      vkQueueWaitIdle(graphicsQueue);
       delete_Fences(&pInFlightFences, swapChainImageCount, device);
       delete_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
                         device);
