@@ -35,8 +35,8 @@
 
 typedef uint32_t ErrVal;
 
-void errLog(int level, const char *message, ...);
+void errLog(uint32_t level, const char *message, ...);
 
-void panic();
+void panic(void);
 
 #endif /* SRC_ERRORS_H_ */

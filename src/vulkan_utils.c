@@ -76,9 +76,12 @@ char *vkstrerror(VkResult err) {
     return ("VK_ERROR_FRAGMENTATION_EXT");
   case VK_ERROR_NOT_PERMITTED_EXT:
     return ("VK_ERROR_NOT_PERMITTED_EXT");
-  default:
-    return ("UNKNOWN_ERROR");
+	case VK_RESULT_RANGE_SIZE:
+		return ("VK_RESULT_RANGE_SIZE");
+	case VK_RESULT_MAX_ENUM:
+		return ("VK_RESULT_MAX_ENUM");
   }
+  return ("UNKNOWN_ERROR");
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
@@ -90,7 +93,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   UNUSED(pUserData);
 
   /* set severity */
-  uint32_t errSeverity;
+  uint32_t errSeverity = UNKNOWN;
   switch (messageSeverity) {
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
     errSeverity = INFO;
@@ -105,9 +108,6 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     errSeverity = ERROR;
     break;
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-    errSeverity = UNKNOWN;
-    break;
-  default:
     errSeverity = UNKNOWN;
     break;
   }
@@ -979,7 +979,12 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
   poolInfo.queueFamilyIndex = queueFamilyIndex;
   poolInfo.flags = 0;
   VkResult ret = vkCreateCommandPool(device, &poolInfo, NULL, pCommandPool);
-  return (ret);
+	if(ret != VK_SUCCESS) 
+	{
+					errLog(ERROR, "failed to create command pool %s", vkstrerror(ret));
+					return (ERR_UNKNOWN);
+  }	
+  return (ERR_OK);
 }
 
 void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
@@ -1086,7 +1091,13 @@ void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers,
 ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
   VkSemaphoreCreateInfo semaphoreInfo = {0};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  return (vkCreateSemaphore(device, &semaphoreInfo, NULL, pSemaphore));
+  VkResult ret = vkCreateSemaphore(device, &semaphoreInfo, NULL, pSemaphore);
+	if(ret != VK_SUCCESS)
+	{
+					errLog(ERROR, "failed to create semaphore: %s", vkstrerror(ret));
+					return (ERR_UNKNOWN);
+	}
+	return (ERR_OK);
 }
 
 void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
@@ -1129,7 +1140,14 @@ ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
   VkFenceCreateInfo fenceInfo = {0};
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-  return (vkCreateFence(device, &fenceInfo, NULL, pFence));
+  VkResult ret = vkCreateFence(device, &fenceInfo, NULL, pFence);
+	if(ret != VK_SUCCESS)
+	{
+					errLog(ERROR, "failed to create fence: %s", vkstrerror(ret));
+					return (ERR_UNKNOWN);
+	}
+	return (ERR_OK);
+
 }
 
 void delete_Fence(VkFence *pFence, const VkDevice device) {
@@ -1300,6 +1318,7 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
                           const uint32_t memoryTypeBits,
                           const VkMemoryPropertyFlags memoryPropertyFlags,
                           const VkPhysicalDevice physicalDevice) {
+
   /* Retrieve memory properties */
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -1326,13 +1345,13 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   VkDeviceSize bufferSize = sizeof(struct Vertex) * vertexCount;
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
-  VkResult stagingBufferCreateResult = new_Buffer_DeviceMemory(
+  ErrVal stagingBufferCreateResult = new_Buffer_DeviceMemory(
       &stagingBuffer, &stagingBufferMemory, bufferSize, physicalDevice, device,
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-  if (stagingBufferCreateResult != VK_SUCCESS) {
+  if (stagingBufferCreateResult != ERR_OK) {
     errLog(ERROR,
            "failed to create vertex buffer: failed to create staging buffer");
     return (stagingBufferCreateResult);
@@ -1342,21 +1361,20 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   ErrVal copyResult =
       copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
   if (copyResult != ERR_OK) {
-    errLog(ERROR, "failed to create vertex buffer, could not map memory: %s",
-           vkstrerror(copyResult));
+    errLog(ERROR, "failed to create vertex buffer, could not map memory");
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
     return (copyResult);
   }
 
   /* Create vertex buffer and allocate memory for it */
-  VkResult vertexBufferCreateResult = new_Buffer_DeviceMemory(
+  ErrVal vertexBufferCreateResult = new_Buffer_DeviceMemory(
       pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   /* Handle errors */
-  if (vertexBufferCreateResult != VK_SUCCESS) {
+  if (vertexBufferCreateResult != ERR_OK) {
     /* Delete the temporary staging buffers */
     errLog(ERROR, "failed to create vertex buffer");
     delete_Buffer(&stagingBuffer, device);
@@ -1589,7 +1607,7 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
 
-  VkResult memGetResult = getMemoryTypeIndex(&allocInfo.memoryTypeIndex,
+  ErrVal memGetResult = getMemoryTypeIndex(&allocInfo.memoryTypeIndex,
                                              memRequirements.memoryTypeBits,
                                              properties, physicalDevice);
 
@@ -1811,6 +1829,7 @@ ErrVal new_ComputePipelines(
     const VkShaderModule nodeTopologyShaderModule,
     const VkShaderModule vertexGenerationShaderModule, VkDevice device) {
 
+  /* Node Update */
   VkPipelineShaderStageCreateInfo nodeUpdateShaderStageCreateInfo = {0};
   nodeUpdateShaderStageCreateInfo.sType =
       VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1823,6 +1842,7 @@ ErrVal new_ComputePipelines(
   nodeUpdateComputePipelineCreateInfo.layout = nodeUpdatePipelineLayout;
   nodeUpdateComputePipelineCreateInfo.stage = nodeUpdateShaderStageCreateInfo;
 
+	/* Node Topology */
   VkPipelineShaderStageCreateInfo nodeTopologyShaderStageCreateInfo = {0};
   nodeTopologyShaderStageCreateInfo.sType =
       VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1836,16 +1856,17 @@ ErrVal new_ComputePipelines(
   nodeTopologyComputePipelineCreateInfo.stage =
       nodeTopologyShaderStageCreateInfo;
 
+	/* Vertex Generation */
   VkPipelineShaderStageCreateInfo vertexGenerationShaderStageCreateInfo = {0};
   vertexGenerationShaderStageCreateInfo.sType =
       VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  vertexGenerationShaderStageCreateInfo.module = nodeTopologyShaderModule;
+  vertexGenerationShaderStageCreateInfo.module = vertexGenerationShaderModule;
   vertexGenerationShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 
   VkComputePipelineCreateInfo vertexGenerationComputePipelineCreateInfo = {0};
   vertexGenerationComputePipelineCreateInfo.sType =
       VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  vertexGenerationComputePipelineCreateInfo.layout = nodeTopologyPipelineLayout;
+  vertexGenerationComputePipelineCreateInfo.layout = vertexGenerationPipelineLayout;
   vertexGenerationComputePipelineCreateInfo.stage =
       vertexGenerationShaderStageCreateInfo;
 

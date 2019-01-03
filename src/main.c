@@ -60,7 +60,6 @@ void transformView(bool *pModified, mat4x4 *pTransformation,
   mat4x4_rotate_X(*pTransformation, *pTransformation, rx);
   mat4x4_rotate_Y(*pTransformation, *pTransformation, ry);
   mat4x4_rotate_Z(*pTransformation, *pTransformation, rz);
-
 }
 
 int main(void) {
@@ -114,6 +113,31 @@ int main(void) {
       panic();
     }
   }
+
+  /* Create compute pipeline */
+  VkPipelineLayout nodeUpdatePipelineLayout;
+  VkPipelineLayout nodeTopologyPipelineLayout;
+  VkPipelineLayout vertexGenerationPipelineLayout;
+
+	new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout, device);
+  new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout, device);
+	new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout, device);
+
+  /* Shader modules */
+  VkShaderModule nodeUpdateShaderModule;
+	VkShaderModule nodeTopologyShaderModule;
+	VkShaderModule vertexGenerationShaderModule;
+
+  /* Load from file */
+  
+
+	VkPipeline nodeUpdatePipeline;
+	VkPipeline nodeTopologyPipeline;
+	VkPipeline vertexGenerationPipeline;
+
+	new_ComputePipelines(&nodeUpdatePipeline, &nodeTopologyPipeline, &vertexGenerationPipeline, 
+									nodeUpdatePipelineLayout, nodeTopologyPipelineLayout, vertexGenerationPipelineLayout,
+									);
 
   /* Set extent (for now just window width and height) */
   VkExtent2D swapChainExtent;
@@ -232,8 +256,8 @@ int main(void) {
   new_VertexDisplayCommandBuffers(
       &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-      commandPool, swapChainExtent, swapChainImageCount, pSwapChainFramebuffers,
-      cameraViewProduct);
+      commandPool, swapChainExtent, swapChainImageCount,
+      (const VkFramebuffer *)pSwapChainFramebuffers, cameraViewProduct);
 
   VkSemaphore *pImageAvailableSemaphores;
   VkSemaphore *pRenderFinishedSemaphores;

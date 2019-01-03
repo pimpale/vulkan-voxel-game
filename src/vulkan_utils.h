@@ -161,6 +161,15 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
 
 void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device);
 
+
+ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
+                       const VkRenderPass renderPass,
+                       const VkImageView imageView,
+                       const VkImageView depthImageView,
+                       const VkExtent2D swapChainExtent);
+
+void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device);
+
 ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const VkDevice device,
                                  const VkRenderPass renderPass,
@@ -201,6 +210,12 @@ ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
 
 void delete_Semaphores(VkSemaphore **ppSemaphores,
                        const uint32_t semaphoreCount, const VkDevice device);
+
+
+ErrVal new_Fence(VkFence *pFence, const VkDevice device);
+
+
+void delete_Fence(VkFence *pFence, const VkDevice device);
 
 ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
                   const VkDevice device);
@@ -271,5 +286,36 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                       const VkPhysicalDevice physicalDevice,
                       const VkDevice device, const VkCommandPool commandPool,
                       const VkQueue queue);
+
+
+ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
+                          const uint32_t memoryTypeBits,
+                          const VkMemoryPropertyFlags memoryPropertyFlags,
+                          const VkPhysicalDevice physicalDevice);
+
+ErrVal new_NodeUpdateComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout, const VkDevice device);
+
+
+ErrVal new_NodeTopologyComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout, const VkDevice device);
+
+
+ErrVal new_VertexGenerationComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout, const VkDevice device);
+
+
+ErrVal new_ComputePipelines(
+    VkPipeline *pNodeUpdatePipeline, VkPipeline *pNodeTopologyPipeline,
+    VkPipeline *pVertexGenerationPipeline,
+    const VkPipelineLayout nodeUpdatePipelineLayout,
+    const VkPipelineLayout nodeTopologyPipelineLayout,
+    const VkPipelineLayout vertexGenerationPipelineLayout,
+    const VkShaderModule nodeUpdateShaderModule,
+    const VkShaderModule nodeTopologyShaderModule,
+    const VkShaderModule vertexGenerationShaderModule, VkDevice device);
+
+
+
 
 #endif /* SRC_VULKAN_UTILS_H_ */

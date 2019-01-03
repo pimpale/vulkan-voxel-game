@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <vulkan/vulkan.h>
 
@@ -17,7 +18,7 @@
 
 #include "errors.h"
 
-void errLog(int level, const char *message, ...) {
+void errLog(uint32_t level, const char *message, ...) {
   char *errmsg;
   FILE *out;
 
