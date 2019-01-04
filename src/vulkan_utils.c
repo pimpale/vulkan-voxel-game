@@ -76,10 +76,10 @@ char *vkstrerror(VkResult err) {
     return ("VK_ERROR_FRAGMENTATION_EXT");
   case VK_ERROR_NOT_PERMITTED_EXT:
     return ("VK_ERROR_NOT_PERMITTED_EXT");
-	case VK_RESULT_RANGE_SIZE:
-		return ("VK_RESULT_RANGE_SIZE");
-	case VK_RESULT_MAX_ENUM:
-		return ("VK_RESULT_MAX_ENUM");
+  case VK_RESULT_RANGE_SIZE:
+    return ("VK_RESULT_RANGE_SIZE");
+  case VK_RESULT_MAX_ENUM:
+    return ("VK_RESULT_MAX_ENUM");
   }
   return ("UNKNOWN_ERROR");
 }
@@ -979,11 +979,10 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
   poolInfo.queueFamilyIndex = queueFamilyIndex;
   poolInfo.flags = 0;
   VkResult ret = vkCreateCommandPool(device, &poolInfo, NULL, pCommandPool);
-	if(ret != VK_SUCCESS) 
-	{
-					errLog(ERROR, "failed to create command pool %s", vkstrerror(ret));
-					return (ERR_UNKNOWN);
-  }	
+  if (ret != VK_SUCCESS) {
+    errLog(ERROR, "failed to create command pool %s", vkstrerror(ret));
+    return (ERR_UNKNOWN);
+  }
   return (ERR_OK);
 }
 
@@ -1092,12 +1091,11 @@ ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
   VkSemaphoreCreateInfo semaphoreInfo = {0};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   VkResult ret = vkCreateSemaphore(device, &semaphoreInfo, NULL, pSemaphore);
-	if(ret != VK_SUCCESS)
-	{
-					errLog(ERROR, "failed to create semaphore: %s", vkstrerror(ret));
-					return (ERR_UNKNOWN);
-	}
-	return (ERR_OK);
+  if (ret != VK_SUCCESS) {
+    errLog(ERROR, "failed to create semaphore: %s", vkstrerror(ret));
+    return (ERR_UNKNOWN);
+  }
+  return (ERR_OK);
 }
 
 void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
@@ -1141,13 +1139,11 @@ ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
   VkResult ret = vkCreateFence(device, &fenceInfo, NULL, pFence);
-	if(ret != VK_SUCCESS)
-	{
-					errLog(ERROR, "failed to create fence: %s", vkstrerror(ret));
-					return (ERR_UNKNOWN);
-	}
-	return (ERR_OK);
-
+  if (ret != VK_SUCCESS) {
+    errLog(ERROR, "failed to create fence: %s", vkstrerror(ret));
+    return (ERR_UNKNOWN);
+  }
+  return (ERR_OK);
 }
 
 void delete_Fence(VkFence *pFence, const VkDevice device) {
@@ -1608,8 +1604,8 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
   allocInfo.allocationSize = memRequirements.size;
 
   ErrVal memGetResult = getMemoryTypeIndex(&allocInfo.memoryTypeIndex,
-                                             memRequirements.memoryTypeBits,
-                                             properties, physicalDevice);
+                                           memRequirements.memoryTypeBits,
+                                           properties, physicalDevice);
 
   if (memGetResult != ERR_OK) {
     errLog(ERROR, "failed to create image: allocation failed");
@@ -1764,8 +1760,8 @@ ErrVal transitionImageLayout(const VkDevice device,
   return (ERR_OK);
 }
 
-ErrVal new_NodeUpdateComputePipelineLayout(
-    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                           const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
@@ -1782,9 +1778,8 @@ ErrVal new_NodeUpdateComputePipelineLayout(
   return (ERR_OK);
 }
 
-
-ErrVal new_NodeTopologyComputePipelineLayout(
-    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+ErrVal new_NodeTopologyComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                             const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
@@ -1801,8 +1796,9 @@ ErrVal new_NodeTopologyComputePipelineLayout(
   return (ERR_OK);
 }
 
-ErrVal new_VertexGenerationComputePipelineLayout(
-    VkPipelineLayout *pPipelineLayout, const VkDevice device) {
+ErrVal
+new_VertexGenerationComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                          const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 0;
@@ -1842,7 +1838,7 @@ ErrVal new_ComputePipelines(
   nodeUpdateComputePipelineCreateInfo.layout = nodeUpdatePipelineLayout;
   nodeUpdateComputePipelineCreateInfo.stage = nodeUpdateShaderStageCreateInfo;
 
-	/* Node Topology */
+  /* Node Topology */
   VkPipelineShaderStageCreateInfo nodeTopologyShaderStageCreateInfo = {0};
   nodeTopologyShaderStageCreateInfo.sType =
       VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1856,7 +1852,7 @@ ErrVal new_ComputePipelines(
   nodeTopologyComputePipelineCreateInfo.stage =
       nodeTopologyShaderStageCreateInfo;
 
-	/* Vertex Generation */
+  /* Vertex Generation */
   VkPipelineShaderStageCreateInfo vertexGenerationShaderStageCreateInfo = {0};
   vertexGenerationShaderStageCreateInfo.sType =
       VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1866,7 +1862,8 @@ ErrVal new_ComputePipelines(
   VkComputePipelineCreateInfo vertexGenerationComputePipelineCreateInfo = {0};
   vertexGenerationComputePipelineCreateInfo.sType =
       VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  vertexGenerationComputePipelineCreateInfo.layout = vertexGenerationPipelineLayout;
+  vertexGenerationComputePipelineCreateInfo.layout =
+      vertexGenerationPipelineLayout;
   vertexGenerationComputePipelineCreateInfo.stage =
       vertexGenerationShaderStageCreateInfo;
 
@@ -1887,6 +1884,3 @@ ErrVal new_ComputePipelines(
   }
   return (ERR_OK);
 }
-
-
-

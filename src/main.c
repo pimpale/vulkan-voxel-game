@@ -114,19 +114,18 @@ int main(void) {
       panic();
     }
   }
-	/* Set up compute */
+  /* Set up compute */
 
-	VkDevice computeDevice;
+  VkDevice computeDevice;
 
-	new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount, 
+  new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount,
 
              (const char *const *)ppLayerNames);
   VkPipelineLayout nodeUpdatePipelineLayout;
   VkPipelineLayout nodeTopologyPipelineLayout;
   VkPipelineLayout vertexGenerationPipelineLayout;
 
-  new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout,
-                                      computeDevice);
+  new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout, computeDevice);
   new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout,
                                         computeDevice);
   new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout,
@@ -143,12 +142,11 @@ int main(void) {
   VkPipeline nodeTopologyPipeline;
   VkPipeline vertexGenerationPipeline;
 
-  new_ComputePipelines(&nodeUpdatePipeline, &nodeTopologyPipeline,
-                       &vertexGenerationPipeline, nodeUpdatePipelineLayout,
-                       nodeTopologyPipelineLayout,
-                       vertexGenerationPipelineLayout, 
-											 nodeUpdateShaderModule, nodeTopologyShaderModule,
-											 vertexGenerationShaderModule, computeDevice);
+  new_ComputePipelines(
+      &nodeUpdatePipeline, &nodeTopologyPipeline, &vertexGenerationPipeline,
+      nodeUpdatePipelineLayout, nodeTopologyPipelineLayout,
+      vertexGenerationPipelineLayout, nodeUpdateShaderModule,
+      nodeTopologyShaderModule, vertexGenerationShaderModule, computeDevice);
 
   /* Set extent (for now just window width and height) */
   VkExtent2D swapChainExtent;

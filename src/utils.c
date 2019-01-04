@@ -32,8 +32,8 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
     panic();
   }
   /* We can coerce to a 32 bit, because no realistic files will be
-	 * greater than 2 GB */
-  uint32_t filesize = (uint32_t) getLength(fp);
+   * greater than 2 GB */
+  uint32_t filesize = (uint32_t)getLength(fp);
   uint32_t filesizepadded =
       (filesize % 4 == 0 ? filesize * 4 : (filesize + 1) * 4) / 4;
 
@@ -55,6 +55,6 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
 
   /*set up*/
   *length = filesizepadded;
-  *code = (uint32_t *) ((void*)str);
+  *code = (uint32_t *)((void *)str);
   return;
 }
