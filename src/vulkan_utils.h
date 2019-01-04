@@ -31,8 +31,6 @@ struct Node {
   struct Node *rightChild;
 };
 
-char *vkstrerror(VkResult err);
-
 ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
                                       char ***pppEnabledExtensionNames);
 

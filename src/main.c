@@ -10,14 +10,18 @@
 
 #include "constants.h"
 #include "errors.h"
+#include "linmath.h"
 #include "utils.h"
 #include "vulkan_utils.h"
 
 void transformView(bool *pModified, mat4x4 *pTransformation,
+                   GLFWwindow *pWindow);
+
+void transformView(bool *pModified, mat4x4 *pTransformation,
                    GLFWwindow *pWindow) {
-  float dx = 0;
-  float dy = 0;
-  float dz = 0;
+  float dx = 0.0f;
+  float dy = 0.0f;
+  float dz = 0.0f;
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
     dx += 0.01f;
     *pModified = true;
@@ -110,8 +114,8 @@ int main(void) {
         getPresentQueueIndex(&presentIndex, physicalDevice, surface);
     /* Panic if indices are unavailable */
     if (ret1 != VK_SUCCESS || ret2 != VK_SUCCESS || ret3 != VK_SUCCESS) {
-      errLog(FATAL, "unable to acquire indices\n");
-      panic();
+      errLog(ERR_LEVEL_FATAL, "unable to acquire indices");
+      PANIC();
     }
   }
   /* Set up compute */
@@ -137,6 +141,12 @@ int main(void) {
   VkShaderModule vertexGenerationShaderModule;
 
   /* Load from file */
+  new_ShaderModuleFromFile(&nodeUpdateShaderModule, computeDevice,
+                           "assets/shaders/nodeupdate.comp.spv");
+  new_ShaderModuleFromFile(&nodeTopologyShaderModule, computeDevice,
+                           "assets/shaders/nodetopology.comp.spv");
+  new_ShaderModuleFromFile(&vertexGenerationShaderModule, computeDevice,
+                           "assets/shaders/vertexgeneration.comp.spv");
 
   VkPipeline nodeUpdatePipeline;
   VkPipeline nodeTopologyPipeline;
@@ -198,10 +208,10 @@ int main(void) {
 
   VkShaderModule fragShaderModule;
   new_ShaderModuleFromFile(&fragShaderModule, graphicsDevice,
-                           "assets/shaders/shader.frag.spv");
+                           "assets/shaders/vertexdisplay.frag.spv");
   VkShaderModule vertShaderModule;
   new_ShaderModuleFromFile(&vertShaderModule, graphicsDevice,
-                           "assets/shaders/shader.vert.spv");
+                           "assets/shaders/vertexdisplay.vert.spv");
 
   /* Create graphics pipeline */
   VkRenderPass renderPass;
@@ -222,7 +232,6 @@ int main(void) {
                             depthImageView, pSwapChainImageViews);
 
 #define VERTEXNUM 12
-
   struct Vertex vertices[VERTEXNUM] = {{{-1, -1, 0}, {1, 0, 0}},
                                        {{1, -1, 0}, {1, 1, 1}},
                                        {{1, 1, 0}, {0, 1, 0}},

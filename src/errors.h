@@ -8,35 +8,33 @@
 #ifndef SRC_ERRORS_H_
 #define SRC_ERRORS_H_
 
-#define DEBUG 1
-#define INFO 2
-#define WARN 3
-#define ERROR 4
-#define FATAL 5
-#define UNKNOWN 6
-
-#define DEBUG_MSG "debug"
-#define INFO_MSG "info"
-#define WARN_MSG "warning"
-#define ERROR_MSG "error"
-#define FATAL_MSG "fatal"
-#define UNKNOWN_MSG "unknown severity"
+#include <vulkan/vulkan.h>
 
 #define UNUSED(x) (void)(x)
+#define PANIC() exit(EXIT_FAILURE)
 
-#define ERR_OK 0
-#define ERR_UNKNOWN 1
-#define ERR_NOTSUPPORTED 2
-#define ERR_UNSAFE 3
-#define ERR_BADARGS 4
-#define ERR_OUTOFDATE 5
-#define ERR_ALLOCFAIL 6
-#define ERR_MEMORY 7
+typedef enum ErrSeverity {
+  ERR_LEVEL_DEBUG = 1,
+  ERR_LEVEL_INFO = 2,
+  ERR_LEVEL_WARN = 3,
+  ERR_LEVEL_ERROR = 4,
+  ERR_LEVEL_FATAL = 5,
+  ERR_LEVEL_UNKNOWN = 6,
+} ErrSeverity;
 
-typedef uint32_t ErrVal;
+typedef enum ErrVal {
+  ERR_OK = 0,
+  ERR_UNKNOWN = 1,
+  ERR_NOTSUPPORTED = 2,
+  ERR_UNSAFE = 3,
+  ERR_BADARGS = 4,
+  ERR_OUTOFDATE = 5,
+  ERR_ALLOCFAIL = 6,
+  ERR_MEMORY = 7,
+} ErrVal;
 
-void errLog(uint32_t level, const char *message, ...);
+char *vkstrerror(VkResult err);
 
-void panic(void);
+void errLog(ErrSeverity level, const char *message, ...);
 
 #endif /* SRC_ERRORS_H_ */

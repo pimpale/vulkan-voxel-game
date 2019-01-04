@@ -20,6 +20,11 @@ uint64_t getLength(FILE *f) {
   fseek(f, 0, SEEK_END);
   int64_t size = ftell(f);
   fseek(f, currentpos, SEEK_SET);
+	if(size < 0) 
+	{
+					errLog(ERR_LEVEL_ERROR, "invalid file size");
+					return (0);
+	}
   return ((uint64_t)size);
 }
 /**
@@ -28,8 +33,8 @@ uint64_t getLength(FILE *f) {
 void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
   FILE *fp = fopen(filename, "rb");
   if (!fp) {
-    errLog(FATAL, "could not read file\n");
-    panic();
+    errLog(ERR_LEVEL_FATAL, "could not read file\n");
+    PANIC();
   }
   /* We can coerce to a 32 bit, because no realistic files will be
    * greater than 2 GB */
@@ -39,10 +44,9 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
 
   char *str = malloc(filesizepadded);
   if (!str) {
-    errLog(FATAL, "Could not read shader file: %s\n", strerror(errno));
+    errLog(ERR_LEVEL_FATAL, "Could not read shader file: %s\n", strerror(errno));
     fclose(fp);
-    panic();
-    return;
+    PANIC();
   }
 
   fread(str, filesize, sizeof(char), fp);
@@ -53,7 +57,7 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
     str[i] = 0;
   }
 
-  /*set up*/
+  /*cast data t array of uints*/
   *length = filesizepadded;
   *code = (uint32_t *)((void *)str);
   return;

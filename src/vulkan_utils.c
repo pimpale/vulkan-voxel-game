@@ -13,76 +13,6 @@
 #include "errors.h"
 #include "utils.h"
 
-char *vkstrerror(VkResult err) {
-  switch (err) {
-  case VK_SUCCESS:
-    return ("VK_SUCCESS");
-  case VK_NOT_READY:
-    return ("VK_NOT_READY");
-  case VK_TIMEOUT:
-    return ("VK_TIMEOUT");
-  case VK_EVENT_SET:
-    return ("VK_EVENT_SET");
-  case VK_EVENT_RESET:
-    return ("VK_EVENT_RESET");
-  case VK_INCOMPLETE:
-    return ("VK_INCOMPLETE");
-  case VK_ERROR_OUT_OF_HOST_MEMORY:
-    return ("VK_ERROR_OUT_OF_HOST_MEMORY");
-  case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-    return ("VK_ERROR_OUT_OF_DEVICE_MEMORY");
-  case VK_ERROR_INITIALIZATION_FAILED:
-    return ("VK_ERROR_INITIALIZATION_FAILED");
-  case VK_ERROR_DEVICE_LOST:
-    return ("VK_ERROR_DEVICE_LOST");
-  case VK_ERROR_MEMORY_MAP_FAILED:
-    return ("VK_ERROR_MEMORY_MAP_FAILED");
-  case VK_ERROR_LAYER_NOT_PRESENT:
-    return ("VK_ERROR_LAYER_NOT_PRESENT");
-  case VK_ERROR_EXTENSION_NOT_PRESENT:
-    return ("VK_ERROR_EXTENSION_NOT_PRESENT");
-  case VK_ERROR_FEATURE_NOT_PRESENT:
-    return ("VK_ERROR_FEATURE_NOT_PRESENT");
-  case VK_ERROR_INCOMPATIBLE_DRIVER:
-    return ("VK_ERROR_INCOMPATIBLE_DRIVER");
-  case VK_ERROR_TOO_MANY_OBJECTS:
-    return ("VK_ERROR_TOO_MANY_OBJECTS");
-  case VK_ERROR_FORMAT_NOT_SUPPORTED:
-    return ("VK_ERROR_FORMAT_NOT_SUPPORTED");
-  case VK_ERROR_FRAGMENTED_POOL:
-    return ("VK_ERROR_FRAGMENTED_POOL");
-  case VK_ERROR_OUT_OF_POOL_MEMORY:
-    return ("VK_ERROR_OUT_OF_POOL_MEMORY");
-  case VK_ERROR_INVALID_EXTERNAL_HANDLE:
-    return ("VK_ERROR_INVALID_EXTERNAL_HANDLE");
-  case VK_ERROR_SURFACE_LOST_KHR:
-    return ("VK_ERROR_SURFACE_LOST_KHR");
-  case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-    return ("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
-  case VK_SUBOPTIMAL_KHR:
-    return ("VK_SUBOPTIMAL_KHR");
-  case VK_ERROR_OUT_OF_DATE_KHR:
-    return ("VK_ERROR_OUT_OF_DATE_KHR");
-  case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-    return ("VK_ERROR_INCOMPATIBLE_DISPLAY_KHR");
-  case VK_ERROR_VALIDATION_FAILED_EXT:
-    return ("VK_ERROR_VALIDATION_FAILED_EXT");
-  case VK_ERROR_INVALID_SHADER_NV:
-    return ("VK_ERROR_INVALID_SHADER_NV");
-  case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
-    return ("VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_"
-            "EXT");
-  case VK_ERROR_FRAGMENTATION_EXT:
-    return ("VK_ERROR_FRAGMENTATION_EXT");
-  case VK_ERROR_NOT_PERMITTED_EXT:
-    return ("VK_ERROR_NOT_PERMITTED_EXT");
-  case VK_RESULT_RANGE_SIZE:
-    return ("VK_RESULT_RANGE_SIZE");
-  case VK_RESULT_MAX_ENUM:
-    return ("VK_RESULT_MAX_ENUM");
-  }
-  return ("UNKNOWN_ERROR");
-}
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -93,22 +23,22 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   UNUSED(pUserData);
 
   /* set severity */
-  uint32_t errSeverity = UNKNOWN;
+  ErrSeverity errSeverity = ERR_LEVEL_UNKNOWN;
   switch (messageSeverity) {
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-    errSeverity = INFO;
+    errSeverity = ERR_LEVEL_INFO;
     break;
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-    errSeverity = INFO;
+    errSeverity = ERR_LEVEL_INFO;
     break;
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-    errSeverity = WARN;
+    errSeverity = ERR_LEVEL_WARN;
     break;
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-    errSeverity = ERROR;
+    errSeverity = ERR_LEVEL_ERROR;
     break;
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-    errSeverity = UNKNOWN;
+    errSeverity = ERR_LEVEL_UNKNOWN;
     break;
   }
   /* log error */
@@ -129,8 +59,8 @@ ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
       malloc(sizeof(char *) * (*pEnabledExtensionCount));
 
   if (!(*pppEnabledExtensionNames)) {
-    errLog(FATAL, "failed to get required extensions: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to get required extensions: %s", strerror(errno));
+    PANIC();
   }
 
   /* Allocate buffers for extensions */
@@ -214,9 +144,9 @@ ErrVal new_Instance(VkInstance *pInstance, const uint32_t enabledExtensionCount,
   /* Actually create instance */
   VkResult result = vkCreateInstance(&createInfo, NULL, pInstance);
   if (result != VK_SUCCESS) {
-    errLog(FATAL, "Failed to create instance, error code: %s",
+    errLog(ERR_LEVEL_FATAL, "Failed to create instance, error code: %s",
            vkstrerror(result));
-    panic();
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -249,14 +179,14 @@ ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
       (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
           instance, "vkCreateDebugUtilsMessengerEXT");
   if (!func) {
-    errLog(FATAL, "Failed to find extension function");
-    panic();
+    errLog(ERR_LEVEL_FATAL, "Failed to find extension function");
+    PANIC();
   }
   VkResult result = func(instance, &createInfo, NULL, pCallback);
   if (result != VK_SUCCESS) {
-    errLog(FATAL, "Failed to create debug callback, error code: %s",
+    errLog(ERR_LEVEL_FATAL, "Failed to create debug callback, error code: %s",
            vkstrerror(result));
-    panic();
+    PANIC();
   }
   return (ERR_NOTSUPPORTED);
 }
@@ -281,13 +211,13 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
   uint32_t deviceCount = 0;
   VkResult res = vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
   if (res != VK_SUCCESS || deviceCount == 0) {
-    errLog(WARN, "no Vulkan capable device found");
+    errLog(ERR_LEVEL_WARN, "no Vulkan capable device found");
     return (ERR_NOTSUPPORTED);
   }
   VkPhysicalDevice *arr = malloc(deviceCount * sizeof(VkPhysicalDevice));
   if (!arr) {
-    errLog(FATAL, "failed to get physical device: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to get physical device: %s", strerror(errno));
+    PANIC();
   }
   vkEnumeratePhysicalDevices(instance, &deviceCount, arr);
 
@@ -307,7 +237,7 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
   }
   free(arr);
   if (selectedDevice == VK_NULL_HANDLE) {
-    errLog(WARN, "no suitable Vulkan device found");
+    errLog(ERR_LEVEL_WARN, "no suitable Vulkan device found");
     return (ERR_NOTSUPPORTED);
   } else {
     *pDevice = selectedDevice;
@@ -330,14 +260,14 @@ ErrVal getDeviceQueueIndex(uint32_t *deviceQueueIndex,
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, NULL);
   if (queueFamilyCount == 0) {
-    errLog(WARN, "no device queues found");
+    errLog(ERR_LEVEL_WARN, "no device queues found");
     return (ERR_NOTSUPPORTED);
   }
   VkQueueFamilyProperties *arr =
       malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
   if (!arr) {
-    errLog(FATAL, "Failed to get device queue index: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "Failed to get device queue index: %s", strerror(errno));
+    PANIC();
   }
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, arr);
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
@@ -348,7 +278,7 @@ ErrVal getDeviceQueueIndex(uint32_t *deviceQueueIndex,
     }
   }
   free(arr);
-  errLog(ERROR, "no suitable device queue found");
+  errLog(ERR_LEVEL_ERROR, "no suitable device queue found");
   return (ERR_NOTSUPPORTED);
 }
 
@@ -359,14 +289,14 @@ ErrVal getPresentQueueIndex(uint32_t *pPresentQueueIndex,
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
                                            NULL);
   if (queueFamilyCount == 0) {
-    errLog(WARN, "no queues found");
+    errLog(ERR_LEVEL_WARN, "no queues found");
     return (ERR_NOTSUPPORTED);
   }
   VkQueueFamilyProperties *arr =
       malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
   if (!arr) {
-    errLog(FATAL, "Failed to get present queue index: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "Failed to get present queue index: %s", strerror(errno));
+    PANIC();
   }
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
                                            arr);
@@ -410,8 +340,8 @@ ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
 
   VkResult res = vkCreateDevice(physicalDevice, &createInfo, NULL, pDevice);
   if (res != VK_SUCCESS) {
-    errLog(ERROR, "Failed to create device, error code: %s", vkstrerror(res));
-    panic();
+    errLog(ERR_LEVEL_ERROR, "Failed to create device, error code: %s", vkstrerror(res));
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -468,9 +398,9 @@ ErrVal new_SwapChain(VkSwapchainKHR *pSwapChain, uint32_t *pSwapChainImageCount,
   createInfo.oldSwapchain = oldSwapChain;
   VkResult res = vkCreateSwapchainKHR(device, &createInfo, NULL, pSwapChain);
   if (res != VK_SUCCESS) {
-    errLog(ERROR, "Failed to create swap chain, error code: %s",
+    errLog(ERR_LEVEL_ERROR, "Failed to create swap chain, error code: %s",
            vkstrerror(res));
-    panic();
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -490,8 +420,8 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
   if (formatCount != 0) {
     pSurfaceFormats = malloc(formatCount * sizeof(VkSurfaceFormatKHR));
     if (!pSurfaceFormats) {
-      errLog(FATAL, "could not get preferred format: %s", strerror(errno));
-      panic();
+      errLog(ERR_LEVEL_FATAL, "could not get preferred format: %s", strerror(errno));
+      PANIC();
     }
     vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
                                          pSurfaceFormats);
@@ -517,7 +447,7 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
       }
     }
   } else {
-    errLog(ERROR, "no formats available");
+    errLog(ERR_LEVEL_ERROR, "no formats available");
     free(pSurfaceFormats);
     return (ERR_NOTSUPPORTED);
   }
@@ -525,7 +455,7 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
   free(pSurfaceFormats);
 
   *pSurfaceFormat = preferredFormat;
-  return (VK_SUCCESS);
+  return (ERR_OK);
 }
 
 ErrVal new_SwapChainImages(VkImage **ppSwapChainImages, uint32_t *pImageCount,
@@ -534,19 +464,19 @@ ErrVal new_SwapChainImages(VkImage **ppSwapChainImages, uint32_t *pImageCount,
   vkGetSwapchainImagesKHR(device, swapChain, pImageCount, NULL);
 
   if (pImageCount == 0) {
-    errLog(WARN, "cannot create zero images");
+    errLog(ERR_LEVEL_WARN, "cannot create zero images");
     return (ERR_UNSAFE);
   }
 
   *ppSwapChainImages = malloc((*pImageCount) * sizeof(VkImage));
   if (!*ppSwapChainImages) {
-    errLog(FATAL, "failed to get swap chain images: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to get swap chain images: %s", strerror(errno));
+    PANIC();
   }
   VkResult res = vkGetSwapchainImagesKHR(device, swapChain, pImageCount,
                                          *ppSwapChainImages);
   if (res != VK_SUCCESS) {
-    errLog(WARN, "failed to get swap chain images, error: %s", vkstrerror(res));
+    errLog(ERR_LEVEL_WARN, "failed to get swap chain images, error: %s", vkstrerror(res));
     return (ERR_UNKNOWN);
   } else {
     return (ERR_OK);
@@ -577,9 +507,9 @@ ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
   createInfo.subresourceRange.layerCount = 1;
   VkResult ret = vkCreateImageView(device, &createInfo, NULL, pImageView);
   if (ret != VK_SUCCESS) {
-    errLog(FATAL, "could not create image view, error code: %s",
+    errLog(ERR_LEVEL_FATAL, "could not create image view, error code: %s",
            vkstrerror(ret));
-    panic();
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -594,21 +524,21 @@ ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
                                const uint32_t imageCount,
                                const VkImage *pSwapChainImages) {
   if (imageCount == 0) {
-    errLog(WARN, "cannot create zero image views");
+    errLog(ERR_LEVEL_WARN, "cannot create zero image views");
     return (ERR_BADARGS);
   }
   VkImageView *pImageViews = malloc(imageCount * sizeof(VkImageView));
   if (!pImageViews) {
-    errLog(FATAL, "could not create swap chain image views: %s",
+    errLog(ERR_LEVEL_FATAL, "could not create swap chain image views: %s",
            strerror(errno));
-    panic();
+    PANIC();
   }
 
   for (uint32_t i = 0; i < imageCount; i++) {
     ErrVal ret = new_ImageView(&(pImageViews[i]), device, pSwapChainImages[i],
                                format, VK_IMAGE_ASPECT_COLOR_BIT);
     if (ret != ERR_OK) {
-      errLog(ERROR, "could not create swap chain image views");
+      errLog(ERR_LEVEL_ERROR, "could not create swap chain image views");
       delete_SwapChainImageViews(ppImageViews, i, device);
       return (ret);
     }
@@ -635,7 +565,7 @@ ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
   createInfo.pCode = pCode;
   VkResult res = vkCreateShaderModule(device, &createInfo, NULL, pShaderModule);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create shader module");
+    errLog(ERR_LEVEL_FATAL, "failed to create shader module");
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -649,7 +579,7 @@ ErrVal new_ShaderModuleFromFile(VkShaderModule *pShaderModule,
   ErrVal retVal = new_ShaderModule(pShaderModule, device, shaderFileLength,
                                    shaderFileContents);
   if (retVal != ERR_OK) {
-    errLog(ERROR, "failed to create shader module from file %s", filename);
+    errLog(ERR_LEVEL_ERROR, "failed to create shader module from file %s", filename);
   }
   free(shaderFileContents);
   return (retVal);
@@ -723,8 +653,8 @@ ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,
 
   VkResult res = vkCreateRenderPass(device, &renderPassInfo, NULL, pRenderPass);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "Could not create render pass, error: %s", vkstrerror(res));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "Could not create render pass, error: %s", vkstrerror(res));
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -749,9 +679,9 @@ ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create pipeline layout with error: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to create pipeline layout with error: %s",
            vkstrerror(res));
-    panic();
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -898,8 +828,8 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
 
   if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
                                 pGraphicsPipeline) != VK_SUCCESS) {
-    errLog(FATAL, "failed to create graphics pipeline!");
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to create graphics pipeline!");
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -926,7 +856,7 @@ ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
   if (res == VK_SUCCESS) {
     return (ERR_OK);
   } else {
-    errLog(WARN, "failed to create framebuffers: %s", vkstrerror(res));
+    errLog(ERR_LEVEL_WARN, "failed to create framebuffers: %s", vkstrerror(res));
     return (ERR_UNKNOWN);
   }
 }
@@ -945,8 +875,8 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const VkImageView *pSwapChainImageViews) {
   *ppFramebuffers = malloc(imageCount * sizeof(VkFramebuffer));
   if (!(*ppFramebuffers)) {
-    errLog(FATAL, "could not create framebuffers: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "could not create framebuffers: %s", strerror(errno));
+    PANIC();
   }
 
   for (uint32_t i = 0; i < imageCount; i++) {
@@ -954,7 +884,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                     pSwapChainImageViews[i], depthImageView,
                                     swapChainExtent);
     if (retVal != VK_SUCCESS) {
-      errLog(ERROR, "could not create framebuffers");
+      errLog(ERR_LEVEL_ERROR, "could not create framebuffers");
       delete_SwapChainFramebuffers(ppFramebuffers, i, device);
       return (retVal);
     }
@@ -980,7 +910,7 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
   poolInfo.flags = 0;
   VkResult ret = vkCreateCommandPool(device, &poolInfo, NULL, pCommandPool);
   if (ret != VK_SUCCESS) {
-    errLog(ERROR, "failed to create command pool %s", vkstrerror(ret));
+    errLog(ERR_LEVEL_ERROR, "failed to create command pool %s", vkstrerror(ret));
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -1007,17 +937,17 @@ ErrVal new_VertexDisplayCommandBuffers(
   VkCommandBuffer *pCommandBuffers =
       malloc(swapChainFramebufferCount * sizeof(VkCommandBuffer));
   if (!pCommandBuffers) {
-    errLog(FATAL, "Failed to create graphics command buffers: %s",
+    errLog(ERR_LEVEL_FATAL, "Failed to create graphics command buffers: %s",
            strerror(errno));
-    panic();
+    PANIC();
   }
 
   VkResult allocateCommandBuffersRetVal =
       vkAllocateCommandBuffers(device, &allocInfo, pCommandBuffers);
   if (allocateCommandBuffersRetVal != VK_SUCCESS) {
-    errLog(FATAL, "Failed to create graphics command buffers, error code: %s",
+    errLog(ERR_LEVEL_FATAL, "Failed to create graphics command buffers, error code: %s",
            vkstrerror(allocateCommandBuffersRetVal));
-    panic();
+    PANIC();
   }
 
   for (size_t i = 0; i < swapChainFramebufferCount; i++) {
@@ -1026,8 +956,8 @@ ErrVal new_VertexDisplayCommandBuffers(
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
     if (vkBeginCommandBuffer(pCommandBuffers[i], &beginInfo) != VK_SUCCESS) {
-      errLog(FATAL, "Failed to record into graphics command buffer");
-      panic();
+      errLog(ERR_LEVEL_FATAL, "Failed to record into graphics command buffer");
+      PANIC();
     }
 
     VkRenderPassBeginInfo renderPassInfo = {0};
@@ -1067,14 +997,14 @@ ErrVal new_VertexDisplayCommandBuffers(
 
     VkResult endCommandBufferRetVal = vkEndCommandBuffer(pCommandBuffers[i]);
     if (endCommandBufferRetVal != VK_SUCCESS) {
-      errLog(FATAL, "Failed to record command buffer, error code: %s",
+      errLog(ERR_LEVEL_FATAL, "Failed to record command buffer, error code: %s",
              vkstrerror(endCommandBufferRetVal));
-      panic();
+      PANIC();
     }
   }
 
   *ppCommandBuffers = pCommandBuffers;
-  return (VK_SUCCESS);
+  return (ERR_OK);
 }
 
 void delete_CommandBuffers(VkCommandBuffer **ppCommandBuffers,
@@ -1092,7 +1022,7 @@ ErrVal new_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   VkResult ret = vkCreateSemaphore(device, &semaphoreInfo, NULL, pSemaphore);
   if (ret != VK_SUCCESS) {
-    errLog(ERROR, "failed to create semaphore: %s", vkstrerror(ret));
+    errLog(ERR_LEVEL_ERROR, "failed to create semaphore: %s", vkstrerror(ret));
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -1106,13 +1036,13 @@ void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
 ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
                       const VkDevice device) {
   if (semaphoreCount == 0) {
-    errLog(WARN, "failed to create semaphores: %s",
+    errLog(ERR_LEVEL_WARN, "failed to create semaphores: %s",
            "Failed to allocate 0 bytes of memory");
   }
   *ppSemaphores = malloc(semaphoreCount * sizeof(VkSemaphore));
   if (*ppSemaphores == NULL) {
-    errLog(FATAL, "Failed to create semaphores: %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "Failed to create semaphores: %s", strerror(errno));
+    PANIC();
   }
 
   for (uint32_t i = 0; i < semaphoreCount; i++) {
@@ -1140,7 +1070,7 @@ ErrVal new_Fence(VkFence *pFence, const VkDevice device) {
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
   VkResult ret = vkCreateFence(device, &fenceInfo, NULL, pFence);
   if (ret != VK_SUCCESS) {
-    errLog(ERROR, "failed to create fence: %s", vkstrerror(ret));
+    errLog(ERR_LEVEL_ERROR, "failed to create fence: %s", vkstrerror(ret));
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -1154,13 +1084,13 @@ void delete_Fence(VkFence *pFence, const VkDevice device) {
 ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
                   const VkDevice device) {
   if (fenceCount == 0) {
-    errLog(WARN, "cannot allocate 0 bytes of memory");
+    errLog(ERR_LEVEL_WARN, "cannot allocate 0 bytes of memory");
     return (ERR_UNSAFE);
   }
   *ppFences = malloc(fenceCount * sizeof(VkDevice));
   if (!*ppFences) {
-    errLog(FATAL, "failed to create memory fence; %s", strerror(errno));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to create memory fence; %s", strerror(errno));
+    PANIC();
   }
 
   for (uint32_t i = 0; i < fenceCount; i++) {
@@ -1196,14 +1126,14 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   VkResult fenceWait = vkWaitForFences(
       device, 1, &pInFlightFences[*pCurrentFrame], VK_TRUE, UINT64_MAX);
   if (fenceWait != VK_SUCCESS) {
-    errLog(FATAL, "failed to wait for fence while drawing frame: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to wait for fence while drawing frame: %s",
            vkstrerror(fenceWait));
-    panic();
+    PANIC();
   }
   VkResult fenceResetResult =
       vkResetFences(device, 1, &pInFlightFences[*pCurrentFrame]);
   if (fenceResetResult != VK_SUCCESS) {
-    errLog(FATAL, "failed to reset fence while drawing frame: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to reset fence while drawing frame: %s",
            vkstrerror(fenceResetResult));
   }
   /* Gets the next image from the swap Chain */
@@ -1216,8 +1146,8 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR) {
     return (ERR_OUTOFDATE);
   } else if (nextImageResult != VK_SUCCESS) {
-    errLog(FATAL, "failed to get next frame: %s", vkstrerror(nextImageResult));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to get next frame: %s", vkstrerror(nextImageResult));
+    PANIC();
   }
 
   VkSubmitInfo submitInfo = {0};
@@ -1241,8 +1171,8 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   VkResult queueSubmitResult = vkQueueSubmit(graphicsQueue, 1, &submitInfo,
                                              pInFlightFences[*pCurrentFrame]);
   if (queueSubmitResult != VK_SUCCESS) {
-    errLog(FATAL, "failed to submit queue: %s", vkstrerror(queueSubmitResult));
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to submit queue: %s", vkstrerror(queueSubmitResult));
+    PANIC();
   }
 
   /* Present frame to screen */
@@ -1289,7 +1219,7 @@ ErrVal new_GLFWwindow(GLFWwindow **ppGLFWwindow) {
   *ppGLFWwindow =
       glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, APPNAME, NULL, NULL);
   if (*ppGLFWwindow == NULL) {
-    errLog(ERROR, "failed to create GLFW window");
+    errLog(ERR_LEVEL_ERROR, "failed to create GLFW window");
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -1301,8 +1231,8 @@ ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
                            const VkInstance instance) {
   VkResult res = glfwCreateWindowSurface(instance, pWindow, NULL, pSurface);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create surface, quitting");
-    panic();
+    errLog(ERR_LEVEL_FATAL, "failed to create surface, quitting");
+    PANIC();
   }
   return (ERR_OK);
 }
@@ -1328,7 +1258,7 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
       return (ERR_OK);
     }
   }
-  errLog(ERROR, "failed to find suitable memory type");
+  errLog(ERR_LEVEL_ERROR, "failed to find suitable memory type");
   return (ERR_MEMORY);
 }
 
@@ -1348,7 +1278,7 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   if (stagingBufferCreateResult != ERR_OK) {
-    errLog(ERROR,
+    errLog(ERR_LEVEL_ERROR,
            "failed to create vertex buffer: failed to create staging buffer");
     return (stagingBufferCreateResult);
   }
@@ -1357,7 +1287,7 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   ErrVal copyResult =
       copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
   if (copyResult != ERR_OK) {
-    errLog(ERROR, "failed to create vertex buffer, could not map memory");
+    errLog(ERR_LEVEL_ERROR, "failed to create vertex buffer, could not map memory");
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
     return (copyResult);
@@ -1372,7 +1302,7 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   /* Handle errors */
   if (vertexBufferCreateResult != ERR_OK) {
     /* Delete the temporary staging buffers */
-    errLog(ERROR, "failed to create vertex buffer");
+    errLog(ERR_LEVEL_ERROR, "failed to create vertex buffer");
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
     return (vertexBufferCreateResult);
@@ -1403,7 +1333,7 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   VkResult bufferCreateResult =
       vkCreateBuffer(device, &bufferInfo, NULL, pBuffer);
   if (bufferCreateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to create buffer: %s",
+    errLog(ERR_LEVEL_ERROR, "failed to create buffer: %s",
            vkstrerror(bufferCreateResult));
     return (ERR_UNKNOWN);
   }
@@ -1419,7 +1349,7 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
       &allocateInfo.memoryTypeIndex, memoryRequirements.memoryTypeBits,
       properties, physicalDevice);
   if (getMemoryTypeRetVal != ERR_OK) {
-    errLog(ERROR, "failed to get type of memory to allocate");
+    errLog(ERR_LEVEL_ERROR, "failed to get type of memory to allocate");
     return (ERR_MEMORY);
   }
 
@@ -1427,7 +1357,7 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   VkResult memoryAllocateResult =
       vkAllocateMemory(device, &allocateInfo, NULL, pBufferMemory);
   if (memoryAllocateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to allocate memory for buffer: %s",
+    errLog(ERR_LEVEL_ERROR, "failed to allocate memory for buffer: %s",
            vkstrerror(memoryAllocateResult));
     return (ERR_ALLOCFAIL);
   }
@@ -1443,7 +1373,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
       &copyCommandBuffer, device, commandPool);
 
   if (beginResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to begin command buffer");
+    errLog(ERR_LEVEL_ERROR, "failed to begin command buffer");
     return (beginResult);
   }
 
@@ -1458,7 +1388,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
       &copyCommandBuffer, device, queue, commandPool);
 
   if (endResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to end command buffer");
+    errLog(ERR_LEVEL_ERROR, "failed to end command buffer");
     return (endResult);
   }
 
@@ -1491,7 +1421,7 @@ ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
   VkResult allocateResult =
       vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
   if (allocateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to allocate command buffers: %s",
+    errLog(ERR_LEVEL_ERROR, "failed to allocate command buffers: %s",
            vkstrerror(allocateResult));
     return (ERR_MEMORY);
   }
@@ -1501,7 +1431,7 @@ ErrVal new_begin_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
   VkResult res = vkBeginCommandBuffer(*pCommandBuffer, &beginInfo);
   if (res != VK_SUCCESS) {
-    errLog(ERROR, "failed to create command buffer: %s", vkstrerror(res));
+    errLog(ERR_LEVEL_ERROR, "failed to create command buffer: %s", vkstrerror(res));
     return (ERR_UNKNOWN);
   }
 
@@ -1520,7 +1450,7 @@ ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
   VkResult bufferEndResult = vkEndCommandBuffer(*pCommandBuffer);
   if (bufferEndResult != VK_SUCCESS) {
     /* Clean up resources */
-    errLog(ERROR, "failed to end one time submit command buffer: %s",
+    errLog(ERR_LEVEL_ERROR, "failed to end one time submit command buffer: %s",
            vkstrerror(bufferEndResult));
     retVal = ERR_UNKNOWN;
     goto FREEALL;
@@ -1534,7 +1464,7 @@ ErrVal delete_end_OneTimeSubmitCommandBuffer(VkCommandBuffer *pCommandBuffer,
   VkResult queueSubmitResult =
       vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
   if (queueSubmitResult != VK_SUCCESS) {
-    errLog(ERROR,
+    errLog(ERR_LEVEL_ERROR,
            "failed to submit one time submit command buffer to queue: %s",
            vkstrerror(queueSubmitResult));
     retVal = ERR_UNKNOWN;
@@ -1557,7 +1487,7 @@ ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
 
   /* On failure */
   if (mapMemoryResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to copy to device memory: failed to map memory: %s",
+    errLog(ERR_LEVEL_ERROR, "failed to copy to device memory: failed to map memory: %s",
            vkstrerror(mapMemoryResult));
     return (ERR_MEMORY);
   }
@@ -1592,7 +1522,7 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
 
   VkResult createImageResult = vkCreateImage(device, &imageInfo, NULL, pImage);
   if (createImageResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to create image: %s", vkstrerror(createImageResult));
+    errLog(ERR_LEVEL_ERROR, "failed to create image: %s", vkstrerror(createImageResult));
     return (ERR_UNKNOWN);
   }
 
@@ -1608,20 +1538,20 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
                                            properties, physicalDevice);
 
   if (memGetResult != ERR_OK) {
-    errLog(ERROR, "failed to create image: allocation failed");
+    errLog(ERR_LEVEL_ERROR, "failed to create image: allocation failed");
     return (ERR_MEMORY);
   }
 
   VkResult allocateResult =
       vkAllocateMemory(device, &allocInfo, NULL, pImageMemory);
   if (allocateResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to create image: %s", vkstrerror(allocateResult));
+    errLog(ERR_LEVEL_ERROR, "failed to create image: %s", vkstrerror(allocateResult));
     return (ERR_MEMORY);
   }
 
   VkResult bindResult = vkBindImageMemory(device, *pImage, *pImageMemory, 0);
   if (bindResult != VK_SUCCESS) {
-    errLog(ERROR, "failed to create image: %s", vkstrerror(bindResult));
+    errLog(ERR_LEVEL_ERROR, "failed to create image: %s", vkstrerror(bindResult));
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
@@ -1650,7 +1580,7 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, physicalDevice, device);
   if (retVal != ERR_OK) {
-    errLog(ERROR, "failed to create depth image");
+    errLog(ERR_LEVEL_ERROR, "failed to create depth image");
     return (retVal);
   }
 
@@ -1659,7 +1589,7 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
   if (transitionVal != ERR_OK) {
-    errLog(ERROR, "failed to create depth image: could not set barriers");
+    errLog(ERR_LEVEL_ERROR, "failed to create depth image: could not set barriers");
     return (transitionVal);
   }
 
@@ -1673,7 +1603,7 @@ ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
   ErrVal retVal = new_ImageView(pImageView, device, depthImage, depthFormat,
                                 VK_IMAGE_ASPECT_DEPTH_BIT);
   if (retVal != ERR_OK) {
-    errLog(ERROR, "failed to create depth image view");
+    errLog(ERR_LEVEL_ERROR, "failed to create depth image view");
   }
   return (retVal);
 }
@@ -1688,7 +1618,7 @@ ErrVal transitionImageLayout(const VkDevice device,
   ErrVal beginRetVal =
       new_begin_OneTimeSubmitCommandBuffer(&commandBuffer, device, commandPool);
   if (beginRetVal != ERR_OK) {
-    errLog(ERROR,
+    errLog(ERR_LEVEL_ERROR,
            "failed to transition image layout: failed to begin command buffer");
     return (beginRetVal);
   }
@@ -1742,7 +1672,7 @@ ErrVal transitionImageLayout(const VkDevice device,
     sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
   } else {
-    errLog(ERROR, "unsupported layout transition");
+    errLog(ERR_LEVEL_ERROR, "unsupported layout transition");
     return (ERR_BADARGS);
   }
 
@@ -1753,7 +1683,7 @@ ErrVal transitionImageLayout(const VkDevice device,
       &commandBuffer, device, queue, commandPool);
   if (endRetVal != ERR_OK) {
     errLog(
-        ERROR,
+        ERR_LEVEL_ERROR,
         "failed to transition image layout: failed to submit command buffer");
     return (endRetVal);
   }
@@ -1770,9 +1700,9 @@ ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create pipeline layout with error: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to create pipeline layout with error: %s",
            vkstrerror(res));
-    panic();
+    PANIC();
   }
 
   return (ERR_OK);
@@ -1788,9 +1718,9 @@ ErrVal new_NodeTopologyComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create pipeline layout with error: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to create pipeline layout with error: %s",
            vkstrerror(res));
-    panic();
+    PANIC();
   }
 
   return (ERR_OK);
@@ -1807,9 +1737,9 @@ new_VertexGenerationComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {
-    errLog(FATAL, "failed to create pipeline layout with error: %s",
+    errLog(ERR_LEVEL_FATAL, "failed to create pipeline layout with error: %s",
            vkstrerror(res));
-    panic();
+    PANIC();
   }
 
   return (ERR_OK);
@@ -1828,9 +1758,10 @@ ErrVal new_ComputePipelines(
   /* Node Update */
   VkPipelineShaderStageCreateInfo nodeUpdateShaderStageCreateInfo = {0};
   nodeUpdateShaderStageCreateInfo.sType =
-      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   nodeUpdateShaderStageCreateInfo.module = nodeUpdateShaderModule;
   nodeUpdateShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+  nodeUpdateShaderStageCreateInfo.pName = "main";
 
   VkComputePipelineCreateInfo nodeUpdateComputePipelineCreateInfo = {0};
   nodeUpdateComputePipelineCreateInfo.sType =
@@ -1841,9 +1772,10 @@ ErrVal new_ComputePipelines(
   /* Node Topology */
   VkPipelineShaderStageCreateInfo nodeTopologyShaderStageCreateInfo = {0};
   nodeTopologyShaderStageCreateInfo.sType =
-      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   nodeTopologyShaderStageCreateInfo.module = nodeTopologyShaderModule;
   nodeTopologyShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+  nodeTopologyShaderStageCreateInfo.pName = "main";
 
   VkComputePipelineCreateInfo nodeTopologyComputePipelineCreateInfo = {0};
   nodeTopologyComputePipelineCreateInfo.sType =
@@ -1855,9 +1787,10 @@ ErrVal new_ComputePipelines(
   /* Vertex Generation */
   VkPipelineShaderStageCreateInfo vertexGenerationShaderStageCreateInfo = {0};
   vertexGenerationShaderStageCreateInfo.sType =
-      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   vertexGenerationShaderStageCreateInfo.module = vertexGenerationShaderModule;
   vertexGenerationShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+  vertexGenerationShaderStageCreateInfo.pName = "main";
 
   VkComputePipelineCreateInfo vertexGenerationComputePipelineCreateInfo = {0};
   vertexGenerationComputePipelineCreateInfo.sType =
@@ -1879,7 +1812,7 @@ ErrVal new_ComputePipelines(
                                           pComputePipelineCreateInfos, NULL,
                                           pComputePipelines);
   if (ret != VK_SUCCESS) {
-    errLog(ERROR, "failed to create compute pipelines %s", vkstrerror(ret));
+    errLog(ERR_LEVEL_ERROR, "failed to create compute pipelines %s", vkstrerror(ret));
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);

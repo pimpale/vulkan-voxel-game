@@ -1,0 +1,1 @@
+flags= -Wall -Wpedantic -Weverything -I../include
