@@ -19,42 +19,42 @@ void transformView(bool *pModified, mat4x4 *pTransformation,
   float dy = 0;
   float dz = 0;
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
-    dx += 0.01;
+    dx += 0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
-    dx += -0.01;
+    dx += -0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
-    dz += 0.01;
+    dz += 0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
-    dz -= 0.01;
+    dz -= 0.01f;
     *pModified = true;
   }
 
   mat4x4_translate_in_place(*pTransformation, dx, dy, dz);
 
-  float rx = 0;
-  float ry = 0;
-  float rz = 0;
+  float rx = 0.0f;
+  float ry = 0.0f;
+  float rz = 0.0f;
 
   if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
-    ry += 0.01;
+    ry += 0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    ry += -0.01;
+    ry += -0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
-    rx += 0.01;
+    rx += 0.01f;
     *pModified = true;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-    rx -= 0.01;
+    rx -= 0.01f;
     *pModified = true;
   }
   mat4x4_rotate_X(*pTransformation, *pTransformation, rx);
@@ -75,9 +75,10 @@ int main(void) {
   char **ppLayerNames;
   new_ValidationLayers(&layerCount, &ppLayerNames);
 
-  uint32_t deviceExtensionCount;
+  uint32_t graphicsDeviceExtensionCount;
   char **ppDeviceExtensionNames;
-  new_RequiredDeviceExtensions(&deviceExtensionCount, &ppDeviceExtensionNames);
+  new_RequiredDeviceExtensions(&graphicsDeviceExtensionCount,
+                               &ppDeviceExtensionNames);
 
   /* Create instance */
   VkInstance instance;
@@ -86,7 +87,7 @@ int main(void) {
   VkDebugUtilsMessengerEXT callback;
   new_DebugCallback(&callback, instance);
 
-  /* get physical device */
+  /* get physical graphicsDevice */
   VkPhysicalDevice physicalDevice;
   getPhysicalDevice(&physicalDevice, instance);
 
@@ -96,7 +97,7 @@ int main(void) {
   VkSurfaceKHR surface;
   new_SurfaceFromGLFW(&surface, pWindow, instance);
 
-  /* find queues on graphics device */
+  /* find queues on graphics graphicsDevice */
   uint32_t graphicsIndex;
   uint32_t computeIndex;
   uint32_t presentIndex;
@@ -113,51 +114,62 @@ int main(void) {
       panic();
     }
   }
+	/* Set up compute */
 
-  /* Create compute pipeline */
+	VkDevice computeDevice;
+
+	new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount, 
+
+             (const char *const *)ppLayerNames);
   VkPipelineLayout nodeUpdatePipelineLayout;
   VkPipelineLayout nodeTopologyPipelineLayout;
   VkPipelineLayout vertexGenerationPipelineLayout;
 
-	new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout, device);
-  new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout, device);
-	new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout, device);
+  new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout,
+                                      computeDevice);
+  new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout,
+                                        computeDevice);
+  new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout,
+                                            computeDevice);
 
   /* Shader modules */
   VkShaderModule nodeUpdateShaderModule;
-	VkShaderModule nodeTopologyShaderModule;
-	VkShaderModule vertexGenerationShaderModule;
+  VkShaderModule nodeTopologyShaderModule;
+  VkShaderModule vertexGenerationShaderModule;
 
   /* Load from file */
-  
 
-	VkPipeline nodeUpdatePipeline;
-	VkPipeline nodeTopologyPipeline;
-	VkPipeline vertexGenerationPipeline;
+  VkPipeline nodeUpdatePipeline;
+  VkPipeline nodeTopologyPipeline;
+  VkPipeline vertexGenerationPipeline;
 
-	new_ComputePipelines(&nodeUpdatePipeline, &nodeTopologyPipeline, &vertexGenerationPipeline, 
-									nodeUpdatePipelineLayout, nodeTopologyPipelineLayout, vertexGenerationPipelineLayout,
-									);
+  new_ComputePipelines(&nodeUpdatePipeline, &nodeTopologyPipeline,
+                       &vertexGenerationPipeline, nodeUpdatePipelineLayout,
+                       nodeTopologyPipelineLayout,
+                       vertexGenerationPipelineLayout, 
+											 nodeUpdateShaderModule, nodeTopologyShaderModule,
+											 vertexGenerationShaderModule, computeDevice);
 
   /* Set extent (for now just window width and height) */
   VkExtent2D swapChainExtent;
   getWindowExtent(&swapChainExtent, pWindow);
 
-  /*create device */
-  VkDevice device;
-  new_Device(&device, physicalDevice, graphicsIndex, deviceExtensionCount,
+  /*create graphicsDevice */
+  VkDevice graphicsDevice;
+  new_Device(&graphicsDevice, physicalDevice, graphicsIndex,
+             graphicsDeviceExtensionCount,
              (const char *const *)ppDeviceExtensionNames, layerCount,
              (const char *const *)ppLayerNames);
 
   VkQueue graphicsQueue;
-  getQueue(&graphicsQueue, device, graphicsIndex);
+  getQueue(&graphicsQueue, graphicsDevice, graphicsIndex);
   VkQueue computeQueue;
-  getQueue(&computeQueue, device, computeIndex);
+  getQueue(&computeQueue, graphicsDevice, computeIndex);
   VkQueue presentQueue;
-  getQueue(&presentQueue, device, presentIndex);
+  getQueue(&presentQueue, graphicsDevice, presentIndex);
 
   VkCommandPool commandPool;
-  new_CommandPool(&commandPool, device, graphicsIndex);
+  new_CommandPool(&commandPool, graphicsDevice, graphicsIndex);
 
   /* get preferred format of screen*/
   VkSurfaceFormatKHR surfaceFormat;
@@ -167,45 +179,47 @@ int main(void) {
   VkSwapchainKHR swapChain;
   uint32_t swapChainImageCount = 0;
   new_SwapChain(&swapChain, &swapChainImageCount, VK_NULL_HANDLE, surfaceFormat,
-                physicalDevice, device, surface, swapChainExtent, graphicsIndex,
-                presentIndex);
+                physicalDevice, graphicsDevice, surface, swapChainExtent,
+                graphicsIndex, presentIndex);
 
   VkImage *pSwapChainImages = NULL;
   VkImageView *pSwapChainImageViews = NULL;
 
-  new_SwapChainImages(&pSwapChainImages, &swapChainImageCount, device,
+  new_SwapChainImages(&pSwapChainImages, &swapChainImageCount, graphicsDevice,
                       swapChain);
-  new_SwapChainImageViews(&pSwapChainImageViews, device, surfaceFormat.format,
-                          swapChainImageCount, pSwapChainImages);
+  new_SwapChainImageViews(&pSwapChainImageViews, graphicsDevice,
+                          surfaceFormat.format, swapChainImageCount,
+                          pSwapChainImages);
 
   VkImage depthImage;
   VkDeviceMemory depthImageMemory;
   new_DepthImage(&depthImage, &depthImageMemory, swapChainExtent,
-                 physicalDevice, device, commandPool, graphicsQueue);
+                 physicalDevice, graphicsDevice, commandPool, graphicsQueue);
   VkImageView depthImageView;
-  new_DepthImageView(&depthImageView, device, depthImage);
+  new_DepthImageView(&depthImageView, graphicsDevice, depthImage);
 
   VkShaderModule fragShaderModule;
-  new_ShaderModuleFromFile(&fragShaderModule, device,
+  new_ShaderModuleFromFile(&fragShaderModule, graphicsDevice,
                            "assets/shaders/shader.frag.spv");
   VkShaderModule vertShaderModule;
-  new_ShaderModuleFromFile(&vertShaderModule, device,
+  new_ShaderModuleFromFile(&vertShaderModule, graphicsDevice,
                            "assets/shaders/shader.vert.spv");
 
   /* Create graphics pipeline */
   VkRenderPass renderPass;
-  new_VertexDisplayRenderPass(&renderPass, device, surfaceFormat.format);
+  new_VertexDisplayRenderPass(&renderPass, graphicsDevice,
+                              surfaceFormat.format);
 
   VkPipelineLayout vertexDisplayPipelineLayout;
-  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
+  new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, graphicsDevice);
 
   VkPipeline vertexDisplayPipeline;
-  new_VertexDisplayPipeline(&vertexDisplayPipeline, device, vertShaderModule,
-                            fragShaderModule, swapChainExtent, renderPass,
-                            vertexDisplayPipelineLayout);
+  new_VertexDisplayPipeline(&vertexDisplayPipeline, graphicsDevice,
+                            vertShaderModule, fragShaderModule, swapChainExtent,
+                            renderPass, vertexDisplayPipelineLayout);
 
   VkFramebuffer *pSwapChainFramebuffers;
-  new_SwapChainFramebuffers(&pSwapChainFramebuffers, device, renderPass,
+  new_SwapChainFramebuffers(&pSwapChainFramebuffers, graphicsDevice, renderPass,
                             swapChainExtent, swapChainImageCount,
                             depthImageView, pSwapChainImageViews);
 
@@ -250,11 +264,11 @@ int main(void) {
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, VERTEXNUM,
-                   device, physicalDevice, commandPool, graphicsQueue);
+                   graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
   new_VertexDisplayCommandBuffers(
-      &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
+      &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount,
       (const VkFramebuffer *)pSwapChainFramebuffers, cameraViewProduct);
@@ -262,9 +276,11 @@ int main(void) {
   VkSemaphore *pImageAvailableSemaphores;
   VkSemaphore *pRenderFinishedSemaphores;
   VkFence *pInFlightFences;
-  new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
-  new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
-  new_Fences(&pInFlightFences, swapChainImageCount, device);
+  new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
+                 graphicsDevice);
+  new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
+                 graphicsDevice);
+  new_Fences(&pInFlightFences, swapChainImageCount, graphicsDevice);
 
   uint32_t currentFrame = 0;
   /*wait till close*/
@@ -276,107 +292,116 @@ int main(void) {
     if (viewModified) {
       vkQueueWaitIdle(graphicsQueue);
       delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
-                            commandPool, device);
+                            commandPool, graphicsDevice);
       new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
-          renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-          commandPool, swapChainExtent, swapChainImageCount,
-          pSwapChainFramebuffers, cameraViewProduct);
+          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM,
+          graphicsDevice, renderPass, vertexDisplayPipelineLayout,
+          vertexDisplayPipeline, commandPool, swapChainExtent,
+          swapChainImageCount, pSwapChainFramebuffers, cameraViewProduct);
     }
 
-    ErrVal result = drawFrame(
-        &currentFrame, 2, device, swapChain, pVertexDisplayCommandBuffers,
-        pInFlightFences, pImageAvailableSemaphores, pRenderFinishedSemaphores,
-        graphicsQueue, presentQueue);
+    ErrVal result =
+        drawFrame(&currentFrame, 2, graphicsDevice, swapChain,
+                  pVertexDisplayCommandBuffers, pInFlightFences,
+                  pImageAvailableSemaphores, pRenderFinishedSemaphores,
+                  graphicsQueue, presentQueue);
 
     if (result == ERR_OUTOFDATE) {
       vkQueueWaitIdle(graphicsQueue);
-      delete_Fences(&pInFlightFences, swapChainImageCount, device);
+      delete_Fences(&pInFlightFences, swapChainImageCount, graphicsDevice);
       delete_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
-                        device);
+                        graphicsDevice);
       delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
-                        device);
+                        graphicsDevice);
       delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
-                            commandPool, device);
+                            commandPool, graphicsDevice);
       delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
-                                   device);
-      delete_Pipeline(&vertexDisplayPipeline, device);
-      delete_PipelineLayout(&vertexDisplayPipelineLayout, device);
-      delete_Image(&depthImage, device);
-      delete_DeviceMemory(&depthImageMemory, device);
-      delete_ImageView(&depthImageView, device);
-      delete_RenderPass(&renderPass, device);
+                                   graphicsDevice);
+      delete_Pipeline(&vertexDisplayPipeline, graphicsDevice);
+      delete_PipelineLayout(&vertexDisplayPipelineLayout, graphicsDevice);
+      delete_Image(&depthImage, graphicsDevice);
+      delete_DeviceMemory(&depthImageMemory, graphicsDevice);
+      delete_ImageView(&depthImageView, graphicsDevice);
+      delete_RenderPass(&renderPass, graphicsDevice);
       delete_SwapChainImageViews(&pSwapChainImageViews, swapChainImageCount,
-                                 device);
+                                 graphicsDevice);
       delete_SwapChainImages(&pSwapChainImages);
-      delete_SwapChain(&swapChain, device);
+      delete_SwapChain(&swapChain, graphicsDevice);
 
       /* Set swapchain to new window size */
       getWindowExtent(&swapChainExtent, pWindow);
 
       /*Create swap chain */
       new_SwapChain(&swapChain, &swapChainImageCount, VK_NULL_HANDLE,
-                    surfaceFormat, physicalDevice, device, surface,
+                    surfaceFormat, physicalDevice, graphicsDevice, surface,
                     swapChainExtent, graphicsIndex, presentIndex);
-      new_SwapChainImages(&pSwapChainImages, &swapChainImageCount, device,
-                          swapChain);
-      new_SwapChainImageViews(&pSwapChainImageViews, device,
+      new_SwapChainImages(&pSwapChainImages, &swapChainImageCount,
+                          graphicsDevice, swapChain);
+      new_SwapChainImageViews(&pSwapChainImageViews, graphicsDevice,
                               surfaceFormat.format, swapChainImageCount,
                               pSwapChainImages);
 
       new_DepthImage(&depthImage, &depthImageMemory, swapChainExtent,
-                     physicalDevice, device, commandPool, graphicsQueue);
-      new_DepthImageView(&depthImageView, device, depthImage);
+                     physicalDevice, graphicsDevice, commandPool,
+                     graphicsQueue);
+      new_DepthImageView(&depthImageView, graphicsDevice, depthImage);
       /* Create graphics pipeline */
-      new_VertexDisplayRenderPass(&renderPass, device, surfaceFormat.format);
-      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, device);
-      new_VertexDisplayPipeline(
-          &vertexDisplayPipeline, device, vertShaderModule, fragShaderModule,
-          swapChainExtent, renderPass, vertexDisplayPipelineLayout);
-      new_SwapChainFramebuffers(&pSwapChainFramebuffers, device, renderPass,
-                                swapChainExtent, swapChainImageCount,
-                                depthImageView, pSwapChainImageViews);
+      new_VertexDisplayRenderPass(&renderPass, graphicsDevice,
+                                  surfaceFormat.format);
+      new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout,
+                                      graphicsDevice);
+      new_VertexDisplayPipeline(&vertexDisplayPipeline, graphicsDevice,
+                                vertShaderModule, fragShaderModule,
+                                swapChainExtent, renderPass,
+                                vertexDisplayPipelineLayout);
+      new_SwapChainFramebuffers(
+          &pSwapChainFramebuffers, graphicsDevice, renderPass, swapChainExtent,
+          swapChainImageCount, depthImageView, pSwapChainImageViews);
 
       new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, device,
-          renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-          commandPool, swapChainExtent, swapChainImageCount,
-          pSwapChainFramebuffers, cameraViewProduct);
-      new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
-      new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
-      new_Fences(&pInFlightFences, swapChainImageCount, device);
+          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM,
+          graphicsDevice, renderPass, vertexDisplayPipelineLayout,
+          vertexDisplayPipeline, commandPool, swapChainExtent,
+          swapChainImageCount, pSwapChainFramebuffers, cameraViewProduct);
+      new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
+                     graphicsDevice);
+      new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
+                     graphicsDevice);
+      new_Fences(&pInFlightFences, swapChainImageCount, graphicsDevice);
     }
   }
 
   /*cleanup*/
-  vkDeviceWaitIdle(device);
-  delete_ShaderModule(&fragShaderModule, device);
-  delete_ShaderModule(&vertShaderModule, device);
-  delete_Fences(&pInFlightFences, swapChainImageCount, device);
-  delete_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount, device);
-  delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount, device);
+  vkDeviceWaitIdle(graphicsDevice);
+  delete_ShaderModule(&fragShaderModule, graphicsDevice);
+  delete_ShaderModule(&vertShaderModule, graphicsDevice);
+  delete_Fences(&pInFlightFences, swapChainImageCount, graphicsDevice);
+  delete_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
+                    graphicsDevice);
+  delete_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
+                    graphicsDevice);
   delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
-                        commandPool, device);
-  delete_CommandPool(&commandPool, device);
+                        commandPool, graphicsDevice);
+  delete_CommandPool(&commandPool, graphicsDevice);
   delete_SwapChainFramebuffers(&pSwapChainFramebuffers, swapChainImageCount,
-                               device);
-  delete_Pipeline(&vertexDisplayPipeline, device);
-  delete_PipelineLayout(&vertexDisplayPipelineLayout, device);
-  delete_Buffer(&vertexBuffer, device);
-  delete_DeviceMemory(&vertexBufferMemory, device);
-  delete_RenderPass(&renderPass, device);
-  delete_Image(&depthImage, device);
-  delete_DeviceMemory(&depthImageMemory, device);
-  delete_ImageView(&depthImageView, device);
+                               graphicsDevice);
+  delete_Pipeline(&vertexDisplayPipeline, graphicsDevice);
+  delete_PipelineLayout(&vertexDisplayPipelineLayout, graphicsDevice);
+  delete_Buffer(&vertexBuffer, graphicsDevice);
+  delete_DeviceMemory(&vertexBufferMemory, graphicsDevice);
+  delete_RenderPass(&renderPass, graphicsDevice);
+  delete_Image(&depthImage, graphicsDevice);
+  delete_DeviceMemory(&depthImageMemory, graphicsDevice);
+  delete_ImageView(&depthImageView, graphicsDevice);
   delete_SwapChainImageViews(&pSwapChainImageViews, swapChainImageCount,
-                             device);
+                             graphicsDevice);
   delete_SwapChainImages(&pSwapChainImages);
-  delete_SwapChain(&swapChain, device);
-  delete_Device(&device);
+  delete_SwapChain(&swapChain, graphicsDevice);
+  delete_Device(&graphicsDevice);
   delete_Surface(&surface, instance);
   delete_DebugCallback(&callback, instance);
   delete_Instance(&instance);
-  delete_RequiredDeviceExtensions(&deviceExtensionCount,
+  delete_RequiredDeviceExtensions(&graphicsDeviceExtensionCount,
                                   &ppDeviceExtensionNames);
   delete_ValidationLayers(&layerCount, &ppLayerNames);
   delete_RequiredInstanceExtensions(&extensionCount, &ppExtensionNames);

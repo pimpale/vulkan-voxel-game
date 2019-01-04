@@ -11,20 +11,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vulkan/vulkan.h>
-#define GLFW_DEFINE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "constants.h"
 #include "errors.h"
 #include "utils.h"
 
 uint64_t getLength(FILE *f) {
-  uint64_t currentpos = ftell(f);
+  int64_t currentpos = ftell(f);
   fseek(f, 0, SEEK_END);
-  uint64_t size = ftell(f);
+  int64_t size = ftell(f);
   fseek(f, currentpos, SEEK_SET);
-  return (size);
+  return ((uint64_t)size);
 }
 /**
  * Mallocs
@@ -35,8 +31,9 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
     errLog(FATAL, "could not read file\n");
     panic();
   }
-
-  uint32_t filesize = getLength(fp);
+  /* We can coerce to a 32 bit, because no realistic files will be
+	 * greater than 2 GB */
+  uint32_t filesize = (uint32_t) getLength(fp);
   uint32_t filesizepadded =
       (filesize % 4 == 0 ? filesize * 4 : (filesize + 1) * 4) / 4;
 
@@ -58,6 +55,6 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
 
   /*set up*/
   *length = filesizepadded;
-  *code = (uint32_t *)str;
+  *code = (uint32_t *) ((void*)str);
   return;
 }
