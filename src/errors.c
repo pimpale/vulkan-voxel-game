@@ -89,49 +89,34 @@ char *vkstrerror(VkResult err) {
   return ("UNKNOWN_ERROR");
 }
 
- void errLog(ErrSeverity level, const char*message, ...) {
-  char *errmsg = "unknown";
-  FILE *out = stderr;
-
+char *levelstrerror(ErrSeverity level) {
   switch (level) {
   case ERR_LEVEL_DEBUG: {
-    errmsg = "debug";
-    out = stdout;
-    break;
+    return ("debug");
   }
   case ERR_LEVEL_INFO: {
-    errmsg = "info";
-    out = stdout;
-    break;
+    return ("info");
   }
   case ERR_LEVEL_WARN: {
-    errmsg = "warn";
-    out = stderr;
-    break;
+    return ("warn");
   }
   case ERR_LEVEL_ERROR: {
-    errmsg = "error";
-    out = stderr;
-    break;
+    return ("error");
   }
   case ERR_LEVEL_FATAL: {
-    errmsg = "fatal";
-    out = stderr;
-    break;
+    return ("fatal");
   }
   case ERR_LEVEL_UNKNOWN: {
-    errmsg = "unknown";
-    out = stderr;
-    break;
+    return ("unknown");
   }
   }
+}
 
+void errLog(ErrSeverity level, const char *message, ...) {
   char message_formatted[MAX_PRINT_LENGTH];
   va_list args;
   va_start(args, message);
   vsnprintf(message_formatted, MAX_PRINT_LENGTH, message, args);
   va_end(args);
-
-  fprintf(out, "%s: %s: %s\n", APPNAME, errmsg, message_formatted);
+  printf("%s: %s: %s\n", APPNAME, levelstrerror(level), message_formatted);
 }
-

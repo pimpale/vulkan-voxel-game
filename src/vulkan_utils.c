@@ -1160,7 +1160,7 @@ uint32_t drawFrame(uint32_t *pCurrentFrame, const uint32_t maxFramesInFlight,
   submitInfo.waitSemaphoreCount = 1;
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
-
+  //TODO please push constants here, rather than re record each time
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &pCommandBuffers[imageIndex];
 
@@ -1817,3 +1817,63 @@ ErrVal new_ComputePipelines(
   }
   return (ERR_OK);
 }
+
+ErrVal new_ComputeStorageDescriptorSetLayout(
+		VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device) {
+	VkDescriptorSetLayoutBinding storageLayoutBinding = {0};
+	storageLayoutBinding.binding = 0;
+	storageLayoutBinding.descriptorCount = 1;
+	storageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	storageLayoutBinding.pImmutableSamplers = NULL;
+	storageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {0};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &storageLayoutBinding;
+	VkResult retVal = vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
+			pDescriptorSetLayout);
+	if (retVal != VK_SUCCESS) {
+		errLog(ERR_LEVEL_ERROR, "failed to create descriptor set layout: %s",
+				vkstrerror(retVal));
+		return (ERR_UNKNOWN);
+	}
+	return (ERR_OK);
+}
+
+void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
+		const VkDevice device) {
+	vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
+	*pDescriptorSetLayout = VK_NULL_HANDLE;
+}
+
+ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool, const VkDescriptorType descriptorType,
+		const uint32_t maxAllocFrom, const VkDevice device) {
+	VkDescriptorPoolSize descriptorPoolSize;
+	descriptorPoolSize.type = descriptorType;
+	descriptorPoolSize.descriptorCount = maxAllocFrom;
+
+	VkDescriptorPoolCreateInfo poolInfo = {0};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &descriptorPoolSize;
+	poolInfo.maxSets = maxAllocFrom;
+
+	/* Actually create descriptor pool */
+	VkResult ret =
+			vkCreateDescriptorPool(device, &poolInfo, NULL, pDescriptorPool);
+
+	if (ret != VK_SUCCESS) {
+		errLog(ERR_LEVEL_ERROR, "failed to create descriptor pool; %s", vkstrerror(ret));
+		return (ERR_UNKNOWN);
+	} else {
+		return (ERR_OK);
+	}
+}
+
+void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
+		const VkDevice device) {
+	vkDestroyDescriptorPool(device, *pDescriptorPool, NULL);
+	*pDescriptorPool = VK_NULL_HANDLE;
+}
+
+

@@ -34,7 +34,10 @@ typedef enum ErrVal {
 } ErrVal;
 
 char *vkstrerror(VkResult err);
+char *levelstrerror(ErrSeverity level);
 
 void errLog(ErrSeverity level, const char *message, ...);
+
+#define FOO(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
 #endif /* SRC_ERRORS_H_ */
