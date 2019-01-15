@@ -1,4 +1,5 @@
 /*
+ * Copyright 2019 Govind Pimpale
  * error_handle.h
  *
  *  Created on: Aug 7, 2018
@@ -36,8 +37,7 @@ typedef enum ErrVal {
 char *vkstrerror(VkResult err);
 char *levelstrerror(ErrSeverity level);
 
-void errLog(ErrSeverity level, const char *message, ...);
+void logError(ErrSeverity level, const char *message, ...);
 
-#define FOO(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
 #endif /* SRC_ERRORS_H_ */

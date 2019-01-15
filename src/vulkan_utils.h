@@ -1,4 +1,5 @@
 /*
+ * Copyright 2019 Govind Pimpale
  * vulkan_methods.h
  *
  *  Created on: Aug 8, 2018
@@ -297,14 +298,19 @@ ErrVal
 new_VertexGenerationComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
                                           const VkDevice device);
 
-ErrVal new_ComputePipelines(
-    VkPipeline *pNodeUpdatePipeline, VkPipeline *pNodeTopologyPipeline,
-    VkPipeline *pVertexGenerationPipeline,
-    const VkPipelineLayout nodeUpdatePipelineLayout,
-    const VkPipelineLayout nodeTopologyPipelineLayout,
-    const VkPipelineLayout vertexGenerationPipelineLayout,
-    const VkShaderModule nodeUpdateShaderModule,
-    const VkShaderModule nodeTopologyShaderModule,
-    const VkShaderModule vertexGenerationShaderModule, VkDevice device);
+ErrVal new_ComputePipeline(VkPipeline *pPipeline,
+                           const VkPipelineLayout pipelineLayout,
+                           const VkShaderModule shaderModule,
+                           const VkDevice device);
+
+ErrVal new_ComputeStorageDescriptorSetLayout(
+    VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device);
+
+void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
+                                const VkDevice device);
+
+ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
+                          const VkDescriptorType descriptorType,
+                          const uint32_t maxAllocFrom, const VkDevice device);
 
 #endif /* SRC_VULKAN_UTILS_H_ */

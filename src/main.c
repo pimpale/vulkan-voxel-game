@@ -114,7 +114,7 @@ int main(void) {
         getPresentQueueIndex(&presentIndex, physicalDevice, surface);
     /* Panic if indices are unavailable */
     if (ret1 != VK_SUCCESS || ret2 != VK_SUCCESS || ret3 != VK_SUCCESS) {
-      errLog(ERR_LEVEL_FATAL, "unable to acquire indices");
+      logError(ERR_LEVEL_FATAL, "unable to acquire indices");
       PANIC();
     }
   }
@@ -152,11 +152,12 @@ int main(void) {
   VkPipeline nodeTopologyPipeline;
   VkPipeline vertexGenerationPipeline;
 
-  new_ComputePipelines(
-      &nodeUpdatePipeline, &nodeTopologyPipeline, &vertexGenerationPipeline,
-      nodeUpdatePipelineLayout, nodeTopologyPipelineLayout,
-      vertexGenerationPipelineLayout, nodeUpdateShaderModule,
-      nodeTopologyShaderModule, vertexGenerationShaderModule, computeDevice);
+  new_ComputePipeline(&nodeUpdatePipeline, nodeUpdatePipelineLayout,
+                      nodeUpdateShaderModule, computeDevice);
+  new_ComputePipeline(&nodeTopologyPipeline, nodeTopologyPipelineLayout,
+                      nodeTopologyShaderModule, computeDevice);
+  new_ComputePipeline(&vertexGenerationPipeline, vertexGenerationPipelineLayout,
+                      vertexGenerationShaderModule, computeDevice);
 
   /* Set extent (for now just window width and height) */
   VkExtent2D swapChainExtent;

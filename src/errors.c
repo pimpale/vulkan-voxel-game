@@ -6,7 +6,6 @@
  */
 
 #include <errno.h>
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -109,10 +108,11 @@ char *levelstrerror(ErrSeverity level) {
   case ERR_LEVEL_UNKNOWN: {
     return ("unknown");
   }
+  default: { return ("unknown"); }
   }
 }
 
-void errLog(ErrSeverity level, const char *message, ...) {
+void logError(ErrSeverity level, const char *message, ...) {
   char message_formatted[MAX_PRINT_LENGTH];
   va_list args;
   va_start(args, message);
