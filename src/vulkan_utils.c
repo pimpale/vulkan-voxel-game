@@ -1720,13 +1720,14 @@ ErrVal transitionImageLayout(const VkDevice device,
   return (ERR_OK);
 }
 
-ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
+ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout, const VkDescriptorSetLayout nodeComputeBufferLayout,
                                            const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
   pipelineLayoutInfo.pushConstantRangeCount = 0;
   pipelineLayoutInfo.pPushConstantRanges = NULL;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &nodeComputeBufferLayout;
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                         pPipelineLayout);
   if (res != VK_SUCCESS) {

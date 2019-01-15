@@ -288,8 +288,9 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
                           const VkMemoryPropertyFlags memoryPropertyFlags,
                           const VkPhysicalDevice physicalDevice);
 
-ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                           const VkDevice device);
+ErrVal new_NodeUpdateComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout,
+    const VkDescriptorSetLayout nodeComputeBufferLayout, const VkDevice device);
 
 ErrVal new_NodeTopologyComputePipelineLayout(VkPipelineLayout *pPipelineLayout,
                                              const VkDevice device);
@@ -312,5 +313,11 @@ void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
 ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                           const VkDescriptorType descriptorType,
                           const uint32_t maxAllocFrom, const VkDevice device);
+
+ErrVal new_ComputeBufferDescriptorSet(
+    VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
+    const VkDeviceSize computeBufferSize,
+    const VkDescriptorSetLayout descriptorSetLayout,
+    const VkDescriptorPool descriptorPool, const VkDevice device);
 
 #endif /* SRC_VULKAN_UTILS_H_ */

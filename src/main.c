@@ -119,17 +119,44 @@ int main(void) {
     }
   }
   /* Set up compute */
-
+  /* Create device*/
   VkDevice computeDevice;
-
   new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount,
-
              (const char *const *)ppLayerNames);
+
+  /* Allocate memory for buffers */
+  VkBuffer nodeBuffer;
+  VkDeviceMemory nodeBufferDeviceMemory;
+  VkDeviceSize nodeBufferSize =
+      100; /* TODO fix size (allocate so many nodes) */
+  new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
+                          physicalDevice, computeDevice,
+                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  /* Create Descriptor set layout for a node buffer */
+  VkDescriptorSetLayout nodeBufferDescriptorSetLayout;
+  new_ComputeStorageDescriptorSetLayout(&nodeBufferDescriptorSetLayout,
+                                        computeDevice);
+
+  /* Create Descriptor pool */
+  VkDescriptorPool computeDescriptorPool;
+  new_DescriptorPool(&computeDescriptorPool, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                     3, computeDevice);
+
+  /* Create Descriptor sets */
+  VkDescriptorSet computeBufferDescriptorSet;
+  new_ComputeBufferDescriptorSet(&computeBufferDescriptorSet, nodeBuffer,
+                                 nodeBufferSize, nodeBufferDescriptorSetLayout,
+                                 computeDescriptorPool, computeDevice);
+
   VkPipelineLayout nodeUpdatePipelineLayout;
   VkPipelineLayout nodeTopologyPipelineLayout;
   VkPipelineLayout vertexGenerationPipelineLayout;
 
-  new_NodeUpdateComputePipelineLayout(&nodeUpdatePipelineLayout, computeDevice);
+  new_NodeUpdateComputePipelineLayout(
+      &nodeUpdatePipelineLayout, nodeBufferDescriptorSetLayout, computeDevice);
   new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout,
                                         computeDevice);
   new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout,
