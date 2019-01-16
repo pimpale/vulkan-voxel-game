@@ -894,7 +894,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
     ErrVal retVal = new_Framebuffer(&((*ppFramebuffers)[i]), device, renderPass,
                                     pSwapChainImageViews[i], depthImageView,
                                     swapChainExtent);
-    if (retVal != VK_SUCCESS) {
+    if (retVal != ERR_OK) {
       logError(ERR_LEVEL_ERROR, "could not create framebuffers");
       delete_SwapChainFramebuffers(ppFramebuffers, i, device);
       return (retVal);
@@ -1394,7 +1394,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
   ErrVal beginResult = new_begin_OneTimeSubmitCommandBuffer(
       &copyCommandBuffer, device, commandPool);
 
-  if (beginResult != VK_SUCCESS) {
+  if (beginResult != ERR_OK) {
     logError(ERR_LEVEL_ERROR, "failed to begin command buffer");
     return (beginResult);
   }
@@ -1409,7 +1409,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
   ErrVal endResult = delete_end_OneTimeSubmitCommandBuffer(
       &copyCommandBuffer, device, queue, commandPool);
 
-  if (endResult != VK_SUCCESS) {
+  if (endResult != ERR_OK) {
     logError(ERR_LEVEL_ERROR, "failed to end command buffer");
     return (endResult);
   }
@@ -1720,8 +1720,10 @@ ErrVal transitionImageLayout(const VkDevice device,
   return (ERR_OK);
 }
 
-ErrVal new_NodeUpdateComputePipelineLayout(VkPipelineLayout *pPipelineLayout, const VkDescriptorSetLayout nodeComputeBufferLayout,
-                                           const VkDevice device) {
+ErrVal new_NodeUpdateComputePipelineLayout(
+    VkPipelineLayout *pPipelineLayout,
+    const VkDescriptorSetLayout nodeComputeBufferLayout,
+    const VkDevice device) {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.pushConstantRangeCount = 0;
