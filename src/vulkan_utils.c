@@ -1895,7 +1895,7 @@ ErrVal new_ComputeBufferDescriptorSet(
   descriptorWrites.dstSet = *pDescriptorSet;
   descriptorWrites.dstBinding = 0;
   descriptorWrites.dstArrayElement = 0;
-  descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
   descriptorWrites.descriptorCount = 1;
   descriptorWrites.pBufferInfo = &bufferInfo;
   descriptorWrites.pImageInfo = NULL;

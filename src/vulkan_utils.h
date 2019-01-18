@@ -22,15 +22,6 @@ struct Vertex {
   vec3 color;
 };
 
-struct Node {
-  uint8_t type;
-  float length;
-  float area;
-  vec3 color;
-  mat4x4 transformation;
-  struct Node *leftChild;
-  struct Node *rightChild;
-};
 
 ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
                                       char ***pppEnabledExtensionNames);

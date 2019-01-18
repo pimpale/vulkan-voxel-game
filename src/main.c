@@ -127,13 +127,14 @@ int main(void) {
   /* Allocate memory for buffers */
   VkBuffer nodeBuffer;
   VkDeviceMemory nodeBufferDeviceMemory;
-  VkDeviceSize nodeBufferSize =
-      100; /* TODO fix size (allocate so many nodes) */
+  /* One node for now */
+  VkDeviceSize nodeBufferSize = sizeof(struct Node) * 1;
   new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
                           physicalDevice, computeDevice,
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  copyToDeviceMemory(&nodeBufferDeviceMemory,
 
   /* Create Descriptor set layout for a node buffer */
   VkDescriptorSetLayout nodeBufferDescriptorSetLayout;
