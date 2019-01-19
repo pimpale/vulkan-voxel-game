@@ -121,13 +121,3 @@ char *levelstrerror(ErrSeverity level) {
 
   return (str);
 }
-
-void logError(ErrSeverity level, const char *message, ...) {
-  char message_formatted[MAX_PRINT_LENGTH];
-  va_list args;
-  va_start(args, message);
-  vsnprintf(message_formatted, MAX_PRINT_LENGTH, message, args);
-  va_end(args);
-  printf("%s: %s: %s\n", APPNAME, levelstrerror(level), message_formatted);
-}
-

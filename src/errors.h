@@ -11,9 +11,6 @@
 
 #include <vulkan/vulkan.h>
 
-#define UNUSED(x) (void)(x)
-#define PANIC() exit(EXIT_FAILURE)
-
 typedef enum ErrSeverity {
   ERR_LEVEL_DEBUG = 1,
   ERR_LEVEL_INFO = 2,
@@ -37,13 +34,17 @@ typedef enum ErrVal {
 char *vkstrerror(VkResult err);
 char *levelstrerror(ErrSeverity level);
 
-void logError(ErrSeverity level, const char *message, ...);
+#define UNUSED(x) (void)(x)
+#define PANIC() exit(EXIT_FAILURE)
 
-#define LOG_ERROR(level, fmt, ...)                                             \
-  do {                                                                            \
-    char macro_message_formatted[MAX_PRINT_LENGTH];                                  \
-    snprintf(macro_message_formatted, fmt, MAX_PRINT_LENGTH, __VA_ARGS__);           \
-    printf("%s: %s: %s\n", APPNAME, levelstrerror(level), macro_message_formatted);  \
-  } while(0)
+#define LOG_ERROR(level, msg)                                                  \
+  printf("%s: %s: %s\n", APPNAME, levelstrerror(level), msg)
 
+#define LOG_ERROR_ARGS(level, fmt, ...)                                        \
+  do {                                                                         \
+    char macro_message_formatted[MAX_PRINT_LENGTH];                            \
+    snprintf(macro_message_formatted, fmt, MAX_PRINT_LENGTH, __VA_ARGS__);     \
+    printf("%s: %s: %s\n", APPNAME, levelstrerror(level),                      \
+           macro_message_formatted);                                           \
+  } while (0)
 #endif /* SRC_ERRORS_H_ */
