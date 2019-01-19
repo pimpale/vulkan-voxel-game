@@ -20,11 +20,10 @@ uint64_t getLength(FILE *f) {
   fseek(f, 0, SEEK_END);
   int64_t size = ftell(f);
   fseek(f, currentpos, SEEK_SET);
-	if(size < 0) 
-	{
-					logError(ERR_LEVEL_ERROR, "invalid file size");
-					return (0);
-	}
+  if (size < 0) {
+    logError(ERR_LEVEL_ERROR, "invalid file size");
+    return (0);
+  }
   return ((uint64_t)size);
 }
 /**
@@ -44,7 +43,8 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
 
   char *str = malloc(filesizepadded);
   if (!str) {
-    logError(ERR_LEVEL_FATAL, "Could not read shader file: %s\n", strerror(errno));
+    logError(ERR_LEVEL_FATAL, "Could not read shader file: %s\n",
+             strerror(errno));
     fclose(fp);
     PANIC();
   }

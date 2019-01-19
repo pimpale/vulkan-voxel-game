@@ -90,27 +90,36 @@ char *vkstrerror(VkResult err) {
 }
 
 char *levelstrerror(ErrSeverity level) {
+  char *str = "unknown";
+
   switch (level) {
   case ERR_LEVEL_DEBUG: {
-    return ("debug");
+    str = "debug";
+    break;
   }
   case ERR_LEVEL_INFO: {
-    return ("info");
+    str = "info";
+    break;
   }
   case ERR_LEVEL_WARN: {
-    return ("warn");
+    str = "warn";
+    break;
   }
   case ERR_LEVEL_ERROR: {
-    return ("error");
+    str = "error";
+    break;
   }
   case ERR_LEVEL_FATAL: {
-    return ("fatal");
+    str = "fatal";
+    break;
   }
   case ERR_LEVEL_UNKNOWN: {
-    return ("unknown");
+    str = "unknown";
+    break;
   }
-  default: { return ("unknown"); }
   }
+
+  return (str);
 }
 
 void logError(ErrSeverity level, const char *message, ...) {
@@ -121,3 +130,4 @@ void logError(ErrSeverity level, const char *message, ...) {
   va_end(args);
   printf("%s: %s: %s\n", APPNAME, levelstrerror(level), message_formatted);
 }
+

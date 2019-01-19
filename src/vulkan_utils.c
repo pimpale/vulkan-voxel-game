@@ -55,7 +55,7 @@ ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
       glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
   *pEnabledExtensionCount = 1 + glfwExtensionCount;
   *pppEnabledExtensionNames =
-      malloc(sizeof(char *) * (*pEnabledExtensionCount));
+      (char **)malloc(sizeof(char *) * (*pEnabledExtensionCount));
 
   if (!(*pppEnabledExtensionNames)) {
     logError(ERR_LEVEL_FATAL, "failed to get required extensions: %s",
@@ -65,7 +65,7 @@ ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 
   /* Allocate buffers for extensions */
   for (uint32_t i = 0; i < *pEnabledExtensionCount; i++) {
-    (*pppEnabledExtensionNames)[i] = malloc(VK_MAX_EXTENSION_NAME_SIZE);
+    (*pppEnabledExtensionNames)[i] = (char *)malloc(VK_MAX_EXTENSION_NAME_SIZE);
   }
   /* Copy our extensions in  (we're malloccing everything to make it
    * simple to deallocate at the end without worrying about what needs to
@@ -91,7 +91,7 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 /* Get required layer names for validation layers */
 ErrVal new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
   *pLayerCount = 1;
-  *pppLayerNames = malloc(sizeof(char *) * sizeof(*pLayerCount));
+  *pppLayerNames = (char **)malloc(sizeof(char *) * sizeof(*pLayerCount));
   **pppLayerNames = "VK_LAYER_LUNARG_standard_validation";
   return (ERR_OK);
 }
@@ -107,7 +107,7 @@ ErrVal new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
                                     char ***pppEnabledExtensionNames) {
   *pEnabledExtensionCount = 1;
   *pppEnabledExtensionNames =
-      malloc(sizeof(char *) * sizeof(*pEnabledExtensionCount));
+      (char **)malloc(sizeof(char *) * sizeof(*pEnabledExtensionCount));
   **pppEnabledExtensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   return (ERR_OK);
 }
@@ -154,6 +154,7 @@ ErrVal new_Instance(VkInstance *pInstance, const uint32_t enabledExtensionCount,
 /* Destroys instance created in new_Instance */
 void delete_Instance(VkInstance *pInstance) {
   vkDestroyInstance(*pInstance, NULL);
+  *pInstance = VK_NULL_HANDLE;
 }
 
 /**
@@ -264,22 +265,25 @@ ErrVal getDeviceQueueIndex(uint32_t *deviceQueueIndex,
     logError(ERR_LEVEL_WARN, "no device queues found");
     return (ERR_NOTSUPPORTED);
   }
-  VkQueueFamilyProperties *arr =
-      malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
-  if (!arr) {
+  VkQueueFamilyProperties *pFamilyProperties =
+      (VkQueueFamilyProperties *)malloc(queueFamilyCount *
+                                        sizeof(VkQueueFamilyProperties));
+  if (!pFamilyProperties) {
     logError(ERR_LEVEL_FATAL, "Failed to get device queue index: %s",
              strerror(errno));
     PANIC();
   }
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, arr);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                           pFamilyProperties);
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
-    if (arr[i].queueCount > 0 && (arr[0].queueFlags & bit)) {
-      free(arr);
+    if (pFamilyProperties[i].queueCount > 0 &&
+        (pFamilyProperties[0].queueFlags & bit)) {
+      free(pFamilyProperties);
       *deviceQueueIndex = i;
       return (ERR_OK);
     }
   }
-  free(arr);
+  free(pFamilyProperties);
   logError(ERR_LEVEL_ERROR, "no suitable device queue found");
   return (ERR_NOTSUPPORTED);
 }
@@ -294,8 +298,8 @@ ErrVal getPresentQueueIndex(uint32_t *pPresentQueueIndex,
     logError(ERR_LEVEL_WARN, "no queues found");
     return (ERR_NOTSUPPORTED);
   }
-  VkQueueFamilyProperties *arr =
-      malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
+  VkQueueFamilyProperties *arr = (VkQueueFamilyProperties *)malloc(
+      queueFamilyCount * sizeof(VkQueueFamilyProperties));
   if (!arr) {
     logError(ERR_LEVEL_FATAL, "Failed to get present queue index: %s",
              strerror(errno));
@@ -421,19 +425,19 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
   VkSurfaceFormatKHR *pSurfaceFormats;
   vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
                                        NULL);
-  if (formatCount != 0) {
-    pSurfaceFormats = malloc(formatCount * sizeof(VkSurfaceFormatKHR));
-    if (!pSurfaceFormats) {
-      logError(ERR_LEVEL_FATAL, "could not get preferred format: %s",
-               strerror(errno));
-      PANIC();
-    }
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
-                                         pSurfaceFormats);
-  } else {
-    pSurfaceFormats = NULL;
+  if (formatCount == 0) {
     return (ERR_NOTSUPPORTED);
   }
+
+  pSurfaceFormats =
+      (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
+  if (!pSurfaceFormats) {
+    logError(ERR_LEVEL_FATAL, "could not get preferred format: %s",
+             strerror(errno));
+    PANIC();
+  }
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
+                                       pSurfaceFormats);
 
   VkSurfaceFormatKHR preferredFormat = {0};
   if (formatCount == 1 && pSurfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
@@ -473,7 +477,7 @@ ErrVal new_SwapChainImages(VkImage **ppSwapChainImages, uint32_t *pImageCount,
     return (ERR_UNSAFE);
   }
 
-  *ppSwapChainImages = malloc((*pImageCount) * sizeof(VkImage));
+  *ppSwapChainImages = (VkImage *)malloc((*pImageCount) * sizeof(VkImage));
   if (!*ppSwapChainImages) {
     logError(ERR_LEVEL_FATAL, "failed to get swap chain images: %s",
              strerror(errno));
@@ -534,7 +538,8 @@ ErrVal new_SwapChainImageViews(VkImageView **ppImageViews,
     logError(ERR_LEVEL_WARN, "cannot create zero image views");
     return (ERR_BADARGS);
   }
-  VkImageView *pImageViews = malloc(imageCount * sizeof(VkImageView));
+  VkImageView *pImageViews =
+      (VkImageView *)malloc(imageCount * sizeof(VkImageView));
   if (!pImageViews) {
     logError(ERR_LEVEL_FATAL, "could not create swap chain image views: %s",
              strerror(errno));
@@ -883,7 +888,7 @@ ErrVal new_SwapChainFramebuffers(VkFramebuffer **ppFramebuffers,
                                  const uint32_t imageCount,
                                  const VkImageView depthImageView,
                                  const VkImageView *pSwapChainImageViews) {
-  *ppFramebuffers = malloc(imageCount * sizeof(VkFramebuffer));
+  *ppFramebuffers = (VkFramebuffer *)malloc(imageCount * sizeof(VkFramebuffer));
   if (!(*ppFramebuffers)) {
     logError(ERR_LEVEL_FATAL, "could not create framebuffers: %s",
              strerror(errno));
@@ -946,8 +951,8 @@ ErrVal new_VertexDisplayCommandBuffers(
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = swapChainFramebufferCount;
 
-  VkCommandBuffer *pCommandBuffers =
-      malloc(swapChainFramebufferCount * sizeof(VkCommandBuffer));
+  VkCommandBuffer *pCommandBuffers = (VkCommandBuffer *)malloc(
+      swapChainFramebufferCount * sizeof(VkCommandBuffer));
   if (!pCommandBuffers) {
     logError(ERR_LEVEL_FATAL, "Failed to create graphics command buffers: %s",
              strerror(errno));
@@ -1055,7 +1060,7 @@ ErrVal new_Semaphores(VkSemaphore **ppSemaphores, const uint32_t semaphoreCount,
     logError(ERR_LEVEL_WARN, "failed to create semaphores: %s",
              "Failed to allocate 0 bytes of memory");
   }
-  *ppSemaphores = malloc(semaphoreCount * sizeof(VkSemaphore));
+  *ppSemaphores = (VkSemaphore *)malloc(semaphoreCount * sizeof(VkSemaphore));
   if (*ppSemaphores == NULL) {
     logError(ERR_LEVEL_FATAL, "Failed to create semaphores: %s",
              strerror(errno));
@@ -1104,7 +1109,7 @@ ErrVal new_Fences(VkFence **ppFences, const uint32_t fenceCount,
     logError(ERR_LEVEL_WARN, "cannot allocate 0 bytes of memory");
     return (ERR_UNSAFE);
   }
-  *ppFences = malloc(fenceCount * sizeof(VkDevice));
+  *ppFences = (VkFence *)malloc(fenceCount * sizeof(VkDevice));
   if (!*ppFences) {
     logError(ERR_LEVEL_FATAL, "failed to create memory fence; %s",
              strerror(errno));

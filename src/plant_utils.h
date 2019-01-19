@@ -26,8 +26,7 @@ typedef struct Node Node;
 Node testNode() {
   struct Node returnable;
   mat4x4_identity(returnable.transformation);
-  returnable.
-  return;
+  returnable.return;
 }
 
 #endif /* SRC_PLANT_UTILS_H_ */

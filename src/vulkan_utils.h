@@ -22,7 +22,6 @@ struct Vertex {
   vec3 color;
 };
 
-
 ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
                                       char ***pppEnabledExtensionNames);
 
@@ -305,10 +304,15 @@ ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                           const VkDescriptorType descriptorType,
                           const uint32_t maxAllocFrom, const VkDevice device);
 
+void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
+                           const VkDevice device);
+
 ErrVal new_ComputeBufferDescriptorSet(
     VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
     const VkDeviceSize computeBufferSize,
     const VkDescriptorSetLayout descriptorSetLayout,
     const VkDescriptorPool descriptorPool, const VkDevice device);
+
+void delete_DescriptorSets(VkDescriptorSet **ppDescriptorSets);
 
 #endif /* SRC_VULKAN_UTILS_H_ */

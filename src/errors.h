@@ -39,5 +39,11 @@ char *levelstrerror(ErrSeverity level);
 
 void logError(ErrSeverity level, const char *message, ...);
 
+#define LOG_ERROR(level, fmt, ...)                                             \
+  do {                                                                            \
+    char macro_message_formatted[MAX_PRINT_LENGTH];                                  \
+    snprintf(macro_message_formatted, fmt, MAX_PRINT_LENGTH, __VA_ARGS__);           \
+    printf("%s: %s: %s\n", APPNAME, levelstrerror(level), macro_message_formatted);  \
+  } while(0)
 
 #endif /* SRC_ERRORS_H_ */
