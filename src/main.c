@@ -135,7 +135,10 @@ int main(void) {
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  copyToDeviceMemory(&nodeBufferDeviceMemory,
+  /* Initialize node buffer memory */
+  Node pNodeData[1] = {testNode()}; /* TODO add more nodes */
+  copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
+                     computeDevice);
 
   /* Create Descriptor set layout for a node buffer */
   VkDescriptorSetLayout nodeBufferDescriptorSetLayout;

@@ -10,23 +10,14 @@
 
 #include "linmath.h"
 
-struct Node {
-  uint8_t type;
-  float length;
-  float area;
+typedef struct {
+  uint32_t level;
+  uint32_t leftChildIndex;
+  uint32_t rightChildIndex;
   vec3 color;
   mat4x4 transformation;
-  struct Node *leftChild;
-  struct Node *rightChild;
-};
+} Node;
 
-typedef struct Node Node;
-
-/* TODO remove, for testing purposes only) */
-Node testNode() {
-  struct Node returnable;
-  mat4x4_identity(returnable.transformation);
-  returnable.return;
-}
+Node testNode(void);
 
 #endif /* SRC_PLANT_UTILS_H_ */
