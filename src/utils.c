@@ -21,7 +21,7 @@ uint64_t getLength(FILE *f) {
   int64_t size = ftell(f);
   fseek(f, currentpos, SEEK_SET);
   if (size < 0) {
-    logError(ERR_LEVEL_ERROR, "invalid file size");
+    LOG_ERROR(ERR_LEVEL_ERROR, "invalid file size");
     return (0);
   }
   return ((uint64_t)size);
@@ -32,7 +32,7 @@ uint64_t getLength(FILE *f) {
 void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
   FILE *fp = fopen(filename, "rb");
   if (!fp) {
-    logError(ERR_LEVEL_FATAL, "could not read file\n");
+    LOG_ERROR(ERR_LEVEL_FATAL, "could not read file");
     PANIC();
   }
   /* We can coerce to a 32 bit, because no realistic files will be
@@ -43,7 +43,7 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
 
   char *str = malloc(filesizepadded);
   if (!str) {
-    logError(ERR_LEVEL_FATAL, "Could not read shader file: %s\n",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not read shader file: %s",
              strerror(errno));
     fclose(fp);
     PANIC();

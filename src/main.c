@@ -11,6 +11,7 @@
 #include "constants.h"
 #include "errors.h"
 #include "linmath.h"
+#include "plant_utils.h"
 #include "utils.h"
 #include "vulkan_utils.h"
 
@@ -114,7 +115,7 @@ int main(void) {
         getPresentQueueIndex(&presentIndex, physicalDevice, surface);
     /* Panic if indices are unavailable */
     if (ret1 != VK_SUCCESS || ret2 != VK_SUCCESS || ret3 != VK_SUCCESS) {
-      logError(ERR_LEVEL_FATAL, "unable to acquire indices");
+      LOG_ERROR(ERR_LEVEL_FATAL, "unable to acquire indices");
       PANIC();
     }
   }
@@ -128,7 +129,7 @@ int main(void) {
   VkBuffer nodeBuffer;
   VkDeviceMemory nodeBufferDeviceMemory;
   /* One node for now */
-  VkDeviceSize nodeBufferSize = sizeof(struct Node) * 1;
+  VkDeviceSize nodeBufferSize = sizeof(Node) * 1;
   new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
                           physicalDevice, computeDevice,
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

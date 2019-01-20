@@ -43,7 +43,7 @@ char *levelstrerror(ErrSeverity level);
 #define LOG_ERROR_ARGS(level, fmt, ...)                                        \
   do {                                                                         \
     char macro_message_formatted[MAX_PRINT_LENGTH];                            \
-    snprintf(macro_message_formatted, fmt, MAX_PRINT_LENGTH, __VA_ARGS__);     \
+    snprintf(macro_message_formatted, MAX_PRINT_LENGTH, fmt, __VA_ARGS__);     \
     printf("%s: %s: %s\n", APPNAME, levelstrerror(level),                      \
            macro_message_formatted);                                           \
   } while (0)
