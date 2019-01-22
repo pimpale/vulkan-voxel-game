@@ -1,4 +1,4 @@
-/*
+/* Copyright 2019 Govind Pimpale
  * constants2.h
  *
  *  Created on: Aug 7, 2018
@@ -15,5 +15,7 @@
 
 #define WINDOW_HEIGHT 500
 #define WINDOW_WIDTH 500
+
+#define WORKGROUP_SIZE 32
 
 #endif /* SRC_CONSTANTS_H_ */

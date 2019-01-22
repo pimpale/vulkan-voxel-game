@@ -102,7 +102,7 @@ int main(void) {
   VkSurfaceKHR surface;
   new_SurfaceFromGLFW(&surface, pWindow, instance);
 
-  /* find queues on graphics graphicsDevice */
+  /* find queues on physical device*/
   uint32_t graphicsIndex;
   uint32_t computeIndex;
   uint32_t presentIndex;
@@ -156,40 +156,31 @@ int main(void) {
                                  nodeBufferSize, nodeBufferDescriptorSetLayout,
                                  computeDescriptorPool, computeDevice);
 
+  /* Create PipelineLayout */
   VkPipelineLayout nodeUpdatePipelineLayout;
-  VkPipelineLayout nodeTopologyPipelineLayout;
-  VkPipelineLayout vertexGenerationPipelineLayout;
-
   new_NodeUpdateComputePipelineLayout(
       &nodeUpdatePipelineLayout, nodeBufferDescriptorSetLayout, computeDevice);
-  new_NodeTopologyComputePipelineLayout(&nodeTopologyPipelineLayout,
-                                        computeDevice);
-  new_VertexGenerationComputePipelineLayout(&vertexGenerationPipelineLayout,
-                                            computeDevice);
 
   /* Shader modules */
   VkShaderModule nodeUpdateShaderModule;
-  VkShaderModule nodeTopologyShaderModule;
-  VkShaderModule vertexGenerationShaderModule;
 
   /* Load from file */
   new_ShaderModuleFromFile(&nodeUpdateShaderModule, computeDevice,
                            "assets/shaders/nodeupdate.comp.spv");
-  new_ShaderModuleFromFile(&nodeTopologyShaderModule, computeDevice,
-                           "assets/shaders/nodetopology.comp.spv");
-  new_ShaderModuleFromFile(&vertexGenerationShaderModule, computeDevice,
-                           "assets/shaders/vertexgeneration.comp.spv");
 
   VkPipeline nodeUpdatePipeline;
-  VkPipeline nodeTopologyPipeline;
-  VkPipeline vertexGenerationPipeline;
 
   new_ComputePipeline(&nodeUpdatePipeline, nodeUpdatePipelineLayout,
                       nodeUpdateShaderModule, computeDevice);
-  new_ComputePipeline(&nodeTopologyPipeline, nodeTopologyPipelineLayout,
-                      nodeTopologyShaderModule, computeDevice);
-  new_ComputePipeline(&vertexGenerationPipeline, vertexGenerationPipelineLayout,
-                      vertexGenerationShaderModule, computeDevice);
+
+  /* Create command pool */
+  VkCommandPool computeCommandPool;
+  new_CommandPool(&computeCommandPool, computeDevice, computeIndex);
+
+  /* Create command buffer */
+  VkCommandBuffer computeCommandBuffer;
+  new_begin_OneTimeSubmitCommandBuffer(&computeCommandBuffer, computeDevice,
+                                       computeCommandPool);
 
   /* Set extent (for now just window width and height) */
   VkExtent2D swapChainExtent;
@@ -264,21 +255,21 @@ int main(void) {
                             swapChainExtent, swapChainImageCount,
                             depthImageView, pSwapChainImageViews);
 
-#define VERTEXNUM 12
-  struct Vertex vertices[VERTEXNUM] = {{{-1, -1, 0}, {1, 0, 0}},
-                                       {{1, -1, 0}, {1, 1, 1}},
-                                       {{1, 1, 0}, {0, 1, 0}},
-                                       {{1, 1, 0}, {0, 1, 0}},
-                                       {{-1, 1, 0}, {1, 1, 1}},
-                                       {{-1, -1, 0}, {1, 0, 0}},
+#define VERTEXNUM 9 /* Stem */
+  struct Vertex vertices[VERTEXNUM] = {
+      {{0, 0.1f, 0}, {0.4f, 0.3f, 0}},
+      {{0, -0.1f, 0}, {0.4f, 0.3f, 0}},
+      {{0, 0, -2.0f}, {0.5f, 0.3f, 0}},
 
-                                       /* Square 2 */
-                                       {{-1, -1, 1}, {0, 1, 0}},
-                                       {{1, -1, 1}, {1, 1, 1}},
-                                       {{1, 1, 1}, {0, 1, 0}},
-                                       {{1, 1, 1}, {0, 1, 0}},
-                                       {{-1, 1, 1}, {1, 1, 1}},
-                                       {{-1, -1, 1}, {0, 1, 0}}
+      /* Leaf 1 */
+      {{1,  0, -0.5}, {0, 1, 0}},
+      {{0, -0.1f, -0.5}, {0, 1, 0}},
+      {{0,  0.1f, -0.5}, {0, 1, 0}},
+
+      /* Leaf 2 */
+      {{-1, 0, -1}, {0, 1, 0}},
+      {{0, -0.1f, -1}, {0, 1, 0}},
+      {{0,  0.1f, -1}, {0, 1, 0}},
 
   };
 
