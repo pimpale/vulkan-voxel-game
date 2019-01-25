@@ -40,8 +40,9 @@
   }                                                                            \
   static inline void vec##n##_min(vec##n r, vec##n a, vec##n b) {              \
     int i;                                                                     \
-    for (i = 0; i < n; ++i)                                                    \
+    for (i = 0; i < n; ++i) {                                                  \
       r[i] = a[i] < b[i] ? a[i] : b[i];                                        \
+    }                                                                          \
   }                                                                            \
   static inline void vec##n##_max(vec##n r, vec##n a, vec##n b) {              \
     int i;                                                                     \
@@ -452,7 +453,7 @@ static inline float quat_inner_product(quat a, quat b) {
   for (i = 0; i < 4; ++i) {
     p += b[i] * a[i];
   }
-  return p;
+  return (p);
 }
 static inline void quat_conj(quat r, quat q) {
   int i;
@@ -474,8 +475,8 @@ static inline void quat_rotate(quat r, float angle, vec3 axis) {
 static inline void quat_mul_vec3(vec3 r, quat q, vec3 v) {
   /*
    * Method by Fabian 'ryg' Giessen (of Farbrausch)
-   t = 2 * cross(q.xyz, v)
-   v' = v + q.w * t + cross(q.xyz, t)
+  t = 2 * cross(q.xyz, v)
+  v' = v + q.w * t + cross(q.xyz, t)
    */
   vec3 t;
   vec3 q_xyz = {q[0], q[1], q[2]};

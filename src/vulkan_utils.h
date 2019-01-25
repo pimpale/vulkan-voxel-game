@@ -10,12 +10,15 @@
 #define SRC_VULKAN_UTILS_H_
 
 #include <stdint.h>
+
 #include <vulkan/vulkan.h>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <linmath.h>
+
 #include "errors.h"
-#include "linmath.h"
 
 struct Vertex {
   vec3 position;

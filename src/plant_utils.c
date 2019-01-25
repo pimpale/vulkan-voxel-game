@@ -7,15 +7,20 @@
 
 #include <stdint.h>
 
-#include "linmath.h"
+#include <linmath.h>
 #include "plant_utils.h"
 
-/* TODO remove, for testing purposes only) */
-Node testNode() {
-  Node n = {0};
-  mat4x4_identity(n.transformation);
-  n.color[1] = 1.0f;
-  n.leftChildIndex = 0;
-  n.rightChildIndex = 0;
-  return (n);
+void initNode(Node *pNode) {
+  pNode->color[0] = 0.0f;
+  pNode->color[1] = 1.0f;
+  pNode->color[2] = 0.0f;
+  pNode->leftChildIndex = UINT32_MAX;
+  pNode->rightChildIndex = UINT32_MAX;
+  mat4x4_identity(pNode->transformation);
 }
+
+void updateNode(Node *pNode) {
+
+}
+
+void updateNodes(Node *pNodes, uint32_t nodeCount) {}

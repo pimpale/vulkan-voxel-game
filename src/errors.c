@@ -1,4 +1,5 @@
-/*
+/* Copyright 2019 Govind Pimpale
+ *
  * error_handle.c
  *
  *  Created on: Aug 7, 2018

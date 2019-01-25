@@ -8,9 +8,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <linmath.h>
+
 #include "constants.h"
 #include "errors.h"
-#include "linmath.h"
 #include "plant_utils.h"
 #include "utils.h"
 #include "vulkan_utils.h"
@@ -262,14 +263,14 @@ int main(void) {
       {{0, 0, -2.0f}, {0.5f, 0.3f, 0}},
 
       /* Leaf 1 */
-      {{1,  0, -0.5}, {0, 1, 0}},
+      {{1, 0, -0.5}, {0, 1, 0}},
       {{0, -0.1f, -0.5}, {0, 1, 0}},
-      {{0,  0.1f, -0.5}, {0, 1, 0}},
+      {{0, 0.1f, -0.5}, {0, 1, 0}},
 
       /* Leaf 2 */
       {{-1, 0, -1}, {0, 1, 0}},
       {{0, -0.1f, -1}, {0, 1, 0}},
-      {{0,  0.1f, -1}, {0, 1, 0}},
+      {{0, 0.1f, -1}, {0, 1, 0}},
 
   };
 

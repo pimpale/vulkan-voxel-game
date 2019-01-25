@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "linmath.h"
+#include <linmath.h>
 
 #include "constants.h"
 #include "errors.h"
@@ -1326,7 +1326,7 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
       copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
   if (copyResult != ERR_OK) {
     LOG_ERROR(ERR_LEVEL_ERROR,
-                   "failed to create vertex buffer: could not map memory");
+              "failed to create vertex buffer: could not map memory");
     delete_Buffer(&stagingBuffer, device);
     delete_DeviceMemory(&stagingBufferMemory, device);
     return (copyResult);
@@ -1582,8 +1582,7 @@ ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory,
                                            properties, physicalDevice);
 
   if (memGetResult != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_ERROR,
-                   "failed to create image: allocation failed");
+    LOG_ERROR(ERR_LEVEL_ERROR, "failed to create image: allocation failed");
     return (ERR_MEMORY);
   }
 
@@ -1637,7 +1636,7 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
   if (transitionVal != ERR_OK) {
     LOG_ERROR(ERR_LEVEL_ERROR,
-                   "failed to create depth image: could not set barriers");
+              "failed to create depth image: could not set barriers");
     return (transitionVal);
   }
 
