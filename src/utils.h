@@ -1,4 +1,4 @@
-/*
+/* Copyright 2019 Govind Pimpale
  * util_methods.h
  *
  *  Created on: Sep 2, 2018
@@ -10,6 +10,13 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
+#include <linmath.h>
+
+typedef struct {
+  vec3 position;
+  vec3 color;
+} Vertex;
 
 uint64_t getLength(FILE *f);
 

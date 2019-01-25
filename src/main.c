@@ -137,9 +137,8 @@ int main(void) {
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   /* Initialize node buffer memory */
-  Node pNodeData[1] = {testNode()}; /* TODO add more nodes */
-  copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
-                     computeDevice);
+  /* copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
+                     computeDevice); */
 
   /* Create Descriptor set layout for a node buffer */
   VkDescriptorSetLayout nodeBufferDescriptorSetLayout;
@@ -257,7 +256,7 @@ int main(void) {
                             depthImageView, pSwapChainImageViews);
 
 #define VERTEXNUM 9 /* Stem */
-  struct Vertex vertices[VERTEXNUM] = {
+  Vertex vertices[VERTEXNUM] = {
       {{0, 0.1f, 0}, {0.4f, 0.3f, 0}},
       {{0, -0.1f, 0}, {0.4f, 0.3f, 0}},
       {{0, 0, -2.0f}, {0.5f, 0.3f, 0}},

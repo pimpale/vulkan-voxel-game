@@ -12,11 +12,14 @@
 
 #include <linmath.h>
 
+#include "utils.h"
+
 typedef enum {
   NODE_CMD_NONE = 0,
-  NODE_CMD_DELETE_SELF = 1,
+  NODE_CMD_TYPE_RECURSIVE = 1,
   NODE_CMD_DELETE_LEFT_NODE = 2,
   NODE_CMD_DELETE_RIGHT_NODE = 4,
+  NODE_CMD_DELETE_SELF_NODE = 4,
   /* TODO need to sliders, for now we'll be processing this in C */
 } NodeCommand;
 
@@ -38,12 +41,30 @@ typedef struct {
   /*
    * Data about node status
    */
-  uint32_t age; /* Age in ticks */
-  float length;
+  uint32_t age;         /* Age in ticks */
+  uint32_t area;        /* Area in mm^2 */
+  uint32_t temperature; /* Temperature in Kelvin */
 
+  /*
+   * A command signalling an action to be completed during the topology update
+   * phase
+   */
   NodeCommand command;
+
+  /*
+   * Data about node position and color to be used during vertex generation
+   */
   vec3 color;
-  mat4x4 transformation;
+  mat4x4 transformation; /* Transformation from parent element. */
+
+  /*
+   * Volatile data that may be changed
+   */
 } Node;
 
+void initNode(Node *pNode);
+void updateNode(Node *pNode);
+void updateNodes(Node *pNodes, uint32_t nodeCount);
+void genVertexes(Vertex **ppVertexes, uint32_t vertexCount, const Node *pNodes,
+                 const uint32_t nodeCount);
 #endif /* SRC_PLANT_UTILS_H_ */

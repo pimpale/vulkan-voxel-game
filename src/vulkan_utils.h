@@ -19,11 +19,7 @@
 #include <linmath.h>
 
 #include "errors.h"
-
-struct Vertex {
-  vec3 position;
-  vec3 color;
-};
+#include "utils.h"
 
 ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
                                       char ***pppEnabledExtensionNames);
@@ -233,8 +229,8 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                                const VkMemoryPropertyFlags properties);
 
 ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const struct Vertex *pVertices,
-                        const uint32_t vertexCount, const VkDevice device,
+                        const Vertex *pVertices, const uint32_t vertexCount,
+                        const VkDevice device,
                         const VkPhysicalDevice physicalDevice,
                         const VkCommandPool commandPool, const VkQueue queue);
 

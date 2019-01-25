@@ -7,8 +7,10 @@
 
 #include <stdint.h>
 
-#include <linmath.h>
 #include "plant_utils.h"
+#include <linmath.h>
+
+#include "utils.h"
 
 void initNode(Node *pNode) {
   pNode->color[0] = 0.0f;
@@ -20,7 +22,22 @@ void initNode(Node *pNode) {
 }
 
 void updateNode(Node *pNode) {
-
+  pNode->age++;
+  pNode->area += 1;
 }
 
-void updateNodes(Node *pNodes, uint32_t nodeCount) {}
+void updateNodes(Node *pNodes, uint32_t nodeCount) {
+  /* TODO parallelize or ship this off to the GPU */
+  for (uint32_t i = 0; i < nodeCount; i++) {
+    updateNode(&(pNodes[i]));
+  }
+}
+
+void genVertexes(Vertex **ppVertexes, uint32_t vertexCount, const Node *pNodes,
+                 const uint32_t nodeCount) {
+  for (uint32_t i = 0; i < nodeCount; i++) {
+    /* If it is a root node */
+    if (pNodes[i].parentIndex == UINT32_MAX) {
+    }
+  }
+}

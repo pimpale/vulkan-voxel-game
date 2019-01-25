@@ -738,7 +738,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
 
   VkVertexInputBindingDescription bindingDescription = {0};
   bindingDescription.binding = 0;
-  bindingDescription.stride = sizeof(struct Vertex);
+  bindingDescription.stride = sizeof(Vertex);
   bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
   VkVertexInputAttributeDescription attributeDescriptions[2];
@@ -746,12 +746,12 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   attributeDescriptions[0].binding = 0;
   attributeDescriptions[0].location = 0;
   attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[0].offset = offsetof(struct Vertex, position);
+  attributeDescriptions[0].offset = offsetof(Vertex, position);
 
   attributeDescriptions[1].binding = 0;
   attributeDescriptions[1].location = 1;
   attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[1].offset = offsetof(struct Vertex, color);
+  attributeDescriptions[1].offset = offsetof(Vertex, color);
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo = {0};
   vertexInputInfo.sType =
@@ -1300,12 +1300,12 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
 }
 
 ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const struct Vertex *pVertices,
-                        const uint32_t vertexCount, const VkDevice device,
+                        const Vertex *pVertices, const uint32_t vertexCount,
+                        const VkDevice device,
                         const VkPhysicalDevice physicalDevice,
                         const VkCommandPool commandPool, const VkQueue queue) {
   /* Construct staging buffers */
-  VkDeviceSize bufferSize = sizeof(struct Vertex) * vertexCount;
+  VkDeviceSize bufferSize = sizeof(Vertex) * vertexCount;
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   ErrVal stagingBufferCreateResult = new_Buffer_DeviceMemory(
