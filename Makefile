@@ -13,7 +13,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 LDFLAGS := -lm -lvulkan -lglfw
 
 CC := clang
-CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O3 -Wall -Weverything -Wpedantic 
+CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O3 -Wall -Weverything -pedantic 
 
 # CC := tcc
 # CPPFLAGS ?= $(INC_FLAGS) -Wall -Wpedantic 

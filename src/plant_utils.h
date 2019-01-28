@@ -35,7 +35,6 @@ typedef struct {
    * Node topology data
    * UINT32_MAX is a sentinel value signifying a null connection
    */
-  uint32_t parentIndex;
   uint32_t leftChildIndex;
   uint32_t rightChildIndex;
   /*
@@ -60,11 +59,22 @@ typedef struct {
   /*
    * Volatile data that may be changed
    */
+} NodeReal;
+
+typedef struct {
+  uint32_t leftChildIndex;
+  uint32_t rightChildIndex;
+  uint32_t parentIndex;
+  uint32_t age;
+  float width;
+  vec3 displacement;
 } Node;
 
 void initNode(Node *pNode);
+void initNodes(Node **ppNodes, uint32_t nodeCount);
 void updateNode(Node *pNode);
 void updateNodes(Node *pNodes, uint32_t nodeCount);
-void genVertexes(Vertex **ppVertexes, uint32_t vertexCount, const Node *pNodes,
-                 const uint32_t nodeCount);
+void initVertexes(Vertex **ppVertexes, uint32_t vertexCount);
+void genVertexes(Vertex **ppVertexes, uint32_t *pVertexCount,
+                 const Node *pNodes, const uint32_t nodeCount);
 #endif /* SRC_PLANT_UTILS_H_ */

@@ -11,6 +11,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "constants.h"
+
 typedef enum ErrSeverity {
   ERR_LEVEL_DEBUG = 1,
   ERR_LEVEL_INFO = 2,
