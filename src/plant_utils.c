@@ -28,7 +28,10 @@ void initNodes(Node **ppNodes, uint32_t nodeCount) {
   return;
 }
 
-void updateNode(Node *pNode) { pNode->age++; }
+void updateNode(Node *pNode) {
+  pNode->age++;
+  vec3_scale(pNode->displacement, pNode->displacement, 1.01);
+}
 
 void updateNodes(Node *pNodes, uint32_t nodeCount) {
   /* TODO parallelize or ship this off to the GPU */
@@ -64,7 +67,13 @@ void recursiveGen(Vertex **ppVertexes, uint32_t vertexCount, const Node *pNodes,
     recursiveGen(ppVertexes, vertexCount, pNodes, nodeCount,
                  pNodes[currentIndex].rightChildIndex, currentPosition);
   }
+
+  vec3 green = {0, 1, 0};
+
   /* TODO need to give real colors */
+  vec3_dup((*ppVertexes)[currentIndex * 3 + 0].color, green);
+  vec3_dup((*ppVertexes)[currentIndex * 3 + 1].color, green);
+  vec3_dup((*ppVertexes)[currentIndex * 3 + 2].color, green);
   vec3_dup((*ppVertexes)[currentIndex * 3 + 0].position, parentPosition);
   vec3_dup((*ppVertexes)[currentIndex * 3 + 1].position, currentPosition);
   vec3_dup((*ppVertexes)[currentIndex * 3 + 2].position, currentPosition);
@@ -76,7 +85,7 @@ void genVertexes(Vertex **ppVertexes, uint32_t *pVertexCount,
                  const Node *pNodes, const uint32_t nodeCount) {
 
   *pVertexCount = nodeCount * 3;
-  (*ppVertexes) = realloc(*ppVertexes, *pVertexCount);
+  (*ppVertexes) = realloc(*ppVertexes, *pVertexCount * sizeof(Vertex));
   if (*ppVertexes == NULL) {
     LOG_ERROR(ERR_LEVEL_FATAL,
               "failed to generate vertexes: could not allocate memory");

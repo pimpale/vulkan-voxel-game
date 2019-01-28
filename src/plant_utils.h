@@ -8,9 +8,9 @@
 #ifndef SRC_PLANT_UTILS_H_
 #define SRC_PLANT_UTILS_H_
 
-#include <stdint.h>
-
 #include <linmath.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #include "utils.h"
 

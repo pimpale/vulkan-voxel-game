@@ -269,9 +269,7 @@ int main(void) {
       3, 4, 0, 0, 0.1f, {0.0f, 1.0f, 0.0f},
   };
   nodeList[2] = (Node){
-      5,          /* l */
-      UINT32_MAX, /* r */
-      0,          0, 0.1f, {0.0f, 1.0f, 1.0f},
+      5, UINT32_MAX, 0, 0, 0.1f, {0.0f, 1.0f, 1.0f},
   };
   nodeList[3] = (Node){
       UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, -1.0f},
@@ -299,7 +297,7 @@ int main(void) {
   mat4x4_identity(cameraViewView);
   mat4x4_identity(cameraViewProjection);
 
-  mat4x4_look_at(cameraViewView, (vec3){2.0f, 2.0f, 2.0f},
+  mat4x4_look_at(cameraViewView, (vec3){0.0f, 0.0f, 1.0f},
                  (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
   mat4x4_perspective(cameraViewProjection, 1,
                      ((float)swapChainExtent.width) / swapChainExtent.height,
@@ -334,9 +332,12 @@ int main(void) {
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
 
+    updateNodes(nodeList, nodeCount);
+    genVertexes(&vertexList, &vertexCount, nodeList, nodeCount);
+
     bool viewModified = false;
     transformView(&viewModified, &cameraViewProduct, pWindow);
-    if (viewModified) {
+    /*  (viewModified) { */
       vkQueueWaitIdle(graphicsQueue);
       delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
                             commandPool, graphicsDevice);
@@ -345,7 +346,7 @@ int main(void) {
           graphicsDevice, renderPass, vertexDisplayPipelineLayout,
           vertexDisplayPipeline, commandPool, swapChainExtent,
           swapChainImageCount, pSwapChainFramebuffers, cameraViewProduct);
-    }
+    /* } */
 
     ErrVal result =
         drawFrame(&currentFrame, 2, graphicsDevice, swapChain,
