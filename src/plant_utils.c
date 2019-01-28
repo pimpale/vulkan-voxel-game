@@ -75,7 +75,7 @@ void recursiveGen(Vertex **ppVertexes, uint32_t vertexCount, const Node *pNodes,
 void genVertexes(Vertex **ppVertexes, uint32_t *pVertexCount,
                  const Node *pNodes, const uint32_t nodeCount) {
 
-  *pVertexCount = nodeCount * sizeof(Node) * 3;
+  *pVertexCount = nodeCount * 3;
   (*ppVertexes) = realloc(*ppVertexes, *pVertexCount);
   if (*ppVertexes == NULL) {
     LOG_ERROR(ERR_LEVEL_FATAL,

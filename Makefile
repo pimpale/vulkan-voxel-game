@@ -12,13 +12,12 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 LDFLAGS := -lm -lvulkan -lglfw
 
-CC := clang
-CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O3 -Wall -Weverything -pedantic 
-
+# CC := clang
+# CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O3 -Wall -Weverything -pedantic 
 # CC := tcc
 # CPPFLAGS ?= $(INC_FLAGS) -Wall -Wpedantic 
-# CC := gcc
-# CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O0 -g3 -pg -Wall -Wpedantic 
+CC := gcc
+CPPFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O0 -g3 -pg -Wall -Wpedantic 
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)

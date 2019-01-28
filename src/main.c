@@ -255,23 +255,39 @@ int main(void) {
                             swapChainExtent, swapChainImageCount,
                             depthImageView, pSwapChainImageViews);
 
-#define VERTEXNUM 9 /* Stem */
-  Vertex vertices[VERTEXNUM] = {
-      {{0, 0.1f, 0}, {0.4f, 0.3f, 0}},
-      {{0, -0.1f, 0}, {0.4f, 0.3f, 0}},
-      {{0, 0, -2.0f}, {0.5f, 0.3f, 0}},
+#define NODENUM 6
+#define VERTEXNUM 18
 
-      /* Leaf 1 */
-      {{1, 0, -0.5}, {0, 1, 0}},
-      {{0, -0.1f, -0.5}, {0, 1, 0}},
-      {{0, 0.1f, -0.5}, {0, 1, 0}},
+  uint32_t nodeCount = NODENUM;
+  Node *nodeList;
+  initNodes(&nodeList, nodeCount);
 
-      /* Leaf 2 */
-      {{-1, 0, -1}, {0, 1, 0}},
-      {{0, -0.1f, -1}, {0, 1, 0}},
-      {{0, 0.1f, -1}, {0, 1, 0}},
-
+  nodeList[0] = (Node){
+      1, 2, UINT32_MAX, 0, 0.1f, {0.0f, 1.0f, 0.0f},
   };
+  nodeList[1] = (Node){
+      3, 4, 0, 0, 0.1f, {0.0f, 1.0f, 0.0f},
+  };
+  nodeList[2] = (Node){
+      5,          /* l */
+      UINT32_MAX, /* r */
+      0,          0, 0.1f, {0.0f, 1.0f, 1.0f},
+  };
+  nodeList[3] = (Node){
+      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, -1.0f},
+  };
+  nodeList[4] = (Node){
+      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, 0.0f},
+  };
+  nodeList[5] = (Node){
+      UINT32_MAX, UINT32_MAX, 2, 0, 0.1f, {0.0f, 1.0f, 0.0f},
+  };
+
+  uint32_t vertexCount = VERTEXNUM;
+  Vertex *vertexList;
+
+  initVertexes(&vertexList, vertexCount);
+  genVertexes(&vertexList, &vertexCount, nodeList, nodeCount);
 
   /* The final result to be pushed */
   mat4x4 cameraViewProduct;
@@ -294,7 +310,7 @@ int main(void) {
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertices, VERTEXNUM,
+  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, VERTEXNUM,
                    graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
   VkCommandBuffer *pVertexDisplayCommandBuffers;
