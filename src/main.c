@@ -221,23 +221,28 @@ int main(void) {
                             depthImageView, pSwapChainImageViews);
 
   /* Create vertex */
-#define VERTEXNUM 12
-  Vertex vertexList[VERTEXNUM] = {{{-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                                  {{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 1}},
-                                  {{1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0}},
-                                  {{1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0}},
-                                  {{-1.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1}},
-                                  {{-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0}},
+#define NODENUM 1
+  Node *pNodes;
+  Vertex *vertexList = NULL;
+  uint32_t vertexCount = 0;
+  initNodes(&pNodes, NODENUM);
 
-                                  /* Square 2 */
-                                  {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-                                  {{1.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-                                  {{1.0f, 2.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-                                  {{1.0f, 2.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-                                  {{-1.0f, 2.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-                                  {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}};
+  Node trunk;
+  trunk.leftChildIndex = UINT32_MAX;  /* Left Child index */
+  trunk.rightChildIndex = UINT32_MAX; /* Right Child index */
+  trunk.parentIndex = UINT32_MAX;     /* Parent  index */
+  trunk.age = 0;                      /* Age */
+  trunk.archetype = ARCHETYPE_TRUNK;  /* Archetype */
+  trunk.width = 0.1f;                 /* Width */
+  trunk.visible = 1;                  /* Visibility */
+  trunk.displacement[0] = 0.0f;       /* Displacement */
+  trunk.displacement[1] = 0.0f;       /* Displacement */
+  trunk.displacement[2] = 1.0f;       /* Displacement */
+  pNodes[0] = trunk;
 
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, VERTEXNUM,
+  genVertexes(&vertexList, &vertexCount, pNodes, NODENUM);
+
+  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, vertexCount,
                    graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
   /* The final result to be pushed */
@@ -247,7 +252,7 @@ int main(void) {
                         swapChainExtent.height);
 
   new_VertexDisplayCommandBuffers(
-      &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
+      &pVertexDisplayCommandBuffers, vertexBuffer, vertexCount, graphicsDevice,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount,
       (const VkFramebuffer *)pSwapChainFramebuffers, mvp);
@@ -269,11 +274,19 @@ int main(void) {
     vkQueueWaitIdle(graphicsQueue);
     delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
                           commandPool, graphicsDevice);
+    updateNodes(pNodes, NODENUM);
+    genVertexes(&vertexList, &vertexCount, pNodes, NODENUM);
+    delete_DeviceMemory(&vertexBufferMemory, graphicsDevice);
+    delete_Buffer(&vertexBuffer, graphicsDevice);
+    new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList,
+                     vertexCount, graphicsDevice, physicalDevice, commandPool,
+                     graphicsQueue);
+
     new_VertexDisplayCommandBuffers(
-        &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
-        renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
-        commandPool, swapChainExtent, swapChainImageCount,
-        pSwapChainFramebuffers, mvp);
+        &pVertexDisplayCommandBuffers, vertexBuffer, vertexCount,
+        graphicsDevice, renderPass, vertexDisplayPipelineLayout,
+        vertexDisplayPipeline, commandPool, swapChainExtent,
+        swapChainImageCount, pSwapChainFramebuffers, mvp);
 
     ErrVal result =
         drawFrame(&currentFrame, 2, graphicsDevice, swapChain,
@@ -334,7 +347,7 @@ int main(void) {
           swapChainImageCount, depthImageView, pSwapChainImageViews);
 
       new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM,
+          &pVertexDisplayCommandBuffers, vertexBuffer, vertexCount,
           graphicsDevice, renderPass, vertexDisplayPipelineLayout,
           vertexDisplayPipeline, commandPool, swapChainExtent,
           swapChainImageCount, pSwapChainFramebuffers, mvp);

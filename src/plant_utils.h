@@ -61,11 +61,17 @@ typedef struct {
    */
 } NodeReal;
 
+#define ARCHETYPE_LEAF 1
+#define ARCHETYPE_TRUNK 2
+#define ARCHETYPE_FRUIT 3
+
 typedef struct {
   uint32_t leftChildIndex;
   uint32_t rightChildIndex;
   uint32_t parentIndex;
   uint32_t age;
+  uint32_t archetype;
+  uint32_t visible;
   float width;
   vec3 displacement;
 } Node;
