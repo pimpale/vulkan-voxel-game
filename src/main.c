@@ -272,7 +272,7 @@ int main(void) {
       5, UINT32_MAX, 0, 0, 0.1f, {0.0f, 1.0f, 1.0f},
   };
   nodeList[3] = (Node){
-      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, -1.0f},
+      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {1.0f, 1.0f, -1.0f},
   };
   nodeList[4] = (Node){
       UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, 0.0f},
@@ -338,14 +338,14 @@ int main(void) {
     bool viewModified = false;
     transformView(&viewModified, &cameraViewProduct, pWindow);
     /*  (viewModified) { */
-      vkQueueWaitIdle(graphicsQueue);
-      delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
-                            commandPool, graphicsDevice);
-      new_VertexDisplayCommandBuffers(
-          &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM,
-          graphicsDevice, renderPass, vertexDisplayPipelineLayout,
-          vertexDisplayPipeline, commandPool, swapChainExtent,
-          swapChainImageCount, pSwapChainFramebuffers, cameraViewProduct);
+    vkQueueWaitIdle(graphicsQueue);
+    delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
+                          commandPool, graphicsDevice);
+    new_VertexDisplayCommandBuffers(
+        &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
+        renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
+        commandPool, swapChainExtent, swapChainImageCount,
+        pSwapChainFramebuffers, cameraViewProduct);
     /* } */
 
     ErrVal result =

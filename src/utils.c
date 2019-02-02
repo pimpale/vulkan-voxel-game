@@ -45,7 +45,7 @@ void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
   char *str = malloc(filesizepadded);
   if (!str) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not read shader file: %s",
-             strerror(errno));
+                   strerror(errno));
     fclose(fp);
     PANIC();
   }
