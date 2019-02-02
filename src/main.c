@@ -88,6 +88,47 @@ VkSemaphore *pImageAvailableSemaphores;
 VkSemaphore *pRenderFinishedSemaphores;
 VkFence *pInFlightFences;
 
+void initCompute() {
+  /* Allocate memory for buffers */
+  /* One node for now */
+  nodeBufferSize = sizeof(Node) * 1;
+  new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
+                          physicalDevice, computeDevice,
+                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  /* Initialize node buffer memory */
+  /* copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
+                     computeDevice); */
+
+  /* Create Descriptor set layout for a node buffer */
+  new_ComputeStorageDescriptorSetLayout(&nodeBufferDescriptorSetLayout,
+                                        computeDevice);
+  /* Create Descriptor pool */
+  new_DescriptorPool(&computeDescriptorPool, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                     3, computeDevice);
+  /* Create Descriptor sets */
+  new_ComputeBufferDescriptorSet(&computeBufferDescriptorSet, nodeBuffer,
+                                 nodeBufferSize, nodeBufferDescriptorSetLayout,
+                                 computeDescriptorPool, computeDevice);
+  /* Create PipelineLayout */
+  new_NodeUpdateComputePipelineLayout(
+      &nodeUpdatePipelineLayout, nodeBufferDescriptorSetLayout, computeDevice);
+  /*Load Shader modules from file */
+  new_ShaderModuleFromFile(&nodeUpdateShaderModule, computeDevice,
+                           "assets/shaders/nodeupdate.comp.spv");
+  new_ComputePipeline(&nodeUpdatePipeline, nodeUpdatePipelineLayout,
+                      nodeUpdateShaderModule, computeDevice);
+
+  /* Create command pool */
+  new_CommandPool(&computeCommandPool, computeDevice, computeIndex);
+
+  /* Create command buffer */
+  new_begin_OneTimeSubmitCommandBuffer(&computeCommandBuffer, computeDevice,
+                                       computeCommandPool);
+  /* TODO use vk command buffer for plant computation */
+}
+
 int main(void) {
   glfwInit();
 
@@ -127,44 +168,6 @@ int main(void) {
   /* Create device*/
   new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount,
              (const char *const *)ppLayerNames);
-
-  /* Allocate memory for buffers */
-  /* One node for now */
-  nodeBufferSize = sizeof(Node) * 1;
-  new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
-                          physicalDevice, computeDevice,
-                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  /* Initialize node buffer memory */
-  /* copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
-                     computeDevice); */
-
-  /* Create Descriptor set layout for a node buffer */
-  new_ComputeStorageDescriptorSetLayout(&nodeBufferDescriptorSetLayout,
-                                        computeDevice);
-  /* Create Descriptor pool */
-  new_DescriptorPool(&computeDescriptorPool, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                     3, computeDevice);
-  /* Create Descriptor sets */
-  new_ComputeBufferDescriptorSet(&computeBufferDescriptorSet, nodeBuffer,
-                                 nodeBufferSize, nodeBufferDescriptorSetLayout,
-                                 computeDescriptorPool, computeDevice);
-  /* Create PipelineLayout */
-  new_NodeUpdateComputePipelineLayout(
-      &nodeUpdatePipelineLayout, nodeBufferDescriptorSetLayout, computeDevice);
-  /*Load Shader modules from file */
-  new_ShaderModuleFromFile(&nodeUpdateShaderModule, computeDevice,
-                           "assets/shaders/nodeupdate.comp.spv");
-  new_ComputePipeline(&nodeUpdatePipeline, nodeUpdatePipelineLayout,
-                      nodeUpdateShaderModule, computeDevice);
-
-  /* Create command pool */
-  new_CommandPool(&computeCommandPool, computeDevice, computeIndex);
-
-  /* Create command buffer */
-  new_begin_OneTimeSubmitCommandBuffer(&computeCommandBuffer, computeDevice,
-                                       computeCommandPool);
 
   /* Set extent (for now just window width and height) */
   getWindowExtent(&swapChainExtent, pWindow);
