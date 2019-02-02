@@ -30,7 +30,7 @@ void initNodes(Node **ppNodes, uint32_t nodeCount) {
 
 void updateNode(Node *pNode) {
   pNode->age++;
-  vec3_scale(pNode->displacement, pNode->displacement, 1.01);
+  vec3_scale(pNode->displacement, pNode->displacement, 1.01f);
 }
 
 void updateNodes(Node *pNodes, uint32_t nodeCount) {

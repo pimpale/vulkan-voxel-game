@@ -3,6 +3,11 @@
 
 #include <math.h>
 
+#define PI 3.14159265359f
+
+#define RADIANS(x) ((x / 180.0f) * PI)
+#define DEGREES(x) ((x / PI) * 180.0f)
+
 #define LINMATH_H_DEFINE_VEC(n)                                                \
   typedef float vec##n[n];                                                     \
   static inline void vec##n##_dup(vec##n r, vec##n const a) {                  \

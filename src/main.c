@@ -16,97 +16,100 @@
 #include "utils.h"
 #include "vulkan_utils.h"
 
-void transformView(bool *pModified, mat4x4 *pTransformation,
-                   GLFWwindow *pWindow);
+uint32_t extensionCount;
+char **ppExtensionNames;
 
-void transformView(bool *pModified, mat4x4 *pTransformation,
-                   GLFWwindow *pWindow) {
-  float dx = 0.0f;
-  float dy = 0.0f;
-  float dz = 0.0f;
-  if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
-    dx += 0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
-    dx += -0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
-    dz += 0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
-    dz -= 0.01f;
-    *pModified = true;
-  }
+uint32_t layerCount;
+char **ppLayerNames;
 
-  mat4x4_translate_in_place(*pTransformation, dx, dy, dz);
+uint32_t graphicsDeviceExtensionCount;
+char **ppDeviceExtensionNames;
 
-  float rx = 0.0f;
-  float ry = 0.0f;
-  float rz = 0.0f;
+VkInstance instance;
+VkDebugUtilsMessengerEXT callback;
 
-  if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
-    ry += 0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    ry += -0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
-    rx += 0.01f;
-    *pModified = true;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-    rx -= 0.01f;
-    *pModified = true;
-  }
-  mat4x4_rotate_X(*pTransformation, *pTransformation, rx);
-  mat4x4_rotate_Y(*pTransformation, *pTransformation, ry);
-  mat4x4_rotate_Z(*pTransformation, *pTransformation, rz);
-}
+VkPhysicalDevice physicalDevice;
+uint32_t graphicsIndex;
+uint32_t computeIndex;
+uint32_t presentIndex;
+
+GLFWwindow *pWindow;
+VkSurfaceKHR surface;
+
+/* Compute */
+VkDevice computeDevice;
+VkBuffer nodeBuffer;
+VkDeviceSize nodeBufferSize;
+VkDeviceMemory nodeBufferDeviceMemory;
+VkDescriptorSetLayout nodeBufferDescriptorSetLayout;
+VkPipelineLayout nodeUpdatePipelineLayout;
+VkShaderModule nodeUpdateShaderModule;
+VkPipeline nodeUpdatePipeline;
+VkCommandPool computeCommandPool;
+VkDescriptorPool computeDescriptorPool;
+VkDescriptorSet computeBufferDescriptorSet;
+VkCommandBuffer computeCommandBuffer;
+
+VkExtent2D swapChainExtent;
+VkDevice graphicsDevice;
+VkQueue graphicsQueue;
+VkQueue presentQueue;
+VkCommandPool commandPool;
+VkSurfaceFormatKHR surfaceFormat;
+
+VkSwapchainKHR swapChain;
+uint32_t swapChainImageCount = 0;
+VkImage *pSwapChainImages = NULL;
+VkImageView *pSwapChainImageViews = NULL;
+
+VkImage depthImage;
+VkDeviceMemory depthImageMemory;
+VkImageView depthImageView;
+
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
+
+VkShaderModule fragShaderModule;
+VkShaderModule vertShaderModule;
+
+VkRenderPass renderPass;
+
+VkPipelineLayout vertexDisplayPipelineLayout;
+VkPipeline vertexDisplayPipeline;
+
+VkFramebuffer *pSwapChainFramebuffers;
+
+Transformation transform;
+mat4x4 mvp;
+
+VkCommandBuffer *pVertexDisplayCommandBuffers;
+
+VkSemaphore *pImageAvailableSemaphores;
+VkSemaphore *pRenderFinishedSemaphores;
+VkFence *pInFlightFences;
 
 int main(void) {
   glfwInit();
 
-  /* Extensions, Layers, and Device Extensions declared
-   */
-  uint32_t extensionCount;
-  char **ppExtensionNames;
+  /* Extensions, Layers, and Device Extensions declared */
   new_RequiredInstanceExtensions(&extensionCount, &ppExtensionNames);
-
-  uint32_t layerCount;
-  char **ppLayerNames;
   new_ValidationLayers(&layerCount, &ppLayerNames);
-
-  uint32_t graphicsDeviceExtensionCount;
-  char **ppDeviceExtensionNames;
   new_RequiredDeviceExtensions(&graphicsDeviceExtensionCount,
                                &ppDeviceExtensionNames);
 
   /* Create instance */
-  VkInstance instance;
   new_Instance(&instance, extensionCount, (const char *const *)ppExtensionNames,
                layerCount, (const char *const *)ppLayerNames);
-  VkDebugUtilsMessengerEXT callback;
   new_DebugCallback(&callback, instance);
 
   /* get physical graphicsDevice */
-  VkPhysicalDevice physicalDevice;
   getPhysicalDevice(&physicalDevice, instance);
 
   /* Create window and surface */
-  GLFWwindow *pWindow;
   new_GLFWwindow(&pWindow);
-  VkSurfaceKHR surface;
   new_SurfaceFromGLFW(&surface, pWindow, instance);
 
   /* find queues on physical device*/
-  uint32_t graphicsIndex;
-  uint32_t computeIndex;
-  uint32_t presentIndex;
   {
     uint32_t ret1 = getDeviceQueueIndex(&graphicsIndex, physicalDevice,
                                         VK_QUEUE_GRAPHICS_BIT);
@@ -122,100 +125,68 @@ int main(void) {
   }
   /* Set up compute */
   /* Create device*/
-  VkDevice computeDevice;
   new_Device(&computeDevice, physicalDevice, computeIndex, 0, NULL, layerCount,
              (const char *const *)ppLayerNames);
 
   /* Allocate memory for buffers */
-  VkBuffer nodeBuffer;
-  VkDeviceMemory nodeBufferDeviceMemory;
   /* One node for now */
-  VkDeviceSize nodeBufferSize = sizeof(Node) * 1;
   new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
                           physicalDevice, computeDevice,
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  nodeBufferSize = sizeof(Node) * 1;
   /* Initialize node buffer memory */
   /* copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
                      computeDevice); */
 
   /* Create Descriptor set layout for a node buffer */
-  VkDescriptorSetLayout nodeBufferDescriptorSetLayout;
   new_ComputeStorageDescriptorSetLayout(&nodeBufferDescriptorSetLayout,
                                         computeDevice);
-
   /* Create Descriptor pool */
-  VkDescriptorPool computeDescriptorPool;
   new_DescriptorPool(&computeDescriptorPool, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                      3, computeDevice);
-
   /* Create Descriptor sets */
-  VkDescriptorSet computeBufferDescriptorSet;
   new_ComputeBufferDescriptorSet(&computeBufferDescriptorSet, nodeBuffer,
                                  nodeBufferSize, nodeBufferDescriptorSetLayout,
                                  computeDescriptorPool, computeDevice);
-
   /* Create PipelineLayout */
-  VkPipelineLayout nodeUpdatePipelineLayout;
   new_NodeUpdateComputePipelineLayout(
       &nodeUpdatePipelineLayout, nodeBufferDescriptorSetLayout, computeDevice);
-
-  /* Shader modules */
-  VkShaderModule nodeUpdateShaderModule;
-
-  /* Load from file */
+  /*Load Shader modules from file */
   new_ShaderModuleFromFile(&nodeUpdateShaderModule, computeDevice,
                            "assets/shaders/nodeupdate.comp.spv");
-
-  VkPipeline nodeUpdatePipeline;
-
   new_ComputePipeline(&nodeUpdatePipeline, nodeUpdatePipelineLayout,
                       nodeUpdateShaderModule, computeDevice);
 
   /* Create command pool */
-  VkCommandPool computeCommandPool;
   new_CommandPool(&computeCommandPool, computeDevice, computeIndex);
 
   /* Create command buffer */
-  VkCommandBuffer computeCommandBuffer;
   new_begin_OneTimeSubmitCommandBuffer(&computeCommandBuffer, computeDevice,
                                        computeCommandPool);
 
   /* Set extent (for now just window width and height) */
-  VkExtent2D swapChainExtent;
   getWindowExtent(&swapChainExtent, pWindow);
 
   /*create graphicsDevice */
-  VkDevice graphicsDevice;
   new_Device(&graphicsDevice, physicalDevice, graphicsIndex,
              graphicsDeviceExtensionCount,
              (const char *const *)ppDeviceExtensionNames, layerCount,
              (const char *const *)ppLayerNames);
 
-  VkQueue graphicsQueue;
   getQueue(&graphicsQueue, graphicsDevice, graphicsIndex);
-  VkQueue computeQueue;
-  getQueue(&computeQueue, graphicsDevice, computeIndex);
-  VkQueue presentQueue;
   getQueue(&presentQueue, graphicsDevice, presentIndex);
 
-  VkCommandPool commandPool;
   new_CommandPool(&commandPool, graphicsDevice, graphicsIndex);
 
   /* get preferred format of screen*/
-  VkSurfaceFormatKHR surfaceFormat;
   getPreferredSurfaceFormat(&surfaceFormat, physicalDevice, surface);
 
   /*Create swap chain */
-  VkSwapchainKHR swapChain;
-  uint32_t swapChainImageCount = 0;
   new_SwapChain(&swapChain, &swapChainImageCount, VK_NULL_HANDLE, surfaceFormat,
                 physicalDevice, graphicsDevice, surface, swapChainExtent,
                 graphicsIndex, presentIndex);
-
-  VkImage *pSwapChainImages = NULL;
-  VkImageView *pSwapChainImageViews = NULL;
 
   new_SwapChainImages(&pSwapChainImages, &swapChainImageCount, graphicsDevice,
                       swapChain);
@@ -223,104 +194,43 @@ int main(void) {
                           surfaceFormat.format, swapChainImageCount,
                           pSwapChainImages);
 
-  VkImage depthImage;
-  VkDeviceMemory depthImageMemory;
   new_DepthImage(&depthImage, &depthImageMemory, swapChainExtent,
                  physicalDevice, graphicsDevice, commandPool, graphicsQueue);
-  VkImageView depthImageView;
   new_DepthImageView(&depthImageView, graphicsDevice, depthImage);
 
-  VkShaderModule fragShaderModule;
   new_ShaderModuleFromFile(&fragShaderModule, graphicsDevice,
                            "assets/shaders/vertexdisplay.frag.spv");
-  VkShaderModule vertShaderModule;
   new_ShaderModuleFromFile(&vertShaderModule, graphicsDevice,
                            "assets/shaders/vertexdisplay.vert.spv");
 
   /* Create graphics pipeline */
-  VkRenderPass renderPass;
   new_VertexDisplayRenderPass(&renderPass, graphicsDevice,
                               surfaceFormat.format);
 
-  VkPipelineLayout vertexDisplayPipelineLayout;
   new_VertexDisplayPipelineLayout(&vertexDisplayPipelineLayout, graphicsDevice);
 
-  VkPipeline vertexDisplayPipeline;
   new_VertexDisplayPipeline(&vertexDisplayPipeline, graphicsDevice,
                             vertShaderModule, fragShaderModule, swapChainExtent,
                             renderPass, vertexDisplayPipelineLayout);
 
-  VkFramebuffer *pSwapChainFramebuffers;
   new_SwapChainFramebuffers(&pSwapChainFramebuffers, graphicsDevice, renderPass,
                             swapChainExtent, swapChainImageCount,
                             depthImageView, pSwapChainImageViews);
 
-#define NODENUM 6
-#define VERTEXNUM 18
-
-  uint32_t nodeCount = NODENUM;
-  Node *nodeList;
-  initNodes(&nodeList, nodeCount);
-
-  nodeList[0] = (Node){
-      1, 2, UINT32_MAX, 0, 0.1f, {0.0f, 1.0f, 0.0f},
-  };
-  nodeList[1] = (Node){
-      3, 4, 0, 0, 0.1f, {0.0f, 1.0f, 0.0f},
-  };
-  nodeList[2] = (Node){
-      5, UINT32_MAX, 0, 0, 0.1f, {0.0f, 1.0f, 1.0f},
-  };
-  nodeList[3] = (Node){
-      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {1.0f, 1.0f, -1.0f},
-  };
-  nodeList[4] = (Node){
-      UINT32_MAX, UINT32_MAX, 1, 0, 0.1f, {0.0f, 1.0f, 0.0f},
-  };
-  nodeList[5] = (Node){
-      UINT32_MAX, UINT32_MAX, 2, 0, 0.1f, {0.0f, 1.0f, 0.0f},
-  };
-
-  uint32_t vertexCount = VERTEXNUM;
-  Vertex *vertexList;
-
-  initVertexes(&vertexList, vertexCount);
-  genVertexes(&vertexList, &vertexCount, nodeList, nodeCount);
-
-  /* The final result to be pushed */
-  mat4x4 cameraViewProduct;
-  mat4x4 cameraViewModel;
-  mat4x4 cameraViewView;
-  mat4x4 cameraViewProjection;
-
-  mat4x4_identity(cameraViewModel);
-  mat4x4_identity(cameraViewView);
-  mat4x4_identity(cameraViewProjection);
-
-  mat4x4_look_at(cameraViewView, (vec3){0.0f, 0.0f, 1.0f},
-                 (vec3){0.0f, 0.0f, 0.0f}, (vec3){0.0f, 0.0f, 1.0f});
-  mat4x4_perspective(cameraViewProjection, 1,
-                     ((float)swapChainExtent.width) / swapChainExtent.height,
-                     0.1f, 10.0f); /* The 1 is in radians */
-
-  mat4x4_mul(cameraViewProduct, cameraViewProjection, cameraViewView);
-  mat4x4_mul(cameraViewProduct, cameraViewProduct, cameraViewModel);
-
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, VERTEXNUM,
                    graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
-  VkCommandBuffer *pVertexDisplayCommandBuffers;
+  /* Set up transformation */
+  initTransformation(&transform);
+  matFromTransformation(&mvp, transform, swapChainExtent.width,
+                        swapChainExtent.height);
+
   new_VertexDisplayCommandBuffers(
       &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount,
       (const VkFramebuffer *)pSwapChainFramebuffers, cameraViewProduct);
 
-  VkSemaphore *pImageAvailableSemaphores;
-  VkSemaphore *pRenderFinishedSemaphores;
-  VkFence *pInFlightFences;
   new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
                  graphicsDevice);
   new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
@@ -332,12 +242,6 @@ int main(void) {
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
 
-    updateNodes(nodeList, nodeCount);
-    genVertexes(&vertexList, &vertexCount, nodeList, nodeCount);
-
-    bool viewModified = false;
-    transformView(&viewModified, &cameraViewProduct, pWindow);
-    /*  (viewModified) { */
     vkQueueWaitIdle(graphicsQueue);
     delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
                           commandPool, graphicsDevice);
@@ -346,7 +250,6 @@ int main(void) {
         renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
         commandPool, swapChainExtent, swapChainImageCount,
         pSwapChainFramebuffers, cameraViewProduct);
-    /* } */
 
     ErrVal result =
         drawFrame(&currentFrame, 2, graphicsDevice, swapChain,
