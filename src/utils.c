@@ -25,8 +25,8 @@
 void initTransformation(Transformation *pTransformation) {
   pTransformation->translation[0] = 0.0f;
   pTransformation->translation[1] = 0.0f;
-  pTransformation->translation[2] = 0.0f;
-  quat_identity(pTransformation->rotation);
+  pTransformation->translation[2] = 3.0f;
+  mat4x4_identity(pTransformation->rotation);
 }
 
 void translateTransformation(Transformation *pTransformation, const float dx,
@@ -38,15 +38,9 @@ void translateTransformation(Transformation *pTransformation, const float dx,
 
 void rotateTransformation(Transformation *pTransformation, const float rx,
                           const float ry, const float rz) {
-  quat qx;
-  quat qy;
-  quat qz;
-  quat_rotate(qx, rx, (vec3){1.0f, 0.0f, 0.0f});
-  quat_rotate(qy, ry, (vec3){0.0f, 1.0f, 0.0f});
-  quat_rotate(qz, rz, (vec3){0.0f, 0.0f, 1.0f});
-  quat_mul(pTransformation->rotation, pTransformation->rotation, qx);
-  quat_mul(pTransformation->rotation, pTransformation->rotation, qy);
-  quat_mul(pTransformation->rotation, pTransformation->rotation, qz);
+  mat4x4_rotate_X(pTransformation->rotation, pTransformation->rotation, rx);
+  mat4x4_rotate_Y(pTransformation->rotation, pTransformation->rotation, ry);
+  mat4x4_rotate_Z(pTransformation->rotation, pTransformation->rotation, rz);
 }
 
 void updateTransformation(Transformation *pTransformation,
@@ -55,16 +49,22 @@ void updateTransformation(Transformation *pTransformation,
   float dy = 0.0f;
   float dz = 0.0f;
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
-    dx += 0.01f;
+    dx -= 0.01f;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
-    dx += -0.01f;
+    dx += 0.01f;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
-    dz += 0.01f;
+    dy -= 0.01f;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
+    dy += 0.01f;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_Q) == GLFW_PRESS) {
     dz -= 0.01f;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_E) == GLFW_PRESS) {
+    dz += 0.01f;
   }
   translateTransformation(pTransformation, dx, dy, dz);
 
@@ -88,32 +88,17 @@ void updateTransformation(Transformation *pTransformation,
 }
 
 void matFromTransformation(mat4x4 *pMatrix, Transformation transformation,
-                           uint32_t height, uint32_t width) {
-
-  /* Begin with our mvp matrices */
+                           uint32_t width, uint32_t height) {
   mat4x4 view;
-  mat4x4 model;
   mat4x4 projection;
-
-  mat4x4_identity(model);
-
-  /* rotate unit vector for lookAt */
-  vec3 lookAtPoint = {0.0f, 0.0f, 1.0f};
-  quat_mul_vec3(lookAtPoint, transformation.rotation, lookAtPoint);
-
   mat4x4_look_at(
-      view, transformation.translation, /*  Position of camera in world space */
-      lookAtPoint,              /* Where we want the camera to look at */
-      (vec3){0.0f, -1.0f, 0.0f} /* What is up for the camera */
-                                /* (negative 1 because vulkan reverses it */
-  );
-
-  mat4x4_perspective(projection, RADIANS(60.0f),       /* Field of vision */
-                     ((float)width) / ((float)height), /* Aspect ratio*/
-                     0.1f, 100.0f);                    /* The display range */
-
-  mat4x4_mul(*pMatrix, model, view);
-  mat4x4_mul(*pMatrix, *pMatrix, projection);
+      view, transformation.translation, /* Camera Location in world space */
+      (vec3){0.0f, 0.0f, 0.0f},         /* Look towards origin */
+      (vec3){0.0f, 0.0f, -1.0f});       /* Direction considered to be up */
+  mat4x4_perspective(projection, RADIANS(90), /* Field of vision in radians */
+                     ((float)width) / height, /* The aspect ratio */
+                     0.1f, 1000.0f);          /* The 1 is in radians */
+  mat4x4_mul(*pMatrix, projection, view);
 }
 
 uint64_t getLength(FILE *f) {

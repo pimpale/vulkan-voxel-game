@@ -218,16 +218,26 @@ int main(void) {
                             depthImageView, pSwapChainImageViews);
 
   /* Create vertex */
-#define VERTEXNUM 3
-  Vertex vertexList[VERTEXNUM] = {
-      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
-      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
-      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
-  };
+#define VERTEXNUM 12
+  Vertex vertexList[VERTEXNUM] = {{{-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+                                  {{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 1}},
+                                  {{1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0}},
+                                  {{1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0}},
+                                  {{-1.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1}},
+                                  {{-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0}},
+
+                                  /* Square 2 */
+                                  {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+                                  {{1.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
+                                  {{1.0f, 2.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+                                  {{1.0f, 2.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+                                  {{-1.0f, 2.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
+                                  {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}};
 
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, VERTEXNUM,
                    graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
+  /* The final result to be pushed */
   /* Set up transformation */
   initTransformation(&transform);
   matFromTransformation(&mvp, transform, swapChainExtent.width,
@@ -250,6 +260,9 @@ int main(void) {
   while (!glfwWindowShouldClose(pWindow)) {
     glfwPollEvents();
 
+    updateTransformation(&transform, pWindow);
+    matFromTransformation(&mvp, transform, swapChainExtent.width,
+                          swapChainExtent.height);
     vkQueueWaitIdle(graphicsQueue);
     delete_CommandBuffers(&pVertexDisplayCommandBuffers, swapChainImageCount,
                           commandPool, graphicsDevice);
@@ -327,6 +340,9 @@ int main(void) {
       new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,
                      graphicsDevice);
       new_Fences(&pInFlightFences, swapChainImageCount, graphicsDevice);
+    } else if (result != VK_SUCCESS) {
+      LOG_ERROR(ERR_LEVEL_FATAL, "failed to draw to screen");
+      PANIC();
     }
   }
 

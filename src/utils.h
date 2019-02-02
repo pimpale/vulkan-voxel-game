@@ -24,7 +24,7 @@ typedef struct {
 
 typedef struct {
   vec3 translation;
-  quat rotation;
+  mat4x4 rotation;
 } Transformation;
 
 uint64_t getLength(FILE *f);
