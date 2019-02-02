@@ -88,7 +88,7 @@ void updateTransformation(Transformation *pTransformation,
 }
 
 void matFromTransformation(mat4x4 *pMatrix, Transformation transformation,
-                           int height, int width) {
+                           uint32_t height, uint32_t width) {
 
   /* Begin with our mvp matrices */
   mat4x4 view;

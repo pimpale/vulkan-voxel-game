@@ -130,12 +130,12 @@ int main(void) {
 
   /* Allocate memory for buffers */
   /* One node for now */
+  nodeBufferSize = sizeof(Node) * 1;
   new_Buffer_DeviceMemory(&nodeBuffer, &nodeBufferDeviceMemory, nodeBufferSize,
                           physicalDevice, computeDevice,
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  nodeBufferSize = sizeof(Node) * 1;
   /* Initialize node buffer memory */
   /* copyToDeviceMemory(&nodeBufferDeviceMemory, nodeBufferSize, pNodeData,
                      computeDevice); */
@@ -217,6 +217,14 @@ int main(void) {
                             swapChainExtent, swapChainImageCount,
                             depthImageView, pSwapChainImageViews);
 
+  /* Create vertex */
+#define VERTEXNUM 3
+  Vertex vertexList[VERTEXNUM] = {
+      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
+      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
+      {{0.0f, 0.3f, -0.3f}, {0, 1, 0}},
+  };
+
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexList, VERTEXNUM,
                    graphicsDevice, physicalDevice, commandPool, graphicsQueue);
 
@@ -229,7 +237,7 @@ int main(void) {
       &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
       renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
       commandPool, swapChainExtent, swapChainImageCount,
-      (const VkFramebuffer *)pSwapChainFramebuffers, cameraViewProduct);
+      (const VkFramebuffer *)pSwapChainFramebuffers, mvp);
 
   new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
                  graphicsDevice);
@@ -249,7 +257,7 @@ int main(void) {
         &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM, graphicsDevice,
         renderPass, vertexDisplayPipelineLayout, vertexDisplayPipeline,
         commandPool, swapChainExtent, swapChainImageCount,
-        pSwapChainFramebuffers, cameraViewProduct);
+        pSwapChainFramebuffers, mvp);
 
     ErrVal result =
         drawFrame(&currentFrame, 2, graphicsDevice, swapChain,
@@ -313,7 +321,7 @@ int main(void) {
           &pVertexDisplayCommandBuffers, vertexBuffer, VERTEXNUM,
           graphicsDevice, renderPass, vertexDisplayPipelineLayout,
           vertexDisplayPipeline, commandPool, swapChainExtent,
-          swapChainImageCount, pSwapChainFramebuffers, cameraViewProduct);
+          swapChainImageCount, pSwapChainFramebuffers, mvp);
       new_Semaphores(&pImageAvailableSemaphores, swapChainImageCount,
                      graphicsDevice);
       new_Semaphores(&pRenderFinishedSemaphores, swapChainImageCount,

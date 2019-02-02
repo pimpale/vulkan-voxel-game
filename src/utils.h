@@ -37,7 +37,7 @@ void rotateTransformation(Transformation *pTransformation, const float rx,
                           const float ry, const float rz);
 
 void matFromTransformation(mat4x4 *pMatrix, Transformation transformation,
-                           int height, int width);
+                           uint32_t height, uint32_t width);
 
 void updateTransformation(Transformation *pTransformation, GLFWwindow *pWindow);
 

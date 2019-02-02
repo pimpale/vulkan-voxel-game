@@ -51,7 +51,7 @@
                                 								
                                 <option id="llvm.c_cpp.compiler.option.warnings.pedantic.error.1510872499" name="Pedantic warnings as errors (-pedantic-errors)" superClass="llvm.c_cpp.compiler.option.warnings.pedantic.error" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
-                                <option id="llvm.c_cpp.compiler.option.warnings.toerrors.475611326" name="Warnings as errors (-Werror)" superClass="llvm.c_cpp.compiler.option.warnings.toerrors" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+                                <option id="llvm.c_cpp.compiler.option.warnings.toerrors.475611326" name="Warnings as errors (-Werror)" superClass="llvm.c_cpp.compiler.option.warnings.toerrors" useByScannerDiscovery="false" value="false" valueType="boolean"/>
                                 								
                                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="llvm.c_cpp.compiler.option.include.paths.561555961" name="Include paths (-I)" superClass="llvm.c_cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
                                     									
@@ -191,7 +191,7 @@
                             							
                             <tool id="cdt.managedbuild.tool.gnu.c.linker.base.2006028838" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base">
                                 								
-                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.libs.1502810406" superClass="gnu.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.libs.1502810406" name="Libraries (-l)" superClass="gnu.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
                                     									
                                     <listOptionValue builtIn="false" value="vulkan"/>
                                     									
@@ -256,6 +256,8 @@
             <resource resourceType="PROJECT" workspacePath="/plant-simulator"/>
             		
         </configuration>
+        		
+        <configuration configurationName="build2"/>
         		
         <configuration configurationName="Debug">
             			
