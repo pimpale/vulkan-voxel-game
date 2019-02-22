@@ -48,7 +48,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 
 /* Get required extensions for a VkInstance */
 ErrVal new_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
-                                      char ***pppEnabledExtensionNames) {
+                                             char ***pppEnabledExtensionNames) {
   /* define our own extensions */
   /* get GLFW extensions to use */
   uint32_t glfwExtensionCount = 0;
