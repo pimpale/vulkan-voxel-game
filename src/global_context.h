@@ -12,28 +12,19 @@
 
 #include <vulkan/vulkan.h>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <linmath.h>
-
 #include "errors.h"
+#include "constants.h"
 
-struct CgeGlobalContext {
+typedef struct {
   VkInstance instance;
   VkDebugUtilsMessengerEXT callback;
-  uint32_t instanceExtensionCount;
-  char **ppExtensionNames;
 
   uint32_t physicalDeviceCount;
   VkPhysicalDevice *pPhysicalDevices;
-}
+} CgeGlobalContext;
 
-ErrVal
-new_CgeGlobalContext(CgeGlobalContext *globalContext);
+ErrVal new_CgeGlobalContext(CgeGlobalContext *globalContext);
 void delete_CgeGlobalContext(CgeGlobalContext *globalContext);
-
-ErrVal refreshPhysicalDeviceList(CgeGlobalContext *globalContext);
 
 ErrVal selectBestGraphicsDevices(CgeGlobalContext *globalContext,
                                  VkPhysicalDevice *pPhysicalDevices,

@@ -211,42 +211,6 @@ void delete_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
  * gets the best physical device, checks if it has all necessary capabilities.
  */
 ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
-  uint32_t deviceCount = 0;
-  VkResult res = vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
-  if (res != VK_SUCCESS || deviceCount == 0) {
-    LOG_ERROR(ERR_LEVEL_WARN, "no Vulkan capable device found");
-    return (ERR_NOTSUPPORTED);
-  }
-  VkPhysicalDevice *arr = malloc(deviceCount * sizeof(VkPhysicalDevice));
-  if (!arr) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to get physical device: %s",
-                   strerror(errno));
-    PANIC();
-  }
-  vkEnumeratePhysicalDevices(instance, &deviceCount, arr);
-
-  VkPhysicalDeviceProperties deviceProperties;
-  VkPhysicalDevice selectedDevice = VK_NULL_HANDLE;
-  for (uint32_t i = 0; i < deviceCount; i++) {
-    /* TODO confirm it has required properties */
-    vkGetPhysicalDeviceProperties(arr[i], &deviceProperties);
-    uint32_t deviceQueueIndex;
-    uint32_t ret =
-        getDeviceQueueIndex(&deviceQueueIndex, arr[i],
-                            VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    if (ret == VK_SUCCESS) {
-      selectedDevice = arr[i];
-      break;
-    }
-  }
-  free(arr);
-  if (selectedDevice == VK_NULL_HANDLE) {
-    LOG_ERROR(ERR_LEVEL_WARN, "no suitable Vulkan device found");
-    return (ERR_NOTSUPPORTED);
-  } else {
-    *pDevice = selectedDevice;
-    return (ERR_OK);
-  }
 }
 
 /**

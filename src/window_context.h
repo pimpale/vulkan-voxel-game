@@ -18,22 +18,33 @@
 
 #include "errors.h"
 
-struct CgeWindowContext {
-  VkPhysicalWindow physicalWindow;
-  VkWindow window;
+#ifndef CGE_WINDOW_SWAPCHAIN_IMAGE_COUNT
+#define CGE_WINDOW_SWAPCHAIN_IMAGE_COUNT 2
+#endif /* CGE_WINDOW_SWAPCHAIN_IMAGE_COUNT */
 
-  uint32_t graphicsIndex;
-  uint32_t presentIndex;
-  uint32_t computeIndex;
-  
-  VkQueue graphicsQueue;
-  VkQueue presentQueue
-  VkQueue computeQueue;
-}
+struct CgeWindowContext {
+  VkExtent2D windowDimension;
+  VkSurfaceFormatKHR surfaceFormat;
+  VkSwapChainKHR swapChain;
+  uint32_t swapChainImageCount;
+  VkImage *pSwapChainIamges;
+  VkImageView *pSwapChainImageViews;
+  VkFramebuffer *pSwapChainFramebuffers;
+
+  VkImage depthImage;
+  VkDeviceMemory depthImageMemory;
+  VkImageView depthImageView;
+
+  VkRenderPass renderPass;
+
+  VkSemaphore *pImageAvailableSemaphores;
+  VkSemaphore *pRenderFinishedSemaphores;
+  VkFence *pInFlightFences;
+
+  Transformation transform;
+};
 
 ErrVal new_CgeWindowContext(CgeWindowContext *windowContext);
 void delete_CgeWindowContext(CgeWindowContext *windowContext);
-
-
 
 #endif /* SRC_WINDOW_CONTEXT_H_ */

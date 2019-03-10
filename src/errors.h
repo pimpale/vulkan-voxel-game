@@ -9,6 +9,7 @@
 #ifndef SRC_ERRORS_H_
 #define SRC_ERRORS_H_
 
+#include <stdio.h>
 #include <vulkan/vulkan.h>
 
 #include "constants.h"
