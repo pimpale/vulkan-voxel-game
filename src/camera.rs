@@ -1,11 +1,6 @@
-use cgmath::{Angle, InnerSpace, Matrix4, One, Point3, Rad, Vector3};
+use cgmath::{Angle, Deg, InnerSpace, Matrix4, One, Point3, Rad, Vector3};
 
-#[derive(Copy, Clone, Debug)]
-pub struct Vertex {
-    pub loc: [f32; 3],
-    pub color: [f32; 3],
-}
-impl_vertex!(Vertex, loc, color);
+#[allow(dead_code)]
 
 pub enum CameraMovementDir {
     Forward,
@@ -70,7 +65,8 @@ impl Camera {
     }
 
     pub fn mvp(&self) -> Matrix4<f32> {
-        self.projection * self.view * self.model
+        //self.projection * self.view * self.model
+        self.model
     }
 
     pub fn translate(&mut self, delta: Vector3<f32>) -> () {
@@ -94,7 +90,10 @@ impl Camera {
 
     pub fn dir_move(&mut self, dir: CameraMovementDir) -> () {
         match dir {
-            CameraMovementDir::Forward => self.translate(self.front),
+            CameraMovementDir::Forward => {
+                print!("hello");
+                self.translate(self.front)
+            }
             CameraMovementDir::Backward => self.translate(-self.front),
             CameraMovementDir::Right => self.translate(self.right),
             CameraMovementDir::Left => self.translate(-self.right),
@@ -105,10 +104,10 @@ impl Camera {
 
     pub fn dir_rotate(&mut self, dir: CameraRotationDir) -> () {
         match dir {
-            CameraRotationDir::Right => self.translate(self.right),
-            CameraRotationDir::Left => self.translate(-self.right),
-            CameraRotationDir::Upward => self.translate(self.up),
-            CameraRotationDir::Downward => self.translate(-self.up),
+            CameraRotationDir::Right => self.rotate(Rad::from(Deg(1.0)), Rad::from(Deg(1.0))),
+            CameraRotationDir::Left => self.rotate(Rad::from(Deg(1.0)), Rad::from(Deg(1.0))),
+            CameraRotationDir::Upward => self.rotate(Rad::from(Deg(1.0)), Rad::from(Deg(1.0))),
+            CameraRotationDir::Downward => self.rotate(Rad::from(Deg(1.0)), Rad::from(Deg(1.0))),
         }
     }
 

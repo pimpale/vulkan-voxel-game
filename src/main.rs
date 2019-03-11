@@ -43,6 +43,9 @@ use vulkano::swapchain;
 use vulkano::swapchain::{
     AcquireError, PresentMode, SurfaceTransform, Swapchain, SwapchainCreationError,
 };
+
+#[allow(dead_code)]
+#[allow(unused_imports)]
 use vulkano::sync;
 use vulkano::sync::{FlushError, GpuFuture};
 
@@ -54,9 +57,11 @@ use std::sync::Arc;
 
 use cgmath::{Deg, Matrix4, One, Point3, Rad};
 
+mod camera;
 mod shader;
-mod utils;
-use utils::*;
+mod vertex;
+use camera::*;
+use vertex::Vertex;
 
 fn main() {
     // The first step of any Vulkan program is to create an instance.
@@ -324,7 +329,7 @@ fn main() {
     //
     // Since we need to draw to multiple images, we are going to create a different framebuffer for
     // each image.
-    let mut camera = Camera::new(Point3::new(0.0, 0.0, 0.0), 50, 50, Rad::from(Deg(90.0)));
+    let mut camera = Camera::new(Point3::new(0.0, 0.0, 1.0), 50, 50, Rad::from(Deg(90.0)));
     let mut framebuffers = window_size_dependent_setup(
         &images,
         render_pass.clone(),
@@ -444,7 +449,8 @@ fn main() {
                     vertex_buffer.clone(),
                     (),
                     shader::vert::ty::PushConstantData {
-                        mvp: Matrix4::one().into(), //camera.mvp().into(),
+                        //mvp: Matrix4::one().into(),
+                        mvp: camera.mvp().into(),
                     },
                 )
                 .unwrap()
