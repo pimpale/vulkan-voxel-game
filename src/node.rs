@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use super::archetype::INVALID_ARCHETYPE_INDEX;
 use super::vertex::Vertex;
 
@@ -19,7 +21,8 @@ pub struct Node {
     pub status: u32,         // Current status of this plant
     pub area: f32,           // The plant's area (used for photosynthesis, etc)
     pub visible: u32,        // If the node is visible
-    pub displacement: [f32; 3], //Displacement from the parent node. If parent node is null, then this is offset
+    pub lengthVector: [f32; 3], //Length of component
+    pub absolutePosition: [f32; 3], //Absolute offset if there is no parent node
 }
 
 #[derive(Debug, Clone)]
@@ -80,16 +83,38 @@ impl NodeBuffer {
 
         //search for root node (null parent, visible)
         for i in 0..(self.free_ptr - 1) {
-            let node = self.node_list[i as usize];
+            let node = &self.node_list[i as usize];
             if node.archetype != INVALID_ARCHETYPE_INDEX && node.parentIndex == INVALID_INDEX {
-                vertex_list.append(&mut self.gen_node_vertex(node.displacement, i));
+                vertex_list.append(&mut self.gen_node_vertex(node.absolutePosition, &node));
             }
         }
-
         vertex_list
     }
 
-    pub fn gen_node_vertex(&self, source_point: [f32; 3], selected_index: u32) -> Vec<Vertex> {}
+    pub fn gen_node_vertex(&self, source_point: [f32; 3], node: &Node) -> Vec<Vertex> {
+        let mut vertex_list = Vec::new();
+        if node.leftChildIndex != INVALID_INDEX {
+            vertex_list.append(&mut self.gen_node_vertex(
+                [
+                    source_point[0] + node.lengthVector[0],
+                    source_point[1] + node.lengthVector[1],
+                    source_point[2] + node.lengthVector[2],
+                ],
+                &self.node_list[node.leftChildIndex as usize],
+            ));
+        }
+        if node.rightChildIndex != INVALID_INDEX {
+            vertex_list.append(&mut self.gen_node_vertex(
+                [
+                    source_point[0] + node.lengthVector[0],
+                    source_point[1] + node.lengthVector[1],
+                    source_point[2] + node.lengthVector[2],
+                ],
+                &self.node_list[node.rightChildIndex as usize],
+            ));
+        }
+        vertex_list
+    }
 }
 
 impl Node {
@@ -103,7 +128,8 @@ impl Node {
             status: STATUS_GARBAGE,
             visible: 0,
             area: 0.0,
-            displacement: [0.0, 0.0, 0.0],
+            lengthVector: [0.0, 0.0, 0.0],
+            absolutePosition: [0.0, 0.0, 0.0],
         }
     }
 }
