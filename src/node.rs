@@ -1,26 +1,25 @@
+use super::archetype::INVALID_ARCHETYPE_INDEX;
 use super::vertex::Vertex;
-use super::archetype::*;
 
-const INVALID_INDEX:u32 = std::u32::MAX;
+pub const INVALID_INDEX: u32 = std::u32::MAX;
 
-const STATUS_GARBAGE:u32 = 0; //Default For Node, signifies that the node is not instantiated
-const STATUS_DEAD:u32 = 1; //Node was once alive, but not anymre. It is susceptible to rot
-const STATUS_ALIVE:u32 = 2; //Node is currently alive, and could become dead
-const STATUS_NEVER_ALIVE:u32 = 3; //Node is not alive, and cannot die
+pub const STATUS_GARBAGE: u32 = 0; //Default For Node, signifies that the node is not instantiated
+pub const STATUS_DEAD: u32 = 1; //Node was once alive, but not anymre. It is susceptible to rot
+pub const STATUS_ALIVE: u32 = 2; //Node is currently alive, and could become dead
+pub const STATUS_NEVER_ALIVE: u32 = 3; //Node is not alive, and cannot die
 
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct Node {
     pub leftChildIndex: u32, // Index in node buffer set to max uint32 (INVALID_INDEX) for null
     pub rightChildIndex: u32, // Index node buffer set to max unint32 (INVALID_INDEX) for null
-    pub parentIndex: u32, // Index node buffer set to max unint32 (INVALID_INDEX) for null
-    pub age: u32, //Age of plant in ticks
-    pub archetype: u32, // Index of archetype in archetype table. Invalid archetype -> Dead 
-    pub status: u32, // Current status of this plant 
-    pub area: f32, // The plant's area (used for photosynthesis, etc)
-    pub visible: u32, // If the node is visible 
+    pub parentIndex: u32,    // Index node buffer set to max unint32 (INVALID_INDEX) for null
+    pub age: u32,            //Age of plant in ticks
+    pub archetype: u32,      // Index of archetype in archetype table. Invalid archetype -> Dead
+    pub status: u32,         // Current status of this plant
+    pub area: f32,           // The plant's area (used for photosynthesis, etc)
+    pub visible: u32,        // If the node is visible
     pub displacement: [f32; 3], //Displacement from the parent node. If parent node is null, then this is offset
-    pub lengthVector: [f32, 3], //This is a vector representing the length of this node
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +39,7 @@ impl NodeBuffer {
             node_list: vec![Node::new(); size as usize], // Create list with default nodes
             free_stack: ((size - 1)..0).collect(),       // Create list of all free node locations
             free_ptr: size,                              // The current pointer to the active stack
-            max_size: size,                              // The maximum size to which the stack may grow
+            max_size: size, // The maximum size to which the stack may grow
         }
     }
 
@@ -80,15 +79,14 @@ impl NodeBuffer {
         let mut vertex_list = Vec::new();
 
         //search for root node (null parent, visible)
-        for i in 0..(self.free_ptr-1){
-            let node = self.node_list[i];
-            if node.archetype != INVALID_ARCHETYPE_INDEX && node.parentIndex == INVALID_INDEX  {
-                vertex_list.append(self.gen_node_vertex(
-
+        for i in 0..(self.free_ptr - 1) {
+            let node = self.node_list[i as usize];
+            if node.archetype != INVALID_ARCHETYPE_INDEX && node.parentIndex == INVALID_INDEX {
+                vertex_list.append(&mut self.gen_node_vertex(node.displacement, i));
+            }
         }
-        
-        //gen node vertex for
-        
+
+        vertex_list
     }
 
     pub fn gen_node_vertex(&self, source_point: [f32; 3], selected_index: u32) -> Vec<Vertex> {}
@@ -99,9 +97,10 @@ impl Node {
         Node {
             leftChildIndex: INVALID_INDEX,
             rightChildIndex: INVALID_INDEX,
-            parentIndex:  INVALID_INDEX,
+            parentIndex: INVALID_INDEX,
             age: 0,
             archetype: INVALID_ARCHETYPE_INDEX,
+            status: STATUS_GARBAGE,
             visible: 0,
             area: 0.0,
             displacement: [0.0, 0.0, 0.0],

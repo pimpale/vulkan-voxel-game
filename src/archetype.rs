@@ -1,4 +1,4 @@
-const INVALID_ARCHETYPE_INDEX: u32 = std::u32::MAX;
+pub const INVALID_ARCHETYPE_INDEX: u32 = std::u32::MAX;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
