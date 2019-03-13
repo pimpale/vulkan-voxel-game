@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(non_snake_case)]
 use std::ops::Add;
 
 use super::archetype::INVALID_ARCHETYPE_INDEX;
@@ -11,18 +15,18 @@ pub const STATUS_ALIVE: u32 = 2; //Node is currently alive, and could become dea
 pub const STATUS_NEVER_ALIVE: u32 = 3; //Node is not alive, and cannot die
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Node {
     pub leftChildIndex: u32, // Index in node buffer set to max uint32 (INVALID_INDEX) for null
     pub rightChildIndex: u32, // Index node buffer set to max unint32 (INVALID_INDEX) for null
     pub parentIndex: u32,    // Index node buffer set to max unint32 (INVALID_INDEX) for null
-    pub age: u32,            //Age of plant in ticks
+    pub age: u32,            // Age of plant in ticks
     pub archetype: u32,      // Index of archetype in archetype table. Invalid archetype -> Dead
     pub status: u32,         // Current status of this plant
     pub area: f32,           // The plant's area (used for photosynthesis, etc)
     pub visible: u32,        // If the node is visible
-    pub lengthVector: [f32; 3], //Length of component
-    pub absolutePosition: [f32; 3], //Absolute offset if there is no parent node
+    pub lengthVector: [f32; 3], // Length of component
+    pub absolutePosition: [f32; 3], // Absolute offset if there is no parent node
 }
 
 #[derive(Debug, Clone)]
@@ -40,10 +44,18 @@ impl NodeBuffer {
         }
         NodeBuffer {
             node_list: vec![Node::new(); size as usize], // Create list with default nodes
-            free_stack: ((size - 1)..0).collect(),       // Create list of all free node locations
+            free_stack: (0..size).collect(),             // Create list of all free node locations
             free_ptr: size,                              // The current pointer to the active stack
             max_size: size, // The maximum size to which the stack may grow
         }
+    }
+
+    pub fn get(&self, index: u32) -> Node {
+        self.node_list[index as usize].clone()
+    }
+
+    pub fn set(&mut self, index: u32, node: Node) {
+        self.node_list[index as usize] = node.clone();
     }
 
     /// Returns the index of a free spot in the array
@@ -55,6 +67,11 @@ impl NodeBuffer {
             self.free_ptr = self.free_ptr - 1;
             Some(self.free_stack[self.free_ptr as usize])
         }
+    }
+
+    pub fn alloc_insert(&mut self, node: Node) -> () {
+        let index = self.alloc().unwrap();
+        self.set(index, node.clone());
     }
 
     /// Marks an index in the array as free to use
@@ -82,9 +99,10 @@ impl NodeBuffer {
         let mut vertex_list = Vec::new();
 
         //search for root node (null parent, visible)
-        for i in 0..(self.free_ptr - 1) {
+        for i in 0..self.max_size {
             let node = &self.node_list[i as usize];
-            if node.archetype != INVALID_ARCHETYPE_INDEX && node.parentIndex == INVALID_INDEX {
+            if node.status != STATUS_GARBAGE && node.parentIndex == INVALID_INDEX {
+                println!("Found root: {}", i);
                 vertex_list.append(&mut self.gen_node_vertex(node.absolutePosition, &node));
             }
         }
@@ -93,28 +111,34 @@ impl NodeBuffer {
 
     pub fn gen_node_vertex(&self, source_point: [f32; 3], node: &Node) -> Vec<Vertex> {
         let mut vertex_list = Vec::new();
+        if node.visible == 1 {
+            vertex_list.push(Vertex {
+                loc: source_point,
+                color: [0.0, 1.0, 0.0],
+            });
+            vertex_list.push(Vertex {
+                loc: add3(source_point, node.lengthVector),
+                color: [0.0, 0.0, 0.0],
+            });
+        }
         if node.leftChildIndex != INVALID_INDEX {
             vertex_list.append(&mut self.gen_node_vertex(
-                [
-                    source_point[0] + node.lengthVector[0],
-                    source_point[1] + node.lengthVector[1],
-                    source_point[2] + node.lengthVector[2],
-                ],
+                add3(source_point, node.lengthVector),
                 &self.node_list[node.leftChildIndex as usize],
             ));
         }
         if node.rightChildIndex != INVALID_INDEX {
             vertex_list.append(&mut self.gen_node_vertex(
-                [
-                    source_point[0] + node.lengthVector[0],
-                    source_point[1] + node.lengthVector[1],
-                    source_point[2] + node.lengthVector[2],
-                ],
+                add3(source_point, node.lengthVector),
                 &self.node_list[node.rightChildIndex as usize],
             ));
         }
         vertex_list
     }
+}
+
+fn add3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
 impl Node {
