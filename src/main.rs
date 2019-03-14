@@ -115,20 +115,16 @@ fn main() {
     )
     .unwrap();
 
-    let settings_packet = std::sync::RwLock::new(SettingsPacket {
+    gtk_setup(std::sync::RwLock::new(SettingsPacket {
         sunlight: 1.0,
         gravity: 9.8,
         moisture: 1.0,
         nitrogen: 1.0,
         potassium: 1.0,
         phosphorus: 1.0,
-    });
-
-    gtk_setup(settings_packet);
+    }));
 
     let queue = queues.next().unwrap();
-
-    //let hi = *settings_packet.read().unwrap();
 
     let (mut swapchain, images) = {
         let caps = surface.capabilities(physical).unwrap();
@@ -387,10 +383,11 @@ struct SettingsPacket {
 
 fn build_ui(application: &gtk::Application) -> () {
     let window = gtk::ApplicationWindow::new(application);
-    window.set_title("CompuGenesis GUI");
+
+    window.set_title("GUI");
     window.set_border_width(10);
     window.set_position(gtk::WindowPosition::Center);
-    window.set_default_size(350, 350);
+    window.set_default_size(350, 70);
 
     let sunlight_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
     let gravity_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 20.0, 0.1);
@@ -403,10 +400,12 @@ fn build_ui(application: &gtk::Application) -> () {
     window.show_all();
 }
 
-fn gtk_setup(config: std::sync::RwLock<SettingsPacket>) -> () {
-    //std::thread::spawn(move |
-    let application = gtk::Application::new("compugenesis", ApplicationFlags::empty())
-        .expect("Initialization failed...");
+fn gtk_setup(packet: std::sync::RwLock<SettingsPacket>) -> () {
+    let application = gtk::Application::new(
+        "com.github.gtk-rs.examples.basic",
+        ApplicationFlags::empty(),
+    )
+    .expect("Initialization failed...");
 
     application.connect_activate(|app| {
         build_ui(app);
