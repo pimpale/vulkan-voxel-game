@@ -28,7 +28,7 @@ use winit::{Event, EventsLoop, VirtualKeyCode, Window, WindowBuilder, WindowEven
 
 use std::sync::Arc;
 
-use cgmath::{Deg, Point3, Rad};
+use cgmath::{Deg, Matrix4, Point3, Rad};
 
 mod archetype;
 mod camera;
@@ -138,13 +138,11 @@ fn main() {
         .unwrap()
     };
 
-    let mut node_buffer = NodeBuffer::new(5);
+    let mut node_buffer = NodeBuffer::new(1000);
     {
-        let (i1, i2, i3) = (
-            node_buffer.alloc().unwrap(),
-            node_buffer.alloc().unwrap(),
-            node_buffer.alloc().unwrap(),
-        );
+        let i1 = node_buffer.alloc().unwrap();
+        let i2 = node_buffer.alloc().unwrap();
+        let i3 = node_buffer.alloc().unwrap();
 
         let mut n1 = Node::new();
         let mut n2 = Node::new();
@@ -155,29 +153,25 @@ fn main() {
         n1.leftChildIndex = i2;
         n1.rightChildIndex = i3;
         n1.absolutePosition = [0.0, 0.0, 0.0];
-        n1.lengthVector = [0.0, 0.4, 0.0];
+        n1.length = 0.4;
 
         n2.status = STATUS_ALIVE;
         n2.visible = 1;
         n2.parentIndex = i1;
-        n2.lengthVector = [0.4, 0.4, 0.0];
+        n2.length = 0.4;
+        n2.transformation = Matrix4::from_angle_z(Rad(0.4)).into();
 
         n3.status = STATUS_ALIVE;
         n3.visible = 1;
         n3.parentIndex = i1;
-        n3.lengthVector = [0.0, 0.5, 0.0];
+        n3.length = 0.4;
 
         node_buffer.set(i1, n1);
         node_buffer.set(i2, n2);
         node_buffer.set(i3, n3);
+
+        node_buffer.divide(0.5, i1);
     }
-
-    let vecs = node_buffer.gen_vertex();
-
-    let vertex_buffer = {
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), vecs.iter().cloned())
-            .unwrap()
-    };
 
     let vs = shader::vert::Shader::load(device.clone()).unwrap();
     let fs = shader::frag::Shader::load(device.clone()).unwrap();
@@ -209,7 +203,6 @@ fn main() {
             .viewports_dynamic_scissors_irrelevant(1)
             .fragment_shader(fs.main_entry_point(), ())
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-            //TODO figure otu rastering //.raster(vulkano::pipeline::raster::CullMode::None)
             .build(device.clone())
             .unwrap(),
     );
@@ -234,6 +227,13 @@ fn main() {
 
     loop {
         previous_frame_end.cleanup_finished();
+
+        node_buffer.update_all();
+        let vertex_buffer = {
+            let vecs = node_buffer.gen_vertex();
+            CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), vecs.iter().cloned())
+                .unwrap()
+        };
 
         if recreate_swapchain {
             let dimensions = if let Some(dimensions) = window.get_inner_size() {
