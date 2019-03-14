@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(non_snake_case)]
-use cgmath::{Matrix4, Transform, Vector3, Vector4};
+use cgmath::{Matrix4, Rad, Transform, Vector3, Vector4};
 use std::ops::Add;
 
 use super::archetype::INVALID_ARCHETYPE_INDEX;
@@ -219,7 +219,21 @@ impl NodeBuffer {
         for i in 0..self.max_size {
             let node = self.node_list[i as usize];
             if node.status != STATUS_GARBAGE {
+                let r = rand::random::<f32>();
                 self.node_list[i as usize].length = node.length * 1.0001;
+                if r > 0.9995 {
+                    let ni = self.alloc().unwrap();
+                    self.node_list[ni as usize] = {
+                        let mut nnode = Node::new();
+                        nnode.status = STATUS_ALIVE;
+                        nnode.visible = 1;
+                        nnode.length = 0.1;
+                        nnode.transformation =
+                            Matrix4::from_angle_z(Rad(rand::random::<f32>() - 0.5)).into();
+                        nnode
+                    };
+                    self.branch(i, 0.5, ni);
+                }
             }
         }
     }

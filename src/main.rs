@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate vulkano;
 extern crate cgmath;
+extern crate gio;
+extern crate gtk;
+extern crate rand;
 extern crate vulkano_shaders;
 extern crate vulkano_win;
 extern crate winit;
@@ -19,6 +22,10 @@ use vulkano::swapchain::{
     AcquireError, PresentMode, SurfaceTransform, Swapchain, SwapchainCreationError,
 };
 
+use gio::prelude::*;
+use gio::ApplicationFlags;
+use gtk::prelude::*;
+
 use vulkano::sync;
 use vulkano::sync::{FlushError, GpuFuture};
 
@@ -32,9 +39,11 @@ use cgmath::{Deg, Matrix4, Point3, Rad};
 
 mod archetype;
 mod camera;
+mod grid;
 mod node;
 mod shader;
 mod vertex;
+
 use camera::*;
 use node::*;
 use vertex::Vertex;
@@ -106,7 +115,20 @@ fn main() {
     )
     .unwrap();
 
+    let settings_packet = std::sync::RwLock::new(SettingsPacket {
+        sunlight: 1.0,
+        gravity: 9.8,
+        moisture: 1.0,
+        nitrogen: 1.0,
+        potassium: 1.0,
+        phosphorus: 1.0,
+    });
+
+    gtk_setup(settings_packet);
+
     let queue = queues.next().unwrap();
+
+    //let hi = *settings_packet.read().unwrap();
 
     let (mut swapchain, images) = {
         let caps = surface.capabilities(physical).unwrap();
@@ -138,7 +160,7 @@ fn main() {
         .unwrap()
     };
 
-    let mut node_buffer = NodeBuffer::new(1000);
+    let mut node_buffer = NodeBuffer::new(10000);
     {
         let i1 = node_buffer.alloc().unwrap();
         let i2 = node_buffer.alloc().unwrap();
@@ -351,6 +373,46 @@ fn main() {
             return;
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SettingsPacket {
+    pub sunlight: f32,
+    pub gravity: f32,
+    pub moisture: f32,
+    pub nitrogen: f32,
+    pub potassium: f32,
+    pub phosphorus: f32,
+}
+
+fn build_ui(application: &gtk::Application) -> () {
+    let window = gtk::ApplicationWindow::new(application);
+    window.set_title("CompuGenesis GUI");
+    window.set_border_width(10);
+    window.set_position(gtk::WindowPosition::Center);
+    window.set_default_size(350, 350);
+
+    let sunlight_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
+    let gravity_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 20.0, 0.1);
+    let moisture_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
+
+    window.add(&sunlight_scale);
+    window.add(&gravity_scale);
+    window.add(&moisture_scale);
+
+    window.show_all();
+}
+
+fn gtk_setup(config: std::sync::RwLock<SettingsPacket>) -> () {
+    //std::thread::spawn(move |
+    let application = gtk::Application::new("compugenesis", ApplicationFlags::empty())
+        .expect("Initialization failed...");
+
+    application.connect_activate(|app| {
+        build_ui(app);
+    });
+
+    application.run(&[] as &[&str]);
 }
 
 fn window_size_dependent_setup(
