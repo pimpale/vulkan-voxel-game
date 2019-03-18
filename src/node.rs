@@ -202,37 +202,27 @@ impl NodeBuffer {
         new_node_index
     }
 
-    /// Divides a branch in two by the percent specified by percent break, and inserts the
-    /// specified node index at that location
-    pub fn branch(
-        &mut self,
-        branch_parent_index: u32,
-        percentbreak: f32,
-        branch_child_index: u32,
-    ) -> () {
-        self.divide(percentbreak, branch_parent_index);
-        self.set_right_child(branch_parent_index, branch_child_index);
-    }
-
     /// Does a nodeupdate on all nodes within the buffer that are not garbage
     pub fn update_all(&mut self) {
         for i in 0..self.max_size {
             let node = self.node_list[i as usize];
             if node.status != STATUS_GARBAGE {
                 let r = rand::random::<f32>();
-                self.node_list[i as usize].length = node.length * 1.0001;
-                if r > 0.9995 {
+                self.node_list[i as usize].length = node.length * (0.1 - node.length) + node.length;
+                self.node_list[i as usize].age += 1;
+                if node.length > 0.007 && node.age < 9000 && r > 0.9995 {
+                    self.divide(0.5, i);
                     let ni = self.alloc().unwrap();
                     self.node_list[ni as usize] = {
                         let mut nnode = Node::new();
                         nnode.status = STATUS_ALIVE;
                         nnode.visible = 1;
-                        nnode.length = 0.1;
+                        nnode.length = 0.001;
                         nnode.transformation =
                             Matrix4::from_angle_z(Rad(rand::random::<f32>() - 0.5)).into();
                         nnode
                     };
-                    self.branch(i, 0.5, ni);
+                    self.set_right_child(i, ni);
                 }
             }
         }

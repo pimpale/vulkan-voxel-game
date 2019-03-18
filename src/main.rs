@@ -115,14 +115,14 @@ fn main() {
     )
     .unwrap();
 
-    gtk_setup(std::sync::RwLock::new(SettingsPacket {
+    /*gtk_setup(std::sync::RwLock::new(SettingsPacket {
         sunlight: 1.0,
         gravity: 9.8,
         moisture: 1.0,
         nitrogen: 1.0,
         potassium: 1.0,
         phosphorus: 1.0,
-    }));
+    }));*/
 
     let queue = queues.next().unwrap();
 
@@ -159,36 +159,16 @@ fn main() {
     let mut node_buffer = NodeBuffer::new(10000);
     {
         let i1 = node_buffer.alloc().unwrap();
-        let i2 = node_buffer.alloc().unwrap();
-        let i3 = node_buffer.alloc().unwrap();
 
         let mut n1 = Node::new();
-        let mut n2 = Node::new();
-        let mut n3 = Node::new();
 
         n1.status = STATUS_ALIVE;
         n1.visible = 1;
-        n1.leftChildIndex = i2;
-        n1.rightChildIndex = i3;
         n1.absolutePosition = [0.0, 0.0, 0.0];
+        n1.transformation = Matrix4::from_angle_z(Rad(std::f32::consts::PI)).into();
         n1.length = 0.4;
 
-        n2.status = STATUS_ALIVE;
-        n2.visible = 1;
-        n2.parentIndex = i1;
-        n2.length = 0.4;
-        n2.transformation = Matrix4::from_angle_z(Rad(0.4)).into();
-
-        n3.status = STATUS_ALIVE;
-        n3.visible = 1;
-        n3.parentIndex = i1;
-        n3.length = 0.4;
-
         node_buffer.set(i1, n1);
-        node_buffer.set(i2, n2);
-        node_buffer.set(i3, n3);
-
-        node_buffer.divide(0.5, i1);
     }
 
     let vs = shader::vert::Shader::load(device.clone()).unwrap();
