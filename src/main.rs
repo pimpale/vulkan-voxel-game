@@ -34,6 +34,7 @@ use vulkano_win::VkSurfaceBuild;
 use winit::{Event, EventsLoop, VirtualKeyCode, Window, WindowBuilder, WindowEvent};
 
 use std::sync::Arc;
+use std::sync::RwLock;
 
 use cgmath::{Deg, Matrix4, Point3, Rad};
 
@@ -115,14 +116,16 @@ fn main() {
     )
     .unwrap();
 
-    /*gtk_setup(std::sync::RwLock::new(SettingsPacket {
+    let settings_packet = std::sync::Arc::new(std::sync::RwLock::new(SettingsPacket {
         sunlight: 1.0,
         gravity: 9.8,
         moisture: 1.0,
         nitrogen: 1.0,
         potassium: 1.0,
         phosphorus: 1.0,
-    }));*/
+    }));
+
+    gtk_setup(settings_packet.clone());
 
     let queue = queues.next().unwrap();
 
@@ -353,45 +356,86 @@ fn main() {
 
 #[derive(Debug, Clone, Copy)]
 struct SettingsPacket {
-    pub sunlight: f32,
-    pub gravity: f32,
-    pub moisture: f32,
-    pub nitrogen: f32,
-    pub potassium: f32,
-    pub phosphorus: f32,
+    pub sunlight: f64,
+    pub gravity: f64,
+    pub moisture: f64,
+    pub nitrogen: f64,
+    pub potassium: f64,
+    pub phosphorus: f64,
 }
 
-fn build_ui(application: &gtk::Application) -> () {
-    let window = gtk::ApplicationWindow::new(application);
+fn gtk_setup(settings_packet: Arc<RwLock<SettingsPacket>>) -> () {
+    std::thread::spawn(move || {
+        let application = gtk::Application::new(
+            "com.github.gtk-rs.examples.basic",
+            ApplicationFlags::empty(),
+        )
+        .expect("Initialization failed...");
+        application.connect_activate(move |app| {
+            let window = gtk::ApplicationWindow::new(app);
 
-    window.set_title("GUI");
-    window.set_border_width(10);
-    window.set_position(gtk::WindowPosition::Center);
-    window.set_default_size(350, 70);
+            window.set_title("GUI");
+            window.set_border_width(10);
+            window.set_position(gtk::WindowPosition::Center);
+            window.set_default_size(350, 350);
 
-    let sunlight_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
-    let gravity_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 20.0, 0.1);
-    let moisture_scale = gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
+            let sunlight_scale =
+                gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
+            let gravity_scale =
+                gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 20.0, 0.1);
+            let moisture_scale =
+                gtk::Scale::new_with_range(gtk::Orientation::Horizontal, 0.0, 1.0, 0.01);
 
-    window.add(&sunlight_scale);
-    window.add(&gravity_scale);
-    window.add(&moisture_scale);
+            sunlight_scale.set_size_request(200, 10);
+            gravity_scale.set_size_request(200, 10);
+            moisture_scale.set_size_request(200, 10);
 
-    window.show_all();
-}
+            let sunlight_cloned_settings_packet = settings_packet.clone();
+            sunlight_scale.connect_value_changed(move |sc| {
+                let mut w = sunlight_cloned_settings_packet.write().unwrap();
+                w.sunlight = sc.get_value();
+            });
 
-fn gtk_setup(packet: std::sync::RwLock<SettingsPacket>) -> () {
-    let application = gtk::Application::new(
-        "com.github.gtk-rs.examples.basic",
-        ApplicationFlags::empty(),
-    )
-    .expect("Initialization failed...");
+            let gravity_cloned_settings_packet = settings_packet.clone();
+            gravity_scale.connect_value_changed(move |sc| {
+                let mut w = gravity_cloned_settings_packet.write().unwrap();
+                w.gravity = sc.get_value();
+            });
 
-    application.connect_activate(|app| {
-        build_ui(app);
+            let moisture_cloned_settings_packet = settings_packet.clone();
+            moisture_scale.connect_value_changed(move |sc| {
+                let mut w = moisture_cloned_settings_packet.write().unwrap();
+                w.moisture = sc.get_value();
+            });
+
+            let sunlight_label = gtk::Label::new("Sunlight");
+            let gravity_label = gtk::Label::new("Gravity");
+            let moisture_label = gtk::Label::new("Moisture");
+
+            let sunlight = gtk::Box::new(gtk::Orientation::Horizontal, 1);
+            let gravity = gtk::Box::new(gtk::Orientation::Horizontal, 1);
+            let moisture = gtk::Box::new(gtk::Orientation::Horizontal, 1);
+
+            sunlight.add(&sunlight_label);
+            sunlight.add(&sunlight_scale);
+
+            gravity.add(&gravity_label);
+            gravity.add(&gravity_scale);
+
+            moisture.add(&moisture_label);
+            moisture.add(&moisture_scale);
+
+            let vbox = gtk::Box::new(gtk::Orientation::Vertical, 1);
+
+            vbox.add(&sunlight);
+            vbox.add(&gravity);
+            vbox.add(&moisture);
+            window.add(&vbox);
+            window.show_all();
+        });
+
+        application.run(&[] as &[&str]);
     });
-
-    application.run(&[] as &[&str]);
 }
 
 fn window_size_dependent_setup(
