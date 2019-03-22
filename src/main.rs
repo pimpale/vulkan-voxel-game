@@ -8,6 +8,8 @@ extern crate vulkano_shaders;
 extern crate vulkano_win;
 extern crate winit;
 
+#[allow(dead_code)]
+#[allow(unused_imports)]
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, DynamicState};
 use vulkano::device::{Device, DeviceExtensions};
@@ -47,10 +49,6 @@ mod vertex;
 
 use camera::*;
 use node::*;
-use vertex::Vertex;
-
-#[allow(dead_code)]
-#[allow(unused_imports)]
 
 fn create_instance() -> Arc<Instance> {
     let instance = {
@@ -59,7 +57,7 @@ fn create_instance() -> Arc<Instance> {
         Instance::new(
             None,
             &vulkano_win::required_extensions(),
-            ["VK_LAYER_LUNARG_standard_validation"].iter().cloned(),
+            vec!["VK_LAYER_LUNARG_standard_validation"],
         )
         .unwrap()
     };
