@@ -1,2 +1,4 @@
 build/
 build2/
+compile_commands.json
+.clangd/
