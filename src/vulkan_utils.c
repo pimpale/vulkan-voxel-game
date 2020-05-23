@@ -93,7 +93,7 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 ErrVal new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
   *pLayerCount = 1;
   *pppLayerNames = (char **)malloc(sizeof(char *) * sizeof(*pLayerCount));
-  **pppLayerNames = "VK_LAYER_LUNARG_standard_validation";
+  (*pppLayerNames)[0] = "VK_LAYER_KHRONOS_validation";
   return (ERR_OK);
 }
 
