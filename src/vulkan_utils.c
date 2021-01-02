@@ -92,7 +92,7 @@ void delete_RequiredInstanceExtensions(uint32_t *pEnabledExtensionCount,
 /* Get required layer names for validation layers */
 ErrVal new_ValidationLayers(uint32_t *pLayerCount, char ***pppLayerNames) {
   *pLayerCount = 1;
-  *pppLayerNames = (char **)malloc(sizeof(char *) * sizeof(*pLayerCount));
+  *pppLayerNames = (char **)malloc(sizeof(char *) * *pLayerCount );
   (*pppLayerNames)[0] = "VK_LAYER_KHRONOS_validation";
   return (ERR_OK);
 }
@@ -108,7 +108,7 @@ ErrVal new_RequiredDeviceExtensions(uint32_t *pEnabledExtensionCount,
                                     char ***pppEnabledExtensionNames) {
   *pEnabledExtensionCount = 1;
   *pppEnabledExtensionNames =
-      (char **)malloc(sizeof(char *) * sizeof(*pEnabledExtensionCount));
+      (char **)malloc(sizeof(char *) * *pEnabledExtensionCount);
   **pppEnabledExtensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   return (ERR_OK);
 }

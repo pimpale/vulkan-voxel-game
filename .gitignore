@@ -1,4 +1,3 @@
-build/
-build2/
+obj/
 compile_commands.json
-.clangd/
+.cache/

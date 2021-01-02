@@ -96,8 +96,8 @@ void matFromTransformation(mat4x4 *pMatrix, Transformation transformation,
       (vec3){0.0f, 0.0f, 0.0f},         /* Look towards origin */
       (vec3){0.0f, 0.0f, -1.0f});       /* Direction considered to be up */
   mat4x4_perspective(projection, RADIANS(90), /* Field of vision in radians */
-                     ((float)width) / height, /* The aspect ratio */
-                     0.1f, 1000.0f);          /* The 1 is in radians */
+                     (float)width / (float)height, /* The aspect ratio */
+                     0.1f, 1000.0f);               /* The 1 is in radians */
   mat4x4_mul(*pMatrix, projection, view);
 }
 
