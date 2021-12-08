@@ -9,9 +9,16 @@
 #ifndef SRC_ERRORS_H_
 #define SRC_ERRORS_H_
 
+#include <stdio.h>
 #include <vulkan/vulkan.h>
 
-#include "constants.h"
+#ifndef ERROR_MAX_PRINT_LENGTH
+#define ERROR_MAX_PRINT_LENGTH 4096
+#endif
+
+#ifndef ERROR_APPNAME
+#define ERROR_APPNAME "App"
+#endif
 
 typedef enum ErrSeverity {
   ERR_LEVEL_DEBUG = 1,
@@ -33,20 +40,20 @@ typedef enum ErrVal {
   ERR_MEMORY = 7,
 } ErrVal;
 
-char *vkstrerror(VkResult err);
-char *levelstrerror(ErrSeverity level);
+const char *vkstrerror(VkResult err);
+const char *levelstrerror(ErrSeverity level);
 
-#define UNUSED(x) (void)(x)
+#define UNUSED __attribute__((unused))
 #define PANIC() exit(EXIT_FAILURE)
 
 #define LOG_ERROR(level, msg)                                                  \
-  printf("%s: %s: %s\n", APPNAME, levelstrerror(level), msg)
+  printf("%s: %s: %s\n", ERROR_APPNAME, levelstrerror(level), msg)
 
 #define LOG_ERROR_ARGS(level, fmt, ...)                                        \
   do {                                                                         \
-    char macro_message_formatted[MAX_PRINT_LENGTH];                            \
-    snprintf(macro_message_formatted, MAX_PRINT_LENGTH, fmt, __VA_ARGS__);     \
-    printf("%s: %s: %s\n", APPNAME, levelstrerror(level),                      \
+    char macro_message_formatted[ERROR_MAX_PRINT_LENGTH];                            \
+    snprintf(macro_message_formatted, ERROR_MAX_PRINT_LENGTH, fmt, __VA_ARGS__);     \
+    printf("%s: %s: %s\n", ERROR_APPNAME, levelstrerror(level),                      \
            macro_message_formatted);                                           \
   } while (0)
 #endif /* SRC_ERRORS_H_ */

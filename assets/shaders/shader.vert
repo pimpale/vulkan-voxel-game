@@ -4,7 +4,7 @@
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inColor;
 
-layout(std140, push_constant ) uniform Constants {
+layout(std140, push_constant) uniform Constants {
   mat4 mvp;
 } constants;
 
