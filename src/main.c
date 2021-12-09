@@ -273,7 +273,7 @@ void delete_AppGraphicsWindowState(AppGraphicsWindowState *pWindow,
   delete_Pipeline(&pWindow->graphicsPipeline, pGlobal->device);
 }
 
-void drawAppFrame(                    //
+void drawAppFrame(                   //
     AppGraphicsWindowState *pWindow, //
     AppGraphicsGlobalState *pGlobal, //
     Camera *pCamera,                 //
@@ -281,8 +281,6 @@ void drawAppFrame(                    //
     VkBuffer vertexBuffer            //
 
 ) {
-  glfwPollEvents();
-
   // wait for last frame to finish
   waitAndResetFence(pGlobal->pInFlightFences[pGlobal->currentFrame],
                     pGlobal->device);
@@ -316,8 +314,6 @@ void drawAppFrame(                    //
         pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
   }
 
-  // update camera
-  updateCamera(pCamera, pGlobal->pWindow);
   mat4x4 mvp;
   getMvpCamera(mvp, pCamera);
 
@@ -363,6 +359,7 @@ int main(void) {
   uint32_t vertexCount;
   wg_world_count_vertexes(&vertexCount, &ws);
 
+  // no offset
   Vertex *vertexData = malloc(vertexCount * sizeof(Vertex));
   wg_world_mesh(vertexData, &ws);
 
@@ -388,10 +385,46 @@ int main(void) {
 
   /*wait till close*/
   while (!glfwWindowShouldClose(global.pWindow)) {
+    // glfw check for new events
+    glfwPollEvents();
+
+    // update camera
+    updateCamera(&camera, global.pWindow);
+
+    // check camera chunk location,
+    ivec3 camChunkCoord;
+    wg_toChunkCoords(camChunkCoord, camera.pos);
+
+    // if we have a new chunk location, set new chunk center
+    if (!wg_centered(&ws, camChunkCoord)) {
+      wg_set_center(&ws, camChunkCoord);
+
+      // wait to finish rendering
+      vkDeviceWaitIdle(global.device);
+      // delete our buffer
+      delete_Buffer(&vertexBuffer, global.device);
+      delete_DeviceMemory(&vertexBufferMemory, global.device);
+
+      // calc number of vertexes
+      wg_world_count_vertexes(&vertexCount, &ws);
+
+      // create new vertexes
+      vertexData = malloc(vertexCount * sizeof(Vertex));
+      wg_world_mesh(vertexData, &ws);
+
+      // reload
+      new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData,
+                       vertexCount, global.device, global.physicalDevice,
+                       global.commandPool, global.graphicsQueue);
+
+      free(vertexData);
+    }
+
+    // draw frame
     drawAppFrame(&window, &global, &camera, vertexCount, vertexBuffer);
   }
 
-   // wait for finish
+  // wait for finish
   vkDeviceWaitIdle(global.device);
 
   // delete our buffer

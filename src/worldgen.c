@@ -1,4 +1,5 @@
 #include "worldgen.h"
+#include <math.h>
 #include <stdlib.h>
 
 static void chunk_count_vertexes( //
@@ -196,12 +197,12 @@ static void worldgen_chunk(Chunk *c, const struct osn_context *noiseCtx,
 
 // gets the chunk coordinate given from the centerLoc and the local array
 // position (ax, ay, az)
-void getChunkCoordinate(   //
-    ivec3 dest,            //
-    const ivec3 centerLoc, //
-    uint32_t ax,           // array x
-    uint32_t ay,           // array y
-    uint32_t az            // array z
+static void getChunkCoordinate( //
+    ivec3 dest,                 //
+    const ivec3 centerLoc,      //
+    uint32_t ax,                // array x
+    uint32_t ay,                // array y
+    uint32_t az                 // array z
 ) {
   ivec3 localOffset = {(int32_t)ax - RENDER_DISTANCE_X / 2,
                        (int32_t)ay - RENDER_DISTANCE_Y / 2,
@@ -282,7 +283,7 @@ void wg_world_mesh(               //
 
         // convert into worldspace measured in blocks
         vec3 chunkOffsetInBlocks;
-        ivec3_conv(chunkOffsetInBlocks, chunkOffset);
+        ivec3_to_vec3(chunkOffsetInBlocks, chunkOffset);
         vec3_scale(chunkOffsetInBlocks, chunkOffsetInBlocks, CHUNK_SIZE);
 
         uint32_t meshed_vertexes = chunk_mesh(
@@ -295,11 +296,26 @@ void wg_world_mesh(               //
   }
 }
 
+static int32_t max(int32_t a, int32_t b) {
+  if (a > b) {
+    return a;
+  } else {
+    return b;
+  }
+}
+
+static int32_t min(int32_t a, int32_t b) {
+  if (a < b) {
+    return a;
+  } else {
+    return b;
+  }
+}
+
 void wg_set_center(          //
     WorldState *pWorldState, //
     const ivec3 centerLoc    //
 ) {
-
   // copy our source volume to another array to avoid clobbering it
   Chunk *old[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
@@ -311,19 +327,46 @@ void wg_set_center(          //
       }
     }
   }
-
   // calculate our displacement from old state to new state
   ivec3 disp;
-  ivec3_sub(disp, pWorldState->centerLoc, centerLoc);
+  ivec3_sub(disp, centerLoc, pWorldState->centerLoc);
 
   // now copy all the chunks we can from old to new
-  for (int32_t x = 0; x < RENDER_DISTANCE_X - disp[0]; x++) {
-    for (int32_t y = 0; y < RENDER_DISTANCE_Y - disp[1]; y++) {
-      for (int32_t z = 0; z < RENDER_DISTANCE_Z - disp[2]; z++) {
+
+  // idea:
+  // 
+  // old: *****
+  // new:   *****
+  //
+  // disp = +2
+  //
+  // new[0] = old[2]
+  // new[1] = old[3]
+  // new[2] = old[4]
+  //
+  // new[0] = old[0+disp]
+  // new[1] = old[1+disp]
+  // new[2] = old[2+disp]
+  //
+  // start = max(0, 0-disp) = max(0, -2) = 0 (inclusive index)
+  // end = min(len, len-disp) = min(5, 5-2) = 3 (exclusive index)
+
+  int32_t startx = max(0, 0 - disp[0]);
+  int32_t starty = max(0, 0 - disp[1]);
+  int32_t startz = max(0, 0 - disp[2]);
+  int32_t endx = min(RENDER_DISTANCE_X, RENDER_DISTANCE_X - disp[0]);
+  int32_t endy = min(RENDER_DISTANCE_Y, RENDER_DISTANCE_Y - disp[1]);
+  int32_t endz = min(RENDER_DISTANCE_Z, RENDER_DISTANCE_Z - disp[2]);
+
+  for (int32_t x = startx; x < endx; x++) {
+    for (int32_t y = starty; y < endy; y++) {
+      for (int32_t z = startz; z < endz; z++) {
         // move some values from old to new array
-        pWorldState->local[x + disp[0]][y + disp[1]][z + disp[2]] =
-            old[x][y][z];
-        old[x][y][z] = NULL;
+        pWorldState->local[x][y][z] =
+            old[x + disp[0]][y + disp[1]][z + disp[2]];
+
+        // set to null
+        old[x + disp[0]][y + disp[1]][z + disp[2]] = NULL;
       }
     }
   }
@@ -357,4 +400,24 @@ void wg_set_center(          //
       }
     }
   }
+
+  ivec3_dup(pWorldState->centerLoc, centerLoc);
+}
+
+void wg_toChunkCoords(    //
+    ivec3 chunkCoord,     //
+    const vec3 blockCoord //
+) {
+  vec3 tmp;
+  vec3_scale(tmp, blockCoord, 1.0f / CHUNK_SIZE);
+  vec3_to_ivec3(chunkCoord, tmp);
+}
+
+bool wg_centered(                  //
+    const WorldState *pWorldState, //
+    const ivec3 blockCoord         //
+) {
+  return blockCoord[0] == pWorldState->centerLoc[0] &&
+         blockCoord[1] == pWorldState->centerLoc[1] &&
+         blockCoord[2] == pWorldState->centerLoc[2];
 }

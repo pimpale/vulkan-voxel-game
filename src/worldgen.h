@@ -9,12 +9,12 @@
 #include "vertex.h"
 
 // Size of chunk in blocks
-#define CHUNK_SIZE 8
+#define CHUNK_SIZE 32
 
 // how many chunks to render
-#define RENDER_DISTANCE_X 3
-#define RENDER_DISTANCE_Y 3
-#define RENDER_DISTANCE_Z 3
+#define RENDER_DISTANCE_X 5
+#define RENDER_DISTANCE_Y 5
+#define RENDER_DISTANCE_Z 5
 
 typedef struct {
   bool transparent;
@@ -58,6 +58,16 @@ void wg_world_count_vertexes(     //
 void wg_world_mesh(               //
     Vertex *pVertexes,            //
     const WorldState *pWorldState //
+);
+
+void wg_toChunkCoords(    //
+    ivec3 chunkCoord,     //
+    const vec3 blockCoord //
+);
+
+bool wg_centered(                  //
+    const WorldState *pWorldState, //
+    const ivec3 blockCoord          //
 );
 
 #endif

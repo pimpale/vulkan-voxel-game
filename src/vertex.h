@@ -35,11 +35,18 @@ static inline void uvec3_sub(uvec3 d, const uvec3 a, const uvec3 b) {
   d[2] = a[2] - b[2];
 }
 
-static inline void uvec3_conv(vec3 d, const uvec3 a) {
+static inline void uvec3_to_vec3(vec3 d, const uvec3 a) {
   d[0] = (float)a[0];
   d[1] = (float)a[1];
   d[2] = (float)a[2];
 }
+
+static inline void vec3_to_uvec3(uvec3 d, const vec3 a) {
+  d[0] = (uint32_t)a[0];
+  d[1] = (uint32_t)a[1];
+  d[2] = (uint32_t)a[2];
+}
+
 
 typedef int32_t ivec3[3];
 
@@ -67,10 +74,16 @@ static inline void ivec3_sub(ivec3 d, const ivec3 a, const ivec3 b) {
   d[2] = a[2] - b[2];
 }
 
-static inline void ivec3_conv(vec3 d, const ivec3 a) {
+static inline void ivec3_to_vec3(vec3 d, const ivec3 a) {
   d[0] = (float)a[0];
   d[1] = (float)a[1];
   d[2] = (float)a[2];
+}
+
+static inline void vec3_to_ivec3(ivec3 d, const vec3 a) {
+  d[0] = (int32_t)a[0];
+  d[1] = (int32_t)a[1];
+  d[2] = (int32_t)a[2];
 }
 
 #endif
