@@ -1,12 +1,12 @@
-TARGET_EXEC ?= plantsim
+TARGET_EXEC ?= vulkan-triangle-v2
 
 BUILD_DIR ?= ./obj
-SRC_DIRS ?= src
+SRC_DIRS ?= src vendor
 
 SRCS := $(shell find $(SRC_DIRS) -type f -name *.c)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
-INC_DIRS := include
+INC_DIRS := vendor
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 LDFLAGS := -lm -lvulkan -lglfw

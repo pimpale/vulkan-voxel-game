@@ -14,17 +14,12 @@
 
 #include <vulkan/vulkan.h>
 
-#include <linmath.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include "errors.h"
-
-typedef struct {
-  vec3 position;
-  vec3 color;
-} Vertex;
+#include "vertex.h"
 
 /// Creates a new VkInstance with the specified extensions and layers
 /// --- PRECONDITIONS ---

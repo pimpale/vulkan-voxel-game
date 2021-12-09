@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "utils.h"
 #include "vulkan_utils.h"
+#include "worldgen.h"
 
 #include "errors.h"
 
@@ -20,323 +21,383 @@
 #define WINDOW_WIDTH 500
 #define MAX_FRAMES_IN_FLIGHT 2
 
-static uint32_t vertexCount = 6;
-static Vertex vertexData[] = {
-    (Vertex){.position = {1.0, 0.0, 0.0}, .color = {1.0, 0.0, 0.0}},
-    (Vertex){.position = {0.0, 1.0, 0.0}, .color = {0.0, 1.0, 0.0}},
-    (Vertex){.position = {0.0, 0.0, 1.0}, .color = {0.0, 0.0, 1.0}},
-    (Vertex){.position = {1.0, 0.0, 1.0}, .color = {1.0, 0.0, 0.0}},
-    (Vertex){.position = {0.0, 1.0, 0.0}, .color = {0.0, 1.0, 0.0}},
-    (Vertex){.position = {1.0, 0.0, 1.0}, .color = {0.0, 0.0, 1.0}},
-};
+// contins state associated with the vulkan instance
+typedef struct {
+  VkInstance instance;
+  VkDebugUtilsMessengerEXT callback;
+  VkPhysicalDevice physicalDevice;
+  GLFWwindow *pWindow;
+  VkSurfaceKHR surface;
+  VkSurfaceFormatKHR surfaceFormat;
+  uint32_t graphicsIndex;
+  uint32_t computeIndex;
+  uint32_t presentIndex;
+  VkQueue graphicsQueue;
+  VkQueue presentQueue;
+  VkDevice device;
+  VkCommandPool commandPool;
+  // shaders, we need them to recreate the graphics pipeline
+  VkShaderModule fragShaderModule;
+  VkShaderModule vertShaderModule;
+  VkRenderPass renderPass;
+  VkPipelineLayout graphicsPipelineLayout;
+  VkCommandBuffer pVertexDisplayCommandBuffers[MAX_FRAMES_IN_FLIGHT];
+  VkSemaphore pImageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
+  VkSemaphore pRenderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
+  VkFence pInFlightFences[MAX_FRAMES_IN_FLIGHT];
+  // this number counts which frame we're on
+  // up to MAX_FRAMES_IN_FLIGHT, at whcich points it resets to 0
+  uint32_t currentFrame;
+} AppGraphicsGlobalState;
 
-int main(void) {
+void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   glfwInit();
 
   const uint32_t validationLayerCount = 1;
   const char *ppValidationLayerNames[1] = {"VK_LAYER_KHRONOS_validation"};
 
-  /* Create instance */
-  VkInstance instance;
-  new_Instance(&instance, validationLayerCount, ppValidationLayerNames, 0, NULL,
-               true, true, APPNAME);
+  /* Create pGlobal->instance */
+  new_Instance(&pGlobal->instance, validationLayerCount, ppValidationLayerNames,
+               0, NULL, true, true, APPNAME);
 
   /* Enable vulkan logging to stdout */
-  VkDebugUtilsMessengerEXT callback;
-  new_DebugCallback(&callback, instance);
+  new_DebugCallback(&pGlobal->callback, pGlobal->instance);
 
-  /* get physical device */
-  VkPhysicalDevice physicalDevice;
-  getPhysicalDevice(&physicalDevice, instance);
+  /* get physical pGlobal->device */
+  getPhysicalDevice(&pGlobal->physicalDevice, pGlobal->instance);
 
-  /* Create window and surface */
-  GLFWwindow *pWindow;
-  new_GlfwWindow(&pWindow, APPNAME,
+  /* Create window and pGlobal->surface */
+  new_GlfwWindow(&pGlobal->pWindow, APPNAME,
                  (VkExtent2D){.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT});
-  VkSurfaceKHR surface;
-  new_SurfaceFromGLFW(&surface, pWindow, instance);
+  new_SurfaceFromGLFW(&pGlobal->surface, pGlobal->pWindow, pGlobal->instance);
 
-  /* find queues on graphics device */
-  uint32_t graphicsIndex;
-  uint32_t computeIndex;
-  uint32_t presentIndex;
+  /* find queues on graphics pGlobal->device */
   {
-    uint32_t ret1 = getQueueFamilyIndexByCapability(
-        &graphicsIndex, physicalDevice, VK_QUEUE_GRAPHICS_BIT);
-    uint32_t ret2 = getQueueFamilyIndexByCapability(
-        &computeIndex, physicalDevice, VK_QUEUE_COMPUTE_BIT);
-    uint32_t ret3 =
-        getPresentQueueFamilyIndex(&presentIndex, physicalDevice, surface);
+    uint32_t ret1 = getQueueFamilyIndexByCapability(&pGlobal->graphicsIndex,
+                                                    pGlobal->physicalDevice,
+                                                    VK_QUEUE_GRAPHICS_BIT);
+    uint32_t ret3 = getPresentQueueFamilyIndex(
+        &pGlobal->presentIndex, pGlobal->physicalDevice, pGlobal->surface);
     /* Panic if indices are unavailable */
-    if (ret1 != VK_SUCCESS || ret2 != VK_SUCCESS || ret3 != VK_SUCCESS) {
+    if (ret1 != VK_SUCCESS || ret3 != VK_SUCCESS) {
       LOG_ERROR(ERR_LEVEL_FATAL, "unable to acquire indices\n");
       PANIC();
     }
   }
 
-  /* Set extent (for now just window width and height) */
-  VkExtent2D swapchainExtent;
-  getExtentWindow(&swapchainExtent, pWindow);
-
-  /* we want to use swapchains to reduce tearing */
+  // we want to use swapchains to reduce tearing
   const uint32_t deviceExtensionCount = 1;
   const char *ppDeviceExtensionNames[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-  /*create device */
-  VkDevice device;
-  new_Device(&device, physicalDevice, graphicsIndex, deviceExtensionCount,
-             ppDeviceExtensionNames);
+  // create pGlobal->device
+  new_Device(&pGlobal->device, pGlobal->physicalDevice, pGlobal->graphicsIndex,
+             deviceExtensionCount, ppDeviceExtensionNames);
 
-  VkQueue graphicsQueue;
-  getQueue(&graphicsQueue, device, graphicsIndex);
-  VkQueue computeQueue;
-  getQueue(&computeQueue, device, computeIndex);
-  VkQueue presentQueue;
-  getQueue(&presentQueue, device, presentIndex);
+  // create queues
+  getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex);
+  getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex);
 
-  /* We can create command buffers from the command pool */
-  VkCommandPool commandPool;
-  new_CommandPool(&commandPool, device, graphicsIndex);
+  // We can create command buffers from the command pool
+  new_CommandPool(&pGlobal->commandPool, pGlobal->device,
+                  pGlobal->graphicsIndex);
 
-  /* get preferred format of screen*/
-  VkSurfaceFormatKHR surfaceFormat;
-  getPreferredSurfaceFormat(&surfaceFormat, physicalDevice, surface);
+  // get preferred format of screen
+  getPreferredSurfaceFormat(&pGlobal->surfaceFormat, pGlobal->physicalDevice,
+                            pGlobal->surface);
 
-  /* Create swap chain */
-  VkSwapchainKHR swapchain;
-  uint32_t swapchainImageCount;
-  new_Swapchain(&swapchain, &swapchainImageCount, VK_NULL_HANDLE, surfaceFormat,
-                physicalDevice, device, surface, swapchainExtent, graphicsIndex,
-                presentIndex);
-
-  // there are swapchainImageCount swapchainImages
-  VkImage *pSwapchainImages = malloc(swapchainImageCount * sizeof(VkImage));
-  getSwapchainImages(pSwapchainImages, swapchainImageCount, device, swapchain);
-
-  // there are swapchainImageCount swapchainImageViews
-  VkImageView *pSwapchainImageViews =
-      malloc(swapchainImageCount * sizeof(VkImageView));
-  new_SwapchainImageViews(pSwapchainImageViews, pSwapchainImages,
-                          swapchainImageCount, device, surfaceFormat.format);
-
-  /* Create depth buffer */
-  VkDeviceMemory depthImageMemory;
-  VkImage depthImage;
-  new_DepthImage(&depthImage, &depthImageMemory, swapchainExtent,
-                 physicalDevice, device);
-  VkImageView depthImageView;
-  new_DepthImageView(&depthImageView, device, depthImage);
-
-  VkShaderModule fragShaderModule;
   {
     uint32_t *fragShaderFileContents;
     uint32_t fragShaderFileLength;
     readShaderFile("assets/shaders/shader.frag.spv", &fragShaderFileLength,
                    &fragShaderFileContents);
-    new_ShaderModule(&fragShaderModule, device, fragShaderFileLength,
-                     fragShaderFileContents);
+    new_ShaderModule(&pGlobal->fragShaderModule, pGlobal->device,
+                     fragShaderFileLength, fragShaderFileContents);
     free(fragShaderFileContents);
   }
 
-  VkShaderModule vertShaderModule;
   {
     uint32_t *vertShaderFileContents;
     uint32_t vertShaderFileLength;
     readShaderFile("assets/shaders/shader.vert.spv", &vertShaderFileLength,
                    &vertShaderFileContents);
-    new_ShaderModule(&vertShaderModule, device, vertShaderFileLength,
-                     vertShaderFileContents);
+    new_ShaderModule(&pGlobal->vertShaderModule, pGlobal->device,
+                     vertShaderFileLength, vertShaderFileContents);
     free(vertShaderFileContents);
   }
 
-  /* Create graphics pipeline */
-  VkRenderPass renderPass;
-  new_VertexDisplayRenderPass(&renderPass, device, surfaceFormat.format);
+  // Create graphics pipeline
+  new_VertexDisplayRenderPass(&pGlobal->renderPass, pGlobal->device,
+                              pGlobal->surfaceFormat.format);
 
-  VkPipelineLayout graphicsPipelineLayout;
-  new_VertexDisplayPipelineLayout(&graphicsPipelineLayout, device);
+  new_VertexDisplayPipelineLayout(&pGlobal->graphicsPipelineLayout,
+                                  pGlobal->device);
 
+  new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers, 2,
+                     pGlobal->commandPool, pGlobal->device);
+
+  // Create image synchronization primitives
+  new_Semaphores(pGlobal->pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT,
+                 pGlobal->device);
+  new_Semaphores(pGlobal->pRenderFinishedSemaphores, MAX_FRAMES_IN_FLIGHT,
+                 pGlobal->device);
+  // fences start off signaled
+  new_Fences(pGlobal->pInFlightFences, MAX_FRAMES_IN_FLIGHT, pGlobal->device,
+             true);
+  // set current frame to 0
+  pGlobal->currentFrame = 0;
+}
+
+static void delete_GraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
+  vkDeviceWaitIdle(pGlobal->device);
+  delete_ShaderModule(&pGlobal->fragShaderModule, pGlobal->device);
+  delete_ShaderModule(&pGlobal->vertShaderModule, pGlobal->device);
+
+  delete_Fences(pGlobal->pInFlightFences, MAX_FRAMES_IN_FLIGHT,
+                pGlobal->device);
+  delete_Semaphores(pGlobal->pRenderFinishedSemaphores, MAX_FRAMES_IN_FLIGHT,
+                    pGlobal->device);
+  delete_Semaphores(pGlobal->pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT,
+                    pGlobal->device);
+
+  delete_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers,
+                        MAX_FRAMES_IN_FLIGHT, pGlobal->commandPool,
+                        pGlobal->device);
+  delete_CommandPool(&pGlobal->commandPool, pGlobal->device);
+
+  delete_PipelineLayout(&pGlobal->graphicsPipelineLayout, pGlobal->device);
+  delete_RenderPass(&pGlobal->renderPass, pGlobal->device);
+  delete_Device(&pGlobal->device);
+  delete_Surface(&pGlobal->surface, pGlobal->instance);
+  delete_DebugCallback(&pGlobal->callback, pGlobal->instance);
+  delete_Instance(&pGlobal->instance);
+  glfwTerminate();
+}
+
+// contains state associated with the window that must be resized
+typedef struct {
+  VkSwapchainKHR swapchain;
+  uint32_t swapchainImageCount;
+  VkImage *pSwapchainImages;
+  VkImageView *pSwapchainImageViews;
+  VkDeviceMemory depthImageMemory;
+  VkImage depthImage;
+  VkImageView depthImageView;
+  VkFramebuffer *pSwapchainFramebuffers;
   VkPipeline graphicsPipeline;
-  new_VertexDisplayPipeline(&graphicsPipeline, device, vertShaderModule,
-                            fragShaderModule, swapchainExtent, renderPass,
-                            graphicsPipelineLayout);
+  VkExtent2D swapchainExtent;
+} AppGraphicsWindowState;
 
-  VkFramebuffer *pSwapchainFramebuffers =
-      malloc(swapchainImageCount * sizeof(VkFramebuffer));
-  new_SwapchainFramebuffers(pSwapchainFramebuffers, device, renderPass,
-                            swapchainExtent, swapchainImageCount,
-                            depthImageView, pSwapchainImageViews);
+// contains the per app state that we don't need to resize
+
+void new_AppGraphicsWindowState(           //
+    AppGraphicsWindowState *pWindow,       //
+    const AppGraphicsGlobalState *pGlobal, //
+    const VkExtent2D swapchainExtent       //
+) {
+
+  // Create swap chain
+  new_Swapchain(                     //
+      &pWindow->swapchain,           //
+      &pWindow->swapchainImageCount, //
+      VK_NULL_HANDLE,                //
+      pGlobal->surfaceFormat,        //
+      pGlobal->physicalDevice,       //
+      pGlobal->device,               //
+      pGlobal->surface,              //
+      swapchainExtent,               //
+      pGlobal->graphicsIndex,        //
+      pGlobal->presentIndex          //
+  );
+
+  // there are swapchainImageCount swapchainImages
+  pWindow->pSwapchainImages =
+      malloc(pWindow->swapchainImageCount * sizeof(VkImage));
+  getSwapchainImages(pWindow->pSwapchainImages, pWindow->swapchainImageCount,
+                     pGlobal->device, pWindow->swapchain);
+
+  // there are swapchainImageCount swapchainImageViews
+  pWindow->pSwapchainImageViews =
+      malloc(pWindow->swapchainImageCount * sizeof(VkImageView));
+  new_SwapchainImageViews(pWindow->pSwapchainImageViews,
+                          pWindow->pSwapchainImages,
+                          pWindow->swapchainImageCount, pGlobal->device,
+                          pGlobal->surfaceFormat.format);
+
+  // create depth buffer
+  new_DepthImage(&pWindow->depthImage, &pWindow->depthImageMemory,
+                 swapchainExtent, pGlobal->physicalDevice, pGlobal->device);
+  new_DepthImageView(&pWindow->depthImageView, pGlobal->device,
+                     pWindow->depthImage);
+
+  // create framebuffers to render to
+  pWindow->pSwapchainFramebuffers =
+      malloc(pWindow->swapchainImageCount * sizeof(VkFramebuffer));
+  new_SwapchainFramebuffers(
+      pWindow->pSwapchainFramebuffers, pGlobal->device, pGlobal->renderPass,
+      swapchainExtent, pWindow->swapchainImageCount, pWindow->depthImageView,
+      pWindow->pSwapchainImageViews);
+
+  // create pipeline
+  new_VertexDisplayPipeline(
+      &pWindow->graphicsPipeline, pGlobal->device, pGlobal->vertShaderModule,
+      pGlobal->fragShaderModule, swapchainExtent, pGlobal->renderPass,
+      pGlobal->graphicsPipelineLayout);
+
+  // remember swapchain extent
+  pWindow->swapchainExtent = swapchainExtent;
+}
+
+void delete_AppGraphicsWindowState(AppGraphicsWindowState *pWindow,
+                                   const AppGraphicsGlobalState *pGlobal) {
+  vkDeviceWaitIdle(pGlobal->device);
+
+  // delete framebuffers
+  delete_SwapchainFramebuffers(pWindow->pSwapchainFramebuffers,
+                               pWindow->swapchainImageCount, pGlobal->device);
+  free(pWindow->pSwapchainFramebuffers);
+  // delete swapchain imageviews
+  delete_SwapchainImageViews(pWindow->pSwapchainImageViews,
+                             pWindow->swapchainImageCount, pGlobal->device);
+  free(pWindow->pSwapchainImageViews);
+  // note that we don't have to delete swapchain images since they go away with
+  // the swapchain
+  free(pWindow->pSwapchainImages);
+  // delete swapchain
+  delete_Swapchain(&pWindow->swapchain, pGlobal->device);
+  // delete depth buffer
+  delete_ImageView(&pWindow->depthImageView, pGlobal->device);
+  delete_Image(&pWindow->depthImage, pGlobal->device);
+  delete_DeviceMemory(&pWindow->depthImageMemory, pGlobal->device);
+
+  // delete pipeline
+  delete_Pipeline(&pWindow->graphicsPipeline, pGlobal->device);
+}
+
+void drawAppFrame(                    //
+    AppGraphicsWindowState *pWindow, //
+    AppGraphicsGlobalState *pGlobal, //
+    Camera *pCamera,                 //
+    uint32_t vertexCount,            //
+    VkBuffer vertexBuffer            //
+
+) {
+  glfwPollEvents();
+
+  // wait for last frame to finish
+  waitAndResetFence(pGlobal->pInFlightFences[pGlobal->currentFrame],
+                    pGlobal->device);
+
+  // the imageIndex is the index of the swapchain framebuffer that is
+  // available next
+  uint32_t imageIndex;
+  // this function will return immediately,
+  //  so we use the semaphore to tell us when the image is actually available,
+  //  (ready for rendering to)
+  ErrVal result = getNextSwapchainImage(
+      &imageIndex, pWindow->swapchain, pGlobal->device,
+      pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
+
+  // if the window is resized
+  if (result == ERR_OUTOFDATE) {
+    // get new window size
+    VkExtent2D swapchainExtent;
+    getExtentWindow(&swapchainExtent, pGlobal->pWindow);
+
+    // resize camera
+    resizeCamera(pCamera, swapchainExtent);
+
+    // destroy and recreate window dependent data
+    delete_AppGraphicsWindowState(pWindow, pGlobal);
+    new_AppGraphicsWindowState(pWindow, pGlobal, swapchainExtent);
+
+    // finally we can retry getting the swapchain
+    getNextSwapchainImage(
+        &imageIndex, pWindow->swapchain, pGlobal->device,
+        pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
+  }
+
+  // update camera
+  updateCamera(pCamera, pGlobal->pWindow);
+  mat4x4 mvp;
+  getMvpCamera(mvp, pCamera);
+
+  // record buffer
+  recordVertexDisplayCommandBuffer(                                 //
+      pGlobal->pVertexDisplayCommandBuffers[pGlobal->currentFrame], //
+      pWindow->pSwapchainFramebuffers[imageIndex],                  //
+      vertexBuffer,                                                 //
+      vertexCount,                                                  //
+      pGlobal->renderPass,                                          //
+      pGlobal->graphicsPipelineLayout,                              //
+      pWindow->graphicsPipeline,                                    //
+      pWindow->swapchainExtent,                                     //
+      mvp,                                                          //
+      (VkClearColorValue){.float32 = {0, 0, 0, 0}}                  //
+  );
+
+  drawFrame(                                                        //
+      pGlobal->pVertexDisplayCommandBuffers[pGlobal->currentFrame], //
+      pWindow->swapchain,                                           //
+      imageIndex,                                                   //
+      pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame],    //
+      pGlobal->pRenderFinishedSemaphores[pGlobal->currentFrame],    //
+      pGlobal->pInFlightFences[pGlobal->currentFrame],              //
+      pGlobal->graphicsQueue,                                       //
+      pGlobal->presentQueue                                         //
+  );
+
+  // increment frame
+  pGlobal->currentFrame = (pGlobal->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+int main(void) {
+  // initialize global graphics
+  AppGraphicsGlobalState global;
+  new_AppGraphicsGlobalState(&global);
+
+  // set up world generation
+  WorldState ws;
+  wg_new_WorldState_(&ws, (ivec3){0, 0, 0}, 0);
+
+  // calc number of vertexes
+  uint32_t vertexCount;
+  wg_world_count_vertexes(&vertexCount, &ws);
+
+  // no offset
+  vec3 offset;
+  Vertex *vertexData = malloc(vertexCount * sizeof(Vertex));
+  wg_world_mesh(vertexData, offset, &ws);
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData, vertexCount,
-                   device, physicalDevice, commandPool, graphicsQueue);
+                   global.device, global.physicalDevice, global.commandPool,
+                   global.graphicsQueue);
 
-  VkCommandBuffer pVertexDisplayCommandBuffers[MAX_FRAMES_IN_FLIGHT];
-  new_CommandBuffers(pVertexDisplayCommandBuffers, 2, commandPool, device);
+  // Set extent (window width and height)
+  VkExtent2D swapchainExtent;
+  getExtentWindow(&swapchainExtent, global.pWindow);
 
-  // Create image synchronization primitives
-  VkSemaphore pImageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
-  new_Semaphores(pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT, device);
-  VkSemaphore pRenderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
-  new_Semaphores(pRenderFinishedSemaphores, MAX_FRAMES_IN_FLIGHT, device);
-  VkFence pInFlightFences[MAX_FRAMES_IN_FLIGHT];
-  new_Fences(pInFlightFences, MAX_FRAMES_IN_FLIGHT, device,
-             true); // fences start off signaled
+  // create window graphics
+  AppGraphicsWindowState window;
+  new_AppGraphicsWindowState(&window, &global, swapchainExtent);
 
   // create camera
   vec3 loc = {0.0f, 0.0f, 0.0f};
   Camera camera = new_Camera(loc, swapchainExtent);
 
-  // this number counts which frame we're on
-  // up to MAX_FRAMES_IN_FLIGHT, at whcich points it resets to 0
-  uint32_t currentFrame = 0;
-
   /*wait till close*/
-  while (!glfwWindowShouldClose(pWindow)) {
-    glfwPollEvents();
-
-    // wait for last frame to finish
-    waitAndResetFence(pInFlightFences[currentFrame], device);
-
-    // the imageIndex is the index of the swapchain framebuffer that is
-    // available next
-    uint32_t imageIndex;
-    // this function will return immediately,
-    //  so we use the semaphore to tell us when the image is actually available,
-    //  (ready for rendering to)
-    ErrVal result =
-        getNextSwapchainImage(&imageIndex, swapchain, device,
-                              pImageAvailableSemaphores[currentFrame]);
-
-    // if the window is resized
-    if (result == ERR_OUTOFDATE) {
-      vkDeviceWaitIdle(device);
-
-      delete_SwapchainFramebuffers(pSwapchainFramebuffers, swapchainImageCount,
-                                   device);
-      free(pSwapchainFramebuffers);
-      delete_Pipeline(&graphicsPipeline, device);
-      delete_PipelineLayout(&graphicsPipelineLayout, device);
-      delete_RenderPass(&renderPass, device);
-      delete_SwapchainImageViews(pSwapchainImageViews, swapchainImageCount,
-                                 device);
-      free(pSwapchainImageViews);
-      free(pSwapchainImages);
-      delete_Swapchain(&swapchain, device);
-
-      // delete depth buffer
-      delete_ImageView(&depthImageView, device);
-      delete_Image(&depthImage, device);
-      delete_DeviceMemory(&depthImageMemory, device);
-
-      // get new window size
-      getExtentWindow(&swapchainExtent, pWindow);
-      resizeCamera(&camera, swapchainExtent);
-
-      /* recreate swap chain */
-      new_Swapchain(&swapchain, &swapchainImageCount, swapchain, surfaceFormat,
-                    physicalDevice, device, surface, swapchainExtent,
-                    graphicsIndex, presentIndex);
-
-      pSwapchainImages = malloc(swapchainImageCount * sizeof(VkImage));
-      getSwapchainImages(pSwapchainImages, swapchainImageCount, device,
-                         swapchain);
-
-      pSwapchainImageViews = malloc(swapchainImageCount * sizeof(VkImageView));
-      new_SwapchainImageViews(pSwapchainImageViews, pSwapchainImages,
-                              swapchainImageCount, device,
-                              surfaceFormat.format);
-
-      // Create depth image
-      new_DepthImage(&depthImage, &depthImageMemory, swapchainExtent,
-                     physicalDevice, device);
-      new_DepthImageView(&depthImageView, device, depthImage);
-
-      /* Create graphics pipeline */
-      new_VertexDisplayRenderPass(&renderPass, device, surfaceFormat.format);
-      new_VertexDisplayPipelineLayout(&graphicsPipelineLayout, device);
-      new_VertexDisplayPipeline(&graphicsPipeline, device, vertShaderModule,
-                                fragShaderModule, swapchainExtent, renderPass,
-                                graphicsPipelineLayout);
-      pSwapchainFramebuffers =
-          malloc(swapchainImageCount * sizeof(VkFramebuffer));
-      new_SwapchainFramebuffers(pSwapchainFramebuffers, device, renderPass,
-                                swapchainExtent, swapchainImageCount,
-                                depthImageView, pSwapchainImageViews);
-
-      // finally we can retry getting the swapchain
-      getNextSwapchainImage(&imageIndex, swapchain, device,
-                            pImageAvailableSemaphores[currentFrame]);
-    }
-
-    // update camera
-    updateCamera(&camera, pWindow);
-    mat4x4 mvp;
-    getMvpCamera(mvp, &camera);
-
-    // record buffer
-    recordVertexDisplayCommandBuffer(                //
-        pVertexDisplayCommandBuffers[currentFrame],  //
-        pSwapchainFramebuffers[imageIndex],          //
-        vertexBuffer,                                //
-        vertexCount,                                 //
-        renderPass,                                  //
-        graphicsPipelineLayout,                      //
-        graphicsPipeline,                            //
-        swapchainExtent,                             //
-        mvp,                                         //
-        (VkClearColorValue){.float32 = {0, 0, 0, 0}} //
-    );
-
-    drawFrame(                                      //
-        pVertexDisplayCommandBuffers[currentFrame], //
-        swapchain,                                  //
-        imageIndex,                                 //
-        pImageAvailableSemaphores[currentFrame],    //
-        pRenderFinishedSemaphores[currentFrame],    //
-        pInFlightFences[currentFrame],              //
-        graphicsQueue,                              //
-        presentQueue                                //
-    );
-
-    // increment frame
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+  while (!glfwWindowShouldClose(global.pWindow)) {
+    drawAppFrame(&window, &global, &camera, vertexCount, vertexBuffer);
   }
 
-  /*cleanup*/
-  vkDeviceWaitIdle(device);
-  delete_ShaderModule(&fragShaderModule, device);
-  delete_ShaderModule(&vertShaderModule, device);
+  // delete our buffer
+  delete_Buffer(&vertexBuffer, global.device);
+  delete_DeviceMemory(&vertexBufferMemory, global.device);
 
-  delete_Fences(pInFlightFences, MAX_FRAMES_IN_FLIGHT, device);
-  delete_Semaphores(pRenderFinishedSemaphores, MAX_FRAMES_IN_FLIGHT, device);
-  delete_Semaphores(pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT, device);
+  // delete graphics resources
+  delete_AppGraphicsWindowState(&window, &global);
+  delete_GraphicsGlobalState(&global);
 
-  delete_CommandBuffers(pVertexDisplayCommandBuffers, MAX_FRAMES_IN_FLIGHT,
-                        commandPool, device);
-  delete_CommandPool(&commandPool, device);
-
-  delete_SwapchainFramebuffers(pSwapchainFramebuffers, swapchainImageCount,
-                               device);
-  free(pSwapchainFramebuffers);
-  delete_Pipeline(&graphicsPipeline, device);
-  delete_PipelineLayout(&graphicsPipelineLayout, device);
-  delete_Buffer(&vertexBuffer, device);
-  delete_DeviceMemory(&vertexBufferMemory, device);
-  delete_RenderPass(&renderPass, device);
-  delete_SwapchainImageViews(pSwapchainImageViews, swapchainImageCount, device);
-  free(pSwapchainImageViews);
-  free(pSwapchainImages);
-  delete_Swapchain(&swapchain, device);
-  delete_ImageView(&depthImageView, device);
-  delete_Image(&depthImage, device);
-  delete_DeviceMemory(&depthImageMemory, device);
-  delete_Device(&device);
-  delete_Surface(&surface, instance);
-  delete_DebugCallback(&callback, instance);
-  delete_Instance(&instance);
-
-  glfwTerminate();
   return (EXIT_SUCCESS);
 }

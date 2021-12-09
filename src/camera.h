@@ -33,4 +33,4 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions);
 void updateCamera(Camera *camera, GLFWwindow *pWindow);
 void getMvpCamera(mat4x4 mvp, const Camera *camera);
 
-#endif // SRC_CAMERA_H_
+#endif // SRC_CAMERA_H_h
