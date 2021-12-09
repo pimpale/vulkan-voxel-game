@@ -21,7 +21,8 @@ static CameraBasis new_CameraBasis(const float pitch, const float yaw) {
   return cb;
 }
 
-static void calculate_projection_matrix(mat4x4 projection_matrix, const VkExtent2D dimensions) {
+static void calculate_projection_matrix(mat4x4 projection_matrix,
+                                        const VkExtent2D dimensions) {
   float fov = RADIANS(90.0f);
   float aspect_ratio = (float)dimensions.width / (float)dimensions.height;
 
@@ -40,6 +41,8 @@ Camera new_Camera(const vec3 loc, const VkExtent2D dimensions) {
   // set near and far to 0.01 and 100.0 respectively
   calculate_projection_matrix(cam.projection, dimensions);
 
+  cam.fast = false;
+
   return cam;
 }
 
@@ -48,38 +51,41 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
 }
 
 void updateCamera(Camera *camera, GLFWwindow *pWindow) {
-  float movscale = 0.01f;
+  float movscale = camera->fast ? 0.1f : 0.01f;
+
+  if (glfwGetKey(pWindow, GLFW_KEY_TAB) == GLFW_PRESS) {
+    camera->fast = !camera->fast;
+  }
 
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.front, -movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
-
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.front, -movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.front, movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.front, movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.right, movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.right, movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.right, -movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.right, -movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
-  if (glfwGetKey(pWindow, GLFW_KEY_Q) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.up, movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
+  if (glfwGetKey(pWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.up, movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
-  if (glfwGetKey(pWindow, GLFW_KEY_E) == GLFW_PRESS) {
-      vec3 delta_pos;
-      vec3_scale(delta_pos, camera->basis.up, -movscale);
-      vec3_add(camera->pos, camera->pos, delta_pos);
+  if (glfwGetKey(pWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+    vec3 delta_pos;
+    vec3_scale(delta_pos, camera->basis.up, -movscale);
+    vec3_add(camera->pos, camera->pos, delta_pos);
   }
 
   float rotscale = 0.02f;
@@ -88,13 +94,13 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
     camera->pitch += rotscale;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    camera-> pitch -= rotscale;
+    camera->pitch -= rotscale;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
     camera->yaw -= rotscale;
   }
   if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-      camera->yaw += rotscale;
+    camera->yaw += rotscale;
   }
 
   // clamp camera->pitch between 89 degrees
@@ -106,14 +112,14 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
 }
 
 void getMvpCamera(mat4x4 mvp, const Camera *camera) {
-    // the place we're looking at is in the opposite direction as front
-    vec3 look_pos;
-    vec3_sub(look_pos, camera->pos, camera->basis.front);
+  // the place we're looking at is in the opposite direction as front
+  vec3 look_pos;
+  vec3_sub(look_pos, camera->pos, camera->basis.front);
 
-    // calculate the view matrix by looking from our eye to center
-    mat4x4 view;
-    mat4x4_look_at(view, camera->pos, look_pos, worldup);
+  // calculate the view matrix by looking from our eye to center
+  mat4x4 view;
+  mat4x4_look_at(view, camera->pos, look_pos, worldup);
 
-    // now set mvp to proj * view
-    mat4x4_mul(mvp, camera->projection, view);
+  // now set mvp to proj * view
+  mat4x4_mul(mvp, camera->projection, view);
 }

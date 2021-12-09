@@ -357,22 +357,22 @@ int main(void) {
 
   // set up world generation
   WorldState ws;
-  wg_new_WorldState_(&ws, (ivec3){0, 0, 0}, 0);
+  wg_new_WorldState(&ws, (ivec3){0, 0, 0}, 0);
 
   // calc number of vertexes
   uint32_t vertexCount;
   wg_world_count_vertexes(&vertexCount, &ws);
 
-  // no offset
-  vec3 offset;
   Vertex *vertexData = malloc(vertexCount * sizeof(Vertex));
-  wg_world_mesh(vertexData, offset, &ws);
+  wg_world_mesh(vertexData, &ws);
 
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
   new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData, vertexCount,
                    global.device, global.physicalDevice, global.commandPool,
                    global.graphicsQueue);
+
+  free(vertexData);
 
   // Set extent (window width and height)
   VkExtent2D swapchainExtent;
@@ -391,6 +391,9 @@ int main(void) {
     drawAppFrame(&window, &global, &camera, vertexCount, vertexBuffer);
   }
 
+   // wait for finish
+  vkDeviceWaitIdle(global.device);
+
   // delete our buffer
   delete_Buffer(&vertexBuffer, global.device);
   delete_DeviceMemory(&vertexBufferMemory, global.device);
@@ -398,6 +401,9 @@ int main(void) {
   // delete graphics resources
   delete_AppGraphicsWindowState(&window, &global);
   delete_GraphicsGlobalState(&global);
+
+  // delete our world generator
+  wg_delete_WorldState(&ws);
 
   return (EXIT_SUCCESS);
 }

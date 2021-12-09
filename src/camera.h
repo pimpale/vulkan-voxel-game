@@ -1,4 +1,7 @@
 #ifndef SRC_CAMERA_H_
+
+#include <stdbool.h>
+
 #define SRC_CAMERA_H_
 
 #include <vulkan/vulkan.h>
@@ -25,6 +28,8 @@ typedef struct {
   CameraBasis basis;
   // Projection Matrix
   mat4x4 projection;
+  // whether the player is fast
+  bool fast;
 } Camera;
 
 Camera new_Camera(const vec3 pos, const VkExtent2D dimensions);

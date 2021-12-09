@@ -18,8 +18,8 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   ErrSeverity errSeverity = ERR_LEVEL_UNKNOWN;
   switch (messageSeverity) {
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-    errSeverity = ERR_LEVEL_INFO;
-    break;
+    // we don't care
+    return (VK_FALSE);
   case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
     errSeverity = ERR_LEVEL_INFO;
     break;
@@ -1017,11 +1017,11 @@ void delete_Fence(VkFence *pFence, const VkDevice device) {
   *pFence = VK_NULL_HANDLE;
 }
 
-ErrVal new_Fences( //
-    VkFence *pFences,  //
+ErrVal new_Fences(             //
+    VkFence *pFences,          //
     const uint32_t fenceCount, //
-    const VkDevice device, //
-    const bool allSignaled //
+    const VkDevice device,     //
+    const bool allSignaled     //
 ) {
   for (uint32_t i = 0; i < fenceCount; i++) {
     ErrVal retVal = new_Fence(&pFences[i], device, allSignaled);
