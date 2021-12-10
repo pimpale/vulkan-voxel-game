@@ -40,14 +40,21 @@ static void wld_worldChunkCoords_to_blockCoords( //
   ivec3_to_vec3(blockCoords, tmp);
 }
 
-void wld_blockCoord_to_ChunkCoords( //
-    ivec3 chunkCoord,               //
-    const vec3 blockCoord           //
-);
+void wld_blockCoord_to_worldChunkCoords( //
+    ivec3 chunkCoord,                    //
+    const vec3 blockCoord                //
+) {
+  chunkCoord[0] = (int32_t)(blockCoord[0] / CHUNK_X_SIZE);
+  chunkCoord[1] = (int32_t)(blockCoord[1] / CHUNK_Y_SIZE);
+  chunkCoord[2] = (int32_t)(blockCoord[2] / CHUNK_Z_SIZE);
+}
 
 struct Chunk_s {
   uint32_t blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE];
+  // if a chunk has vertexCount == 0 then the Vulkan objects are undefined
   uint32_t vertexCount;
+
+  // these 2 are only defined if vertexCount > 0
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
 };
@@ -259,24 +266,28 @@ static void new_Chunk_internal(            //
   // count chunk vertexes
   blocks_count_vertexes_internal(&c->vertexCount, c->blocks);
 
-  // write mesh to vertex
-  Vertex *vertexData = malloc(c->vertexCount * sizeof(Vertex));
-  blocks_mesh_internal(vertexData, chunkOffset, c->blocks);
+  if (c->vertexCount > 0) {
+    // write mesh to vertex
+    Vertex *vertexData = malloc(c->vertexCount * sizeof(Vertex));
+    blocks_mesh_internal(vertexData, chunkOffset, c->blocks);
 
-  // create vertex buffer + backing memory
-  new_VertexBuffer(&c->vertexBuffer, &c->vertexBufferMemory, vertexData,
-                   c->vertexCount, device, physicalDevice, commandPool,
-                   graphicsQueue);
+    // create vertex buffer + backing memory
+    new_VertexBuffer(&c->vertexBuffer, &c->vertexBufferMemory, vertexData,
+                     c->vertexCount, device, physicalDevice, commandPool,
+                     graphicsQueue);
 
-  free(vertexData);
+    free(vertexData);
+  }
 }
 
 static void delete_Chunk_internal( //
     Chunk *c,                      //
     const VkDevice device          //
 ) {
-  delete_Buffer(&c->vertexBuffer, device);
-  delete_DeviceMemory(&c->vertexBufferMemory, device);
+  if(c->vertexCount > 0) {
+    delete_Buffer(&c->vertexBuffer, device);
+    delete_DeviceMemory(&c->vertexBufferMemory, device);
+  }
 }
 
 void wld_new_WorldState(                   //
@@ -340,39 +351,41 @@ void wld_delete_WorldState(  //
   }
 }
 
-void wld_count_vertexes(          //
-    uint32_t *pVertexCount,       //
+void wld_count_vertexBuffers(     //
+    uint32_t *pVertexBufferCount, //
     const WorldState *pWorldState //
 ) {
-  uint32_t sum = 0;
+  uint32_t count = 0;
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        sum += pWorldState->local[x][y][z]->vertexCount;
+        uint32_t vertexCount = pWorldState->local[x][y][z]->vertexCount;
+        if (vertexCount > 0) {
+          count++;
+        }
       }
     }
   }
-  *pVertexCount = sum;
-}
-
-void wld_count_vertexBuffers(            //
-    uint32_t *pVertexBufferCount,        //
-    UNUSED const WorldState *pWorldState //
-) {
-  *pVertexBufferCount =
-      RENDER_DISTANCE_X * RENDER_DISTANCE_Y * RENDER_DISTANCE_Z;
+  *pVertexBufferCount = count;
 }
 
 // these buffers are for reading only! don't delete or modify
 void wld_getVertexBuffers(        //
     VkBuffer *pVertexBuffers,     //
+    uint32_t *pVertexCounts,      //
     const WorldState *pWorldState //
 ) {
   uint32_t i = 0;
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        pVertexBuffers[i++] = pWorldState->local[x][y][z]->vertexBuffer;
+        uint32_t vertexCount = pWorldState->local[x][y][z]->vertexCount;
+        if (vertexCount > 0) {
+          pVertexBuffers[i] = pWorldState->local[x][y][z]->vertexBuffer;
+          pVertexCounts[i] = vertexCount;
+          // increment index
+          i++;
+        }
       }
     }
   }
@@ -501,7 +514,7 @@ void wld_set_center(                       //
   ivec3_dup(pWorldState->centerLoc, centerLoc);
 }
 
-bool wld_centered(                  //
+bool wld_centered(                 //
     const WorldState *pWorldState, //
     const ivec3 blockCoord         //
 ) {

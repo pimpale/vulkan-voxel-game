@@ -56,11 +56,6 @@ void wld_set_center(                       //
 
 );
 
-void wld_count_vertexes(          //
-    uint32_t *pVertexCount,       //
-    const WorldState *pWorldState //
-);
-
 void wld_count_vertexBuffers(     //
     uint32_t *pVertexBufferCount, //
     const WorldState *pWorldState //
@@ -68,12 +63,13 @@ void wld_count_vertexBuffers(     //
 
 void wld_getVertexBuffers(        //
     VkBuffer *pVertexBuffers,     //
+    uint32_t *pVertexCounts,      //
     const WorldState *pWorldState //
 );
 
-void wld_blockCoord_to_worldChunkCoords(   //
-    ivec3 chunkCoord,     //
-    const vec3 blockCoord //
+void wld_blockCoord_to_worldChunkCoords( //
+    ivec3 chunkCoord,                    //
+    const vec3 blockCoord                //
 );
 
 bool wld_centered(                 //

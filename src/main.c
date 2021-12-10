@@ -50,7 +50,7 @@ typedef struct {
   uint32_t currentFrame;
 } AppGraphicsGlobalState;
 
-void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
+static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   glfwInit();
 
   const uint32_t validationLayerCount = 1;
@@ -189,7 +189,7 @@ typedef struct {
 
 // contains the per app state that we don't need to resize
 
-void new_AppGraphicsWindowState(           //
+static void new_AppGraphicsWindowState(    //
     AppGraphicsWindowState *pWindow,       //
     const AppGraphicsGlobalState *pGlobal, //
     const VkExtent2D swapchainExtent       //
@@ -247,8 +247,9 @@ void new_AppGraphicsWindowState(           //
   pWindow->swapchainExtent = swapchainExtent;
 }
 
-void delete_AppGraphicsWindowState(AppGraphicsWindowState *pWindow,
-                                   const AppGraphicsGlobalState *pGlobal) {
+static void
+delete_AppGraphicsWindowState(AppGraphicsWindowState *pWindow,
+                              const AppGraphicsGlobalState *pGlobal) {
   vkDeviceWaitIdle(pGlobal->device);
 
   // delete framebuffers
@@ -312,6 +313,14 @@ static void drawAppFrame(            //
         pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
   }
 
+  uint32_t vertexBufferCount;
+  wld_count_vertexBuffers(&vertexBufferCount, pWs);
+
+  VkBuffer *pVertexBuffers = malloc(vertexBufferCount * sizeof(VkBuffer));
+  uint32_t *pVertexCounts = malloc(vertexBufferCount * sizeof(uint32_t));
+
+  wld_getVertexBuffers(pVertexBuffers, pVertexCounts, pWs);
+
   mat4x4 mvp;
   getMvpCamera(mvp, pCamera);
 
@@ -319,8 +328,9 @@ static void drawAppFrame(            //
   recordVertexDisplayCommandBuffer(                                 //
       pGlobal->pVertexDisplayCommandBuffers[pGlobal->currentFrame], //
       pWindow->pSwapchainFramebuffers[imageIndex],                  //
-      vertexBuffer,                                                 //
-      vertexCount,                                                  //
+      vertexBufferCount,                                            //
+      pVertexBuffers,                                               //
+      pVertexCounts,                                                //
       pGlobal->renderPass,                                          //
       pGlobal->graphicsPipelineLayout,                              //
       pWindow->graphicsPipeline,                                    //
@@ -328,6 +338,9 @@ static void drawAppFrame(            //
       mvp,                                                          //
       (VkClearColorValue){.float32 = {0, 0, 0, 0}}                  //
   );
+
+  free(pVertexBuffers);
+  free(pVertexCounts);
 
   drawFrame(                                                        //
       pGlobal->pVertexDisplayCommandBuffers[pGlobal->currentFrame], //
@@ -373,6 +386,9 @@ int main(void) {
   AppGraphicsWindowState window;
   new_AppGraphicsWindowState(&window, &global, swapchainExtent);
 
+  uint32_t fpsFrameCounter = 0;
+  double fpsStartTime = glfwGetTime();
+
   /*wait till close*/
   while (!glfwWindowShouldClose(global.pWindow)) {
     // glfw check for new events
@@ -383,35 +399,40 @@ int main(void) {
 
     // check camera chunk location,
     ivec3 camChunkCoord;
-    wld_toChunkCoords(camChunkCoord, camera.pos);
+    wld_blockCoord_to_worldChunkCoords(camChunkCoord, camera.pos);
 
     // if we have a new chunk location, set new chunk center
     if (!wld_centered(&ws, camChunkCoord)) {
-      wld_set_center(&ws, camChunkCoord);
-
-      // calc number of vertexes
-      wg_world_count_vertexes(&vertexCount, &ws);
-
-      // create new vertexes
-      vertexData = malloc(vertexCount * sizeof(Vertex));
-      wg_world_mesh(vertexData, &ws);
-
-      // wait to finish rendering
+      // wait for finish
       vkDeviceWaitIdle(global.device);
-      // delete our buffer
-      delete_Buffer(&vertexBuffer, global.device);
-      delete_DeviceMemory(&vertexBufferMemory, global.device);
 
-      // reload
-      new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData,
-                       vertexCount, global.device, global.physicalDevice,
-                       global.commandPool, global.graphicsQueue);
+      double t1 = glfwGetTime();
+      // when we set the center we may end up deleting some vertex buffers
+      // since we'll be going far
+      wld_set_center(            //
+          &ws,                   //
+          camChunkCoord,         //
+          global.device,         //
+          global.physicalDevice, //
+          global.commandPool,    //
+          global.graphicsQueue   //
+      );
+      double t2 = glfwGetTime();
 
-      free(vertexData);
+      LOG_ERROR_ARGS(ERR_LEVEL_INFO, "Set Chunk Center: %f", t2 - t1);
     }
 
     // draw frame
-    drawAppFrame(&window, &global, &camera, vertexCount, vertexBuffer);
+    drawAppFrame(&window, &global, &camera, &ws);
+
+    fpsFrameCounter++;
+    if (fpsFrameCounter >= 100) {
+      double fpsEndTime = glfwGetTime();
+      double fps = fpsFrameCounter / (fpsEndTime - fpsStartTime);
+      LOG_ERROR_ARGS(ERR_LEVEL_INFO, "fps: %f", fps);
+      fpsFrameCounter = 0;
+      fpsStartTime = fpsEndTime;
+    }
   }
 
   // wait for finish

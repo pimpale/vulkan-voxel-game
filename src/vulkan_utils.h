@@ -14,7 +14,6 @@
 
 #include <vulkan/vulkan.h>
 
-
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -393,7 +392,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
     const VkFramebuffer swapchainFramebuffer,           //
     const uint32_t vertexBufferCount,                   //
     const VkBuffer *pVertexBuffers,                     //
-    const uint32_t vertexCount,                         //
+    const uint32_t *pVertexCounts,                      //
     const VkRenderPass renderPass,                      //
     const VkPipelineLayout vertexDisplayPipelineLayout, //
     const VkPipeline vertexDisplayPipeline,             //
@@ -418,12 +417,8 @@ void delete_Fence(VkFence *pFence, const VkDevice device);
 
 ErrVal waitAndResetFence(VkFence fence, const VkDevice device);
 
-ErrVal new_Fences(
-    VkFence *pFences, 
-    const uint32_t fenceCount,
-    const VkDevice device,
-    const bool allSignaled
-);
+ErrVal new_Fences(VkFence *pFences, const uint32_t fenceCount,
+                  const VkDevice device, const bool allSignaled);
 
 void delete_Fences(VkFence *pFences, const uint32_t fenceCount,
                    const VkDevice device);

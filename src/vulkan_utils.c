@@ -900,7 +900,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
     const VkFramebuffer swapchainFramebuffer,           //
     const uint32_t vertexBufferCount,                   //
     const VkBuffer *pVertexBuffers,                     //
-    const uint32_t vertexCount,                         //
+    const uint32_t *pVertexCounts,                         //
     const VkRenderPass renderPass,                      //
     const VkPipelineLayout vertexDisplayPipelineLayout, //
     const VkPipeline vertexDisplayPipeline,             //
@@ -948,8 +948,8 @@ ErrVal recordVertexDisplayCommandBuffer(                //
   for(uint32_t i = 0; i < vertexBufferCount; i++) {
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &pVertexBuffers[i], offsets);
+    vkCmdDraw(commandBuffer, pVertexCounts[i], 1, 0, 0);
   }
-  vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
   vkCmdEndRenderPass(commandBuffer);
 
   VkResult endCommandBufferRetVal = vkEndCommandBuffer(commandBuffer);
