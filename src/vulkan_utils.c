@@ -898,7 +898,8 @@ void delete_CommandPool(VkCommandPool *pCommandPool, const VkDevice device) {
 ErrVal recordVertexDisplayCommandBuffer(                //
     VkCommandBuffer commandBuffer,                      //
     const VkFramebuffer swapchainFramebuffer,           //
-    const VkBuffer vertexBuffer,                        //
+    const uint32_t vertexBufferCount,                   //
+    const VkBuffer *pVertexBuffers,                     //
     const uint32_t vertexCount,                         //
     const VkRenderPass renderPass,                      //
     const VkPipelineLayout vertexDisplayPipelineLayout, //
@@ -943,10 +944,11 @@ ErrVal recordVertexDisplayCommandBuffer(                //
                      VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4x4),
                      cameraTransform);
 
-  VkBuffer vertexBuffers[] = {vertexBuffer};
-  VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
+  // bind all vertex buffers, assume offsets are zero
+  for(uint32_t i = 0; i < vertexBufferCount; i++) {
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &pVertexBuffers[i], offsets);
+  }
   vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
   vkCmdEndRenderPass(commandBuffer);
 
@@ -1217,9 +1219,9 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
 
   if (stagingBufferCreateResult != ERR_OK) {
     LOG_ERROR(
-        ERR_LEVEL_ERROR,
+        ERR_LEVEL_FATAL,
         "failed to create vertex buffer: failed to create staging buffer");
-    return (stagingBufferCreateResult);
+    PANIC();
   }
 
   /* Copy data to staging buffer, making sure to clean up leaks */
@@ -1427,10 +1429,10 @@ ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
 
   /* On failure */
   if (mapMemoryResult != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR,
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
                    "failed to copy to device memory: failed to map memory: %s",
                    vkstrerror(mapMemoryResult));
-    return (ERR_MEMORY);
+    PANIC();
   }
 
   /* If it was successful, go on and actually copy it, making sure to unmap once

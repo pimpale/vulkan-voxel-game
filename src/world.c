@@ -1,46 +1,96 @@
-#include "worldgen.h"
 #include <math.h>
 #include <stdlib.h>
 
-static void chunk_count_vertexes( //
-    uint32_t *pVertexCount,       //
-    const Chunk *c                //
+#include "block.h"
+#include "world.h"
+
+// gets the world chunk coordinate given from the centerLoc and the local array
+// position (ax, ay, az)
+static void arrayCoords_to_worldChunkCoords( //
+    ivec3 dest,                              //
+    const ivec3 centerLoc,                   //
+    uint32_t ax,                             // array x
+    uint32_t ay,                             // array y
+    uint32_t az                              // array z
+) {
+  ivec3 localOffset = {(int32_t)ax - RENDER_DISTANCE_X / 2,
+                       (int32_t)ay - RENDER_DISTANCE_Y / 2,
+                       (int32_t)az - RENDER_DISTANCE_Z / 2};
+
+  ivec3_add(dest, centerLoc, localOffset);
+}
+
+// converts from world chunk coordinates to global block coordinates
+static void wld_worldChunkCoords_to_iBlockCoords( //
+    ivec3 iBlockCoords,                           //
+    const ivec3 worldChunkCoords                  //
+) {
+  iBlockCoords[0] = worldChunkCoords[0] * CHUNK_X_SIZE;
+  iBlockCoords[1] = worldChunkCoords[1] * CHUNK_Y_SIZE;
+  iBlockCoords[2] = worldChunkCoords[2] * CHUNK_Z_SIZE;
+}
+
+// converts from world chunk coordinates to global block coordinates
+static void wld_worldChunkCoords_to_blockCoords( //
+    vec3 blockCoords,                            //
+    const ivec3 worldChunkCoords                 //
+) {
+  ivec3 tmp;
+  wld_worldChunkCoords_to_iBlockCoords(tmp, worldChunkCoords);
+  ivec3_to_vec3(blockCoords, tmp);
+}
+
+void wld_blockCoord_to_ChunkCoords( //
+    ivec3 chunkCoord,               //
+    const vec3 blockCoord           //
+);
+
+struct Chunk_s {
+  uint32_t blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE];
+  uint32_t vertexCount;
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
+};
+
+static void blocks_count_vertexes_internal(                         //
+    uint32_t *pVertexCount,                                         //
+    const uint32_t blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE] //
 ) {
   // first look through all blocks and count how many opaque we have
   uint32_t faceCount = 0;
 
-  for (uint32_t x = 0; x < CHUNK_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_SIZE; z++) {
+  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
+    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
+      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
         // check that its not transparent
-        if (c->blocks[x][y][z].transparent) {
+        if (BLOCKS[blocks[x][y][z]].transparent) {
           continue;
         }
 
         // left face
-        if (x == 0 || c->blocks[x - 1][y][z].transparent) {
+        if (x == 0 || BLOCKS[blocks[x - 1][y][z]].transparent) {
           faceCount++;
         }
         // right face
-        if (x == CHUNK_SIZE - 1 || c->blocks[x + 1][y][z].transparent) {
+        if (x == CHUNK_X_SIZE - 1 || BLOCKS[blocks[x + 1][y][z]].transparent) {
           faceCount++;
         }
 
         // upper face
-        if (y == 0 || c->blocks[x][y - 1][z].transparent) {
+        if (y == 0 || BLOCKS[blocks[x][y - 1][z]].transparent) {
           faceCount++;
         }
         // lower face
-        if (y == CHUNK_SIZE - 1 || c->blocks[x][y + 1][z].transparent) {
+        if (y == CHUNK_Y_SIZE - 1 || BLOCKS[blocks[x][y + 1][z]].transparent) {
           faceCount++;
         }
 
         // front face
-        if (z == 0 || c->blocks[x][y][z - 1].transparent) {
+        if (z == 0 || BLOCKS[blocks[x][y][z - 1]].transparent) {
           faceCount++;
         }
         // back face
-        if (z == CHUNK_SIZE - 1 || c->blocks[x][y][z + 1].transparent) {
+        if (z == CHUNK_Z_SIZE - 1 || BLOCKS[blocks[x][y][z + 1]].transparent) {
           faceCount++;
         }
       }
@@ -52,17 +102,17 @@ static void chunk_count_vertexes( //
 }
 
 // returns the number of vertexes written
-static uint32_t chunk_mesh( //
-    Vertex *pVertexes,      //
-    const vec3 offset,      //
-    const Chunk *c          //
+static uint32_t blocks_mesh_internal(                               //
+    Vertex *pVertexes,                                              //
+    const vec3 offset,                                              //
+    const uint32_t blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE] //
 ) {
   uint32_t i = 0;
-  for (uint32_t x = 0; x < CHUNK_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_SIZE; z++) {
+  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
+    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
+      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
         // check that its not transparent
-        if (c->blocks[x][y][z].transparent) {
+        if (BLOCKS[blocks[x][y][z]].transparent) {
           continue;
         }
 
@@ -109,7 +159,7 @@ static uint32_t chunk_mesh( //
         };
 
         // left face
-        if (x == 0 || c->blocks[x - 1][y][z].transparent) {
+        if (x == 0 || BLOCKS[blocks[x - 1][y][z]].transparent) {
           pVertexes[i++] = lbu;
           pVertexes[i++] = lfu;
           pVertexes[i++] = lbl;
@@ -118,7 +168,7 @@ static uint32_t chunk_mesh( //
           pVertexes[i++] = lfu;
         }
         // right face
-        if (x == CHUNK_SIZE - 1 || c->blocks[x + 1][y][z].transparent) {
+        if (x == CHUNK_X_SIZE - 1 || BLOCKS[blocks[x + 1][y][z]].transparent) {
           pVertexes[i++] = rbu;
           pVertexes[i++] = rfu;
           pVertexes[i++] = rbl;
@@ -128,7 +178,7 @@ static uint32_t chunk_mesh( //
         }
 
         // upper face
-        if (y == 0 || c->blocks[x][y - 1][z].transparent) {
+        if (y == 0 || BLOCKS[blocks[x][y - 1][z]].transparent) {
           pVertexes[i++] = lbu;
           pVertexes[i++] = rbu;
           pVertexes[i++] = lfu;
@@ -137,7 +187,7 @@ static uint32_t chunk_mesh( //
           pVertexes[i++] = rbu;
         }
         // lower face
-        if (y == CHUNK_SIZE - 1 || c->blocks[x][y + 1][z].transparent) {
+        if (y == CHUNK_Y_SIZE - 1 || BLOCKS[blocks[x][y + 1][z]].transparent) {
           pVertexes[i++] = lbl;
           pVertexes[i++] = rbl;
           pVertexes[i++] = lfl;
@@ -147,7 +197,7 @@ static uint32_t chunk_mesh( //
         }
 
         // back face
-        if (z == 0 || c->blocks[x][y][z - 1].transparent) {
+        if (z == 0 || BLOCKS[blocks[x][y][z - 1]].transparent) {
           pVertexes[i++] = lbu;
           pVertexes[i++] = rbu;
           pVertexes[i++] = lbl;
@@ -157,7 +207,7 @@ static uint32_t chunk_mesh( //
         }
 
         // front face
-        if (z == CHUNK_SIZE - 1 || c->blocks[x][y][z + 1].transparent) {
+        if (z == CHUNK_Z_SIZE - 1 || BLOCKS[blocks[x][y][z + 1]].transparent) {
           pVertexes[i++] = lfu;
           pVertexes[i++] = rfu;
           pVertexes[i++] = lfl;
@@ -171,50 +221,72 @@ static uint32_t chunk_mesh( //
   return i;
 }
 
-static void worldgen_chunk(Chunk *c, const struct osn_context *noiseCtx,
-                           ivec3 chunkOffset) {
+static void new_Chunk_internal(            //
+    Chunk *c,                              //
+    const struct osn_context *noiseCtx,    //
+    ivec3 worldChunkCoords,                //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool commandPool,       //
+    const VkQueue graphicsQueue            //
+) {
+  // convert into worldspace measured in blocks
+  vec3 chunkOffset;
+  wld_worldChunkCoords_to_blockCoords(chunkOffset, worldChunkCoords);
+
+  // generate chunk data
   double scale = 20.0;
-  for (int32_t x = 0; x < CHUNK_SIZE; x++) {
-    for (int32_t y = 0; y < CHUNK_SIZE; y++) {
-      for (int32_t z = 0; z < CHUNK_SIZE; z++) {
+  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
+    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
+      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
         // calculate world coordinates in blocks
-        int32_t wx = x + CHUNK_SIZE * chunkOffset[0];
-        int32_t wy = y + CHUNK_SIZE * chunkOffset[1];
-        int32_t wz = z + CHUNK_SIZE * chunkOffset[2];
+        double wx = x + (double)chunkOffset[0];
+        double wy = y + (double)chunkOffset[1];
+        double wz = z + (double)chunkOffset[2];
 
         double val =
             open_simplex_noise3(noiseCtx, wx / scale, wy / scale, wz / scale);
 
         if (val > 0.0) {
-          c->blocks[x][y][z] = (Block){.transparent = false};
+          c->blocks[x][y][z] = 1; // soil
         } else {
-          c->blocks[x][y][z] = (Block){.transparent = true};
+          c->blocks[x][y][z] = 0; // air
         }
       }
     }
   }
+
+  // count chunk vertexes
+  blocks_count_vertexes_internal(&c->vertexCount, c->blocks);
+
+  // write mesh to vertex
+  Vertex *vertexData = malloc(c->vertexCount * sizeof(Vertex));
+  blocks_mesh_internal(vertexData, chunkOffset, c->blocks);
+
+  // create vertex buffer + backing memory
+  new_VertexBuffer(&c->vertexBuffer, &c->vertexBufferMemory, vertexData,
+                   c->vertexCount, device, physicalDevice, commandPool,
+                   graphicsQueue);
+
+  free(vertexData);
 }
 
-// gets the chunk coordinate given from the centerLoc and the local array
-// position (ax, ay, az)
-static void getChunkCoordinate( //
-    ivec3 dest,                 //
-    const ivec3 centerLoc,      //
-    uint32_t ax,                // array x
-    uint32_t ay,                // array y
-    uint32_t az                 // array z
+static void delete_Chunk_internal( //
+    Chunk *c,                      //
+    const VkDevice device          //
 ) {
-  ivec3 localOffset = {(int32_t)ax - RENDER_DISTANCE_X / 2,
-                       (int32_t)ay - RENDER_DISTANCE_Y / 2,
-                       (int32_t)az - RENDER_DISTANCE_Z / 2};
-
-  ivec3_add(dest, centerLoc, localOffset);
+  delete_Buffer(&c->vertexBuffer, device);
+  delete_DeviceMemory(&c->vertexBufferMemory, device);
 }
 
-void wg_new_WorldState(      //
-    WorldState *pWorldState, //
-    const ivec3 centerLoc,   //
-    const uint32_t seed      //
+void wld_new_WorldState(                   //
+    WorldState *pWorldState,               //
+    const ivec3 centerLoc,                 //
+    const uint32_t seed,                   //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool commandPool,       //
+    const VkQueue graphicsQueue            //
 ) {
   // initialize noise
   open_simplex_noise(seed, &pWorldState->noise1);
@@ -227,32 +299,48 @@ void wg_new_WorldState(      //
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
         // calculate chunk offset
-        ivec3 chunkOffset;
-        getChunkCoordinate(chunkOffset, centerLoc, x, y, z);
+        ivec3 worldChunkCoords;
+        arrayCoords_to_worldChunkCoords(worldChunkCoords, centerLoc, x, y, z);
 
-        // generate and set chunk
+        // allocate and set chunk
         Chunk *pThisChunk = malloc(sizeof(Chunk));
-        worldgen_chunk(pThisChunk, pWorldState->noise1, chunkOffset);
+
+        // create the internal chunk vertex buffer
+        new_Chunk_internal(      //
+            pThisChunk,          //
+            pWorldState->noise1, //
+            worldChunkCoords,    //
+            device,              //
+            physicalDevice,      //
+            commandPool,         //
+            graphicsQueue        //
+        );
+        // set the chunk
         pWorldState->local[x][y][z] = pThisChunk;
       }
     }
   }
 }
 
-void wg_delete_WorldState(  //
-    WorldState *pWorldState //
+void wld_delete_WorldState(  //
+    WorldState *pWorldState, //
+    const VkDevice device    //
 ) {
+  // free simplex noise
   open_simplex_noise_free(pWorldState->noise1);
+  // free chunks
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
+        // delete and free
+        delete_Chunk_internal(pWorldState->local[x][y][z], device);
         free(pWorldState->local[x][y][z]);
       }
     }
   }
 }
 
-void wg_world_count_vertexes(     //
+void wld_count_vertexes(          //
     uint32_t *pVertexCount,       //
     const WorldState *pWorldState //
 ) {
@@ -260,37 +348,31 @@ void wg_world_count_vertexes(     //
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        uint32_t chunkVertexes;
-        chunk_count_vertexes(&chunkVertexes, pWorldState->local[x][y][z]);
-        sum += chunkVertexes;
+        sum += pWorldState->local[x][y][z]->vertexCount;
       }
     }
   }
   *pVertexCount = sum;
 }
 
-void wg_world_mesh(               //
-    Vertex *pVertexes,            //
+void wld_count_vertexBuffers(            //
+    uint32_t *pVertexBufferCount,        //
+    UNUSED const WorldState *pWorldState //
+) {
+  *pVertexBufferCount =
+      RENDER_DISTANCE_X * RENDER_DISTANCE_Y * RENDER_DISTANCE_Z;
+}
+
+// these buffers are for reading only! don't delete or modify
+void wld_getVertexBuffers(        //
+    VkBuffer *pVertexBuffers,     //
     const WorldState *pWorldState //
 ) {
   uint32_t i = 0;
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        // this is the integer chunk offset
-        ivec3 chunkOffset;
-        getChunkCoordinate(chunkOffset, pWorldState->centerLoc, x, y, z);
-
-        // convert into worldspace measured in blocks
-        vec3 chunkOffsetInBlocks;
-        ivec3_to_vec3(chunkOffsetInBlocks, chunkOffset);
-        vec3_scale(chunkOffsetInBlocks, chunkOffsetInBlocks, CHUNK_SIZE);
-
-        uint32_t meshed_vertexes = chunk_mesh(
-            pVertexes + i, chunkOffsetInBlocks, pWorldState->local[x][y][z]);
-
-        // we continue recording into the buffer at this location
-        i += meshed_vertexes;
+        pVertexBuffers[i++] = pWorldState->local[x][y][z]->vertexBuffer;
       }
     }
   }
@@ -312,9 +394,13 @@ static int32_t min(int32_t a, int32_t b) {
   }
 }
 
-void wg_set_center(          //
-    WorldState *pWorldState, //
-    const ivec3 centerLoc    //
+void wld_set_center(                       //
+    WorldState *pWorldState,               //
+    const ivec3 centerLoc,                 //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool commandPool,       //
+    const VkQueue graphicsQueue            //
 ) {
   // copy our source volume to another array to avoid clobbering it
   Chunk *old[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
@@ -334,7 +420,7 @@ void wg_set_center(          //
   // now copy all the chunks we can from old to new
 
   // idea:
-  // 
+  //
   // old: *****
   // new:   *****
   //
@@ -377,6 +463,8 @@ void wg_set_center(          //
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
         Chunk *outOfRangeChunk = old[x][y][z];
         if (outOfRangeChunk != NULL) {
+          // delete and free
+          delete_Chunk_internal(outOfRangeChunk, device);
           free(outOfRangeChunk);
         }
       }
@@ -389,12 +477,21 @@ void wg_set_center(          //
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
         if (pWorldState->local[x][y][z] == NULL) {
           // calculate chunk offset
-          ivec3 chunkOffset;
-          getChunkCoordinate(chunkOffset, centerLoc, x, y, z);
+          ivec3 worldChunkCoords;
+          arrayCoords_to_worldChunkCoords(worldChunkCoords, centerLoc, x, y, z);
 
           // generate and set chunk
           Chunk *pThisChunk = malloc(sizeof(Chunk));
-          worldgen_chunk(pThisChunk, pWorldState->noise1, chunkOffset);
+          new_Chunk_internal(      //
+              pThisChunk,          //
+              pWorldState->noise1, //
+              worldChunkCoords,    //
+              device,              //
+              physicalDevice,      //
+              commandPool,         //
+              graphicsQueue        //
+
+          );
           pWorldState->local[x][y][z] = pThisChunk;
         }
       }
@@ -404,16 +501,7 @@ void wg_set_center(          //
   ivec3_dup(pWorldState->centerLoc, centerLoc);
 }
 
-void wg_toChunkCoords(    //
-    ivec3 chunkCoord,     //
-    const vec3 blockCoord //
-) {
-  vec3 tmp;
-  vec3_scale(tmp, blockCoord, 1.0f / CHUNK_SIZE);
-  vec3_to_ivec3(chunkCoord, tmp);
-}
-
-bool wg_centered(                  //
+bool wld_centered(                  //
     const WorldState *pWorldState, //
     const ivec3 blockCoord         //
 ) {

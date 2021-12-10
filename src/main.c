@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "utils.h"
 #include "vulkan_utils.h"
-#include "worldgen.h"
+#include "world.h"
 
 #include "errors.h"
 
@@ -273,13 +273,11 @@ void delete_AppGraphicsWindowState(AppGraphicsWindowState *pWindow,
   delete_Pipeline(&pWindow->graphicsPipeline, pGlobal->device);
 }
 
-void drawAppFrame(                   //
+static void drawAppFrame(            //
     AppGraphicsWindowState *pWindow, //
     AppGraphicsGlobalState *pGlobal, //
     Camera *pCamera,                 //
-    uint32_t vertexCount,            //
-    VkBuffer vertexBuffer            //
-
+    WorldState *pWs                  //
 ) {
   // wait for last frame to finish
   waitAndResetFence(pGlobal->pInFlightFences[pGlobal->currentFrame],
@@ -353,35 +351,27 @@ int main(void) {
 
   // set up world generation
   WorldState ws;
-  wg_new_WorldState(&ws, (ivec3){0, 0, 0}, 0);
-
-  // calc number of vertexes
-  uint32_t vertexCount;
-  wg_world_count_vertexes(&vertexCount, &ws);
-
-  // no offset
-  Vertex *vertexData = malloc(vertexCount * sizeof(Vertex));
-  wg_world_mesh(vertexData, &ws);
-
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData, vertexCount,
-                   global.device, global.physicalDevice, global.commandPool,
-                   global.graphicsQueue);
-
-  free(vertexData);
+  wld_new_WorldState(        //
+      &ws,                   //
+      (ivec3){0, 0, 0},      //
+      42,                    //
+      global.device,         //
+      global.physicalDevice, //
+      global.commandPool,    //
+      global.graphicsQueue   //
+  );
 
   // Set extent (window width and height)
   VkExtent2D swapchainExtent;
   getExtentWindow(&swapchainExtent, global.pWindow);
 
-  // create window graphics
-  AppGraphicsWindowState window;
-  new_AppGraphicsWindowState(&window, &global, swapchainExtent);
-
   // create camera
   vec3 loc = {0.0f, 0.0f, 0.0f};
   Camera camera = new_Camera(loc, swapchainExtent);
+
+  // create window graphics
+  AppGraphicsWindowState window;
+  new_AppGraphicsWindowState(&window, &global, swapchainExtent);
 
   /*wait till close*/
   while (!glfwWindowShouldClose(global.pWindow)) {
@@ -393,17 +383,11 @@ int main(void) {
 
     // check camera chunk location,
     ivec3 camChunkCoord;
-    wg_toChunkCoords(camChunkCoord, camera.pos);
+    wld_toChunkCoords(camChunkCoord, camera.pos);
 
     // if we have a new chunk location, set new chunk center
-    if (!wg_centered(&ws, camChunkCoord)) {
-      wg_set_center(&ws, camChunkCoord);
-
-      // wait to finish rendering
-      vkDeviceWaitIdle(global.device);
-      // delete our buffer
-      delete_Buffer(&vertexBuffer, global.device);
-      delete_DeviceMemory(&vertexBufferMemory, global.device);
+    if (!wld_centered(&ws, camChunkCoord)) {
+      wld_set_center(&ws, camChunkCoord);
 
       // calc number of vertexes
       wg_world_count_vertexes(&vertexCount, &ws);
@@ -411,6 +395,12 @@ int main(void) {
       // create new vertexes
       vertexData = malloc(vertexCount * sizeof(Vertex));
       wg_world_mesh(vertexData, &ws);
+
+      // wait to finish rendering
+      vkDeviceWaitIdle(global.device);
+      // delete our buffer
+      delete_Buffer(&vertexBuffer, global.device);
+      delete_DeviceMemory(&vertexBufferMemory, global.device);
 
       // reload
       new_VertexBuffer(&vertexBuffer, &vertexBufferMemory, vertexData,
@@ -427,16 +417,12 @@ int main(void) {
   // wait for finish
   vkDeviceWaitIdle(global.device);
 
-  // delete our buffer
-  delete_Buffer(&vertexBuffer, global.device);
-  delete_DeviceMemory(&vertexBufferMemory, global.device);
+  // delete our world generator
+  wld_delete_WorldState(&ws, global.device);
 
   // delete graphics resources
   delete_AppGraphicsWindowState(&window, &global);
   delete_GraphicsGlobalState(&global);
-
-  // delete our world generator
-  wg_delete_WorldState(&ws);
 
   return (EXIT_SUCCESS);
 }

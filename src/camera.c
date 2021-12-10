@@ -27,7 +27,7 @@ static void calculate_projection_matrix(mat4x4 projection_matrix,
   float aspect_ratio = (float)dimensions.width / (float)dimensions.height;
 
   // set near and far to 0.01 and 100.0 respectively
-  mat4x4_perspective(projection_matrix, fov, aspect_ratio, 0.01f, 100.0f);
+  mat4x4_perspective(projection_matrix, fov, aspect_ratio, 0.01f, 1000.0f);
 }
 Camera new_Camera(const vec3 loc, const VkExtent2D dimensions) {
   Camera cam;

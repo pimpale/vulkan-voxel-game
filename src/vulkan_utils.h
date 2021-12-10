@@ -391,7 +391,8 @@ void delete_CommandBuffers(            //
 ErrVal recordVertexDisplayCommandBuffer(                //
     VkCommandBuffer commandBuffer,                      //
     const VkFramebuffer swapchainFramebuffer,           //
-    const VkBuffer vertexBuffer,                        //
+    const uint32_t vertexBufferCount,                   //
+    const VkBuffer *pVertexBuffers,                     //
     const uint32_t vertexCount,                         //
     const VkRenderPass renderPass,                      //
     const VkPipelineLayout vertexDisplayPipelineLayout, //
