@@ -8,7 +8,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define APPNAME "Vulkan Triangle"
+#define APPNAME "BlockRender"
 
 #include "camera.h"
 #include "utils.h"
@@ -132,7 +132,7 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   new_VertexDisplayPipelineLayout(&pGlobal->graphicsPipelineLayout,
                                   pGlobal->device);
 
-  new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers, 2,
+  new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers, MAX_FRAMES_IN_FLIGHT,
                      pGlobal->commandPool, pGlobal->device);
 
   // Create image synchronization primitives

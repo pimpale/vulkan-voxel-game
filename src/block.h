@@ -2,6 +2,7 @@
 #define SRC_BLOCK_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
   bool transparent;
@@ -14,5 +15,7 @@ const static BlockDef BLOCKS[] = {
   (BlockDef) {.transparent=false, .name="soil"},
   (BlockDef) {.transparent=false, .name="stone"},
 };
+
+typedef uint8_t BlockIndex;
 
 #endif // block_h_INCLUDED
