@@ -23,17 +23,8 @@ static void arrayCoords_to_worldChunkCoords( //
   ivec3_add(dest, centerLoc, localOffset);
 }
 
-struct ChunkGeometry_s {
-  // if a chunk has vertexCount == 0 then the Vulkan objects are undefined
-  uint32_t vertexCount;
 
-  // these 2 are only defined if vertexCount > 0
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-};
-
-static void blocks_count_vertexes_internal( //
-    uint32_t *pVertexCount,                 //
+static uint32_t blocks_count_vertexes_internal( //
     const ChunkData *pCd                    //
 ) {
   // first look through all blocks and count how many opaque we have
@@ -81,7 +72,7 @@ static void blocks_count_vertexes_internal( //
   }
 
   // now set answer
-  *pVertexCount = faceCount * 6;
+  return faceCount * 6;
 }
 
 // returns the number of vertexes written
@@ -247,7 +238,7 @@ static void new_ChunkGeometry_internal(    //
   double t1 = glfwGetTime();
 
   // count chunk vertexes
-  blocks_count_vertexes_internal(&c->vertexCount, pCd);
+  c->vertexCount = blocks_count_vertexes_internal(pCd);
 
   if (c->vertexCount > 0) {
     // write mesh to vertex
@@ -280,6 +271,10 @@ static void delete_ChunkGeometry_internal( //
     delete_DeviceMemory(&c->vertexBufferMemory, device);
   }
 }
+
+static void worker_gen_chunk(
+    volatile Chunk* c,
+    
 
 // runs synchronously
 static void wld_new_ThreadOwnedData(      //
@@ -365,6 +360,9 @@ static void wld_delete_ThreadOwnedData( //
   }
 }
 
+
+
+
 void wld_new_WorldState(                  //
     WorldState *pWorldState,              //
     const ivec3 centerLoc,                //
@@ -373,6 +371,9 @@ void wld_new_WorldState(                  //
     const VkDevice device,                //
     const VkPhysicalDevice physicalDevice //
 ) {
+  // set center location
+  ivec3_dup(pWorldState->centerLoc, centerLoc);
+
 
   // new thread owned data
   wld_new_ThreadOwnedData( //
@@ -384,11 +385,14 @@ void wld_new_WorldState(                  //
       physicalDevice       //
   );
 
-  pthread_create(&pWorldState->, NULL, printNumber, &arg);
 
-  // set center location
-  ivec3_dup(pWorldState->centerLoc, centerLoc);
+
+  // start the world thread working in the background
+  pthread_create(pWorldState->thread, NULL, thread_opener, &pWorldState->tod);
+
 }
+
+
 
 void wld_delete_WorldState(  //
     WorldState *pWorldState, //
@@ -463,6 +467,15 @@ static int32_t min(int32_t a, int32_t b) {
     return b;
   }
 }
+
+// this data is owned by the thread
+typedef struct {
+  // these are owned, we have to delete them
+  VkQueue graphicsQueue;
+  VkCommandPool commandPool;
+} wld_ThreadOwnedData;
+
+
 
 void wld_set_center(                       //
     WorldState *pWorldState,               //

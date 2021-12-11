@@ -9,10 +9,10 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 INC_DIRS := vendor
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-LDFLAGS := -lm -lvulkan -lglfw
+LDFLAGS := -lm -lvulkan -lglfw -lpthreads
 
 CC := clang
-CFLAGS ?= $(INC_FLAGS) -std=c11 -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum
+CFLAGS ?= $(INC_FLAGS) -std=gnu2x -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum
 
 #CC := clang
 #CFLAGS ?= $(INC_FLAGS) $(LDFLAGS) -std=c11 --analyze -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum 

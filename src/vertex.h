@@ -3,6 +3,7 @@
 
 #include <linmath.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct {
   vec3 position;
@@ -84,6 +85,10 @@ static inline void vec3_to_ivec3(ivec3 d, const vec3 a) {
   d[0] = (int32_t)a[0];
   d[1] = (int32_t)a[1];
   d[2] = (int32_t)a[2];
+}
+
+static inline bool ivec3_eq(const ivec3 a, const ivec3 b) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 }
 
 #endif

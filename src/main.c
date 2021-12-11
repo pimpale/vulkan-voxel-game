@@ -399,10 +399,10 @@ int main(void) {
 
     // check camera chunk location,
     ivec3 camChunkCoord;
-    wld_blockCoord_to_worldChunkCoords(camChunkCoord, camera.pos);
+    blockCoord_to_worldChunkCoords(camChunkCoord, camera.pos);
 
     // if we have a new chunk location, set new chunk center
-    if (!wld_centered(&ws, camChunkCoord)) {
+    if (!ivec3_eq(ws.centerLoc, camChunkCoord)) {
       // wait for finish
       vkDeviceWaitIdle(global.device);
 

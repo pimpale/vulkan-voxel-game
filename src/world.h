@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <threadpool.h>
 
 #include <open-simplex-noise.h>
-#include <rpa_queue.h>
 
 #include "vulkan_utils.h"
 
@@ -17,34 +17,70 @@
 #define RENDER_DISTANCE_Y 5
 #define RENDER_DISTANCE_Z 5
 
-typedef struct ChunkGeometry_s ChunkGeometry;
+// How many threads to render with
+#define RENDER_THREADS 5
 
-// this data is owned by the thread
+// idea
+// use a threadpool (stored in the main thread)
+// for chunks to be deleted, get rid of them immediately, 
+// unless they are state PINNED, in which case put the buffers and memory in the pinned stack
+// unless they are state RENDERING, in which case, put them in the pinnned buffer
+// for each new chunk to add, immediately start the task working on it.
+// The task will have a pointer to our chunk, which it will update
+// once it is done, the task will return a malloced pointer containing the new data
+
+// if we get asecond update to the chunk
+
+// when we call wld_doGeometryUpdates_async
+// First, get rid of all the stuff in the pinned bufferm we don't need it anymore
+// iterate through our chunk array and copy paste all of vertex buffers and count from chunks in state READY, to the vertex buffer count and the vertex buffer cache in main thread
+// change those states to PINNED
+
+// when we get normal requests, just hand over data from the cache arrays
+
+
+typedef enum {
+    // the blocks need to be generated
+    wld_cs_NEEDS_GENERATE,
+    // the world generation process is going asynchronously,
+    wld_cs_GENERATING,
+    // the world generation or block update is done, and the chunk is empty
+    wld_cs_EMPTY,
+    // the world generation finished, or we just updated the block manually
+    wld_cs_NEEDS_RENDER,
+    // the chunk is rendering asynchronously
+    wld_cs_RENDERING,
+    // the chunk is finished rendering and is read to display
+    wld_cs_READY,
+    // the chunk is in use in the world
+    wld_cs_PINNED
+} wld_ChunkState ;
+
+
 typedef struct {
-  // Chunkspace coordinates
-  ivec3 centerLoc;
+  uint32_t vertexCount;
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
+} ChunkGeometry;
 
-  // noise used to generate more chunks
-  struct osn_context *noise1;
 
-  // these are borrowed, not owned, 
-  // so make sure you delete world state before deleting these
-  VkDevice device;
-  VkPhysicalDevice physicalDevice;
+typedef struct {
+  // this variable will only be changed from the worker thread
+  volatile wld_ChunkState state;
 
-  // these are owned, we have to delete them
-  VkQueue graphicsQueue;
-  VkCommandPool commandPool;
+  // this variable will only be changed form the worker thread
+  volatile bool working;
 
-  // the RENDER_DISTANCE_X/2, RENDER_DISTANCE_Y/2, RENDER_DISTANCE_Z/2'th block
-  // is our centerLoc
-  ChunkData *blocks[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
+  // this variable will only be changed from the main thread
+  // it tells the thread to quit working, the chunk has stopped being rendered
+  volatile bool chunk_dead;
 
-  // dont access without locking the mutex
-  pthread_mutex_t geometry_mutex;
-  ChunkGeometry *geometry[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
+  // block data
+  ChunkData chunkData;
 
-} wld_ThreadOwnedData;
+  // mesh data
+  ChunkGeometry geometry;
+} Chunk;
 
 /// wld_WorldState
 /// ---------------------
@@ -61,18 +97,35 @@ typedef struct {
   // data in this struct is in general owned by the main thread
   // this means it shouldn't be touched by functions operating in the world thread
 
+  // Chunkspace coordinates
+  ivec3 centerLoc;
+
+  // noise used to generate more chunks
+  struct osn_context *noise1;
+
+  // these are borrowed, not owned, 
+  // so make sure you delete world state before deleting these
+  VkDevice device;
+  VkPhysicalDevice physicalDevice;
+
+  //   
+  Chunk *data[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
+
   // thread owned data, don't touch directly
   wld_ThreadOwnedData tod;
 
-  // both threads can access this queue
-  // its meant for sending data from main to world thread
-  rpa_queue_t* toThread;
+  pthread_t* thread;
 
-  // cached chunk geometry
-  ChunkGeometry *cachedGeometry[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
+  // vector of pinned chunk geometries (these are chunks that are being used by the main thread)
+  size_t pinned_capacity;
+  size_t pinned_len;
+  ChunkGeometry** pinned_vec;
 
-  // Chunkspace coordinates
-  ivec3 centerLoc;
+  // vector of dead chunk geometries (this is used for chunks that are now obsolete, but the main thread might still be using)
+  size_t deadchunk_capacity;
+  size_t deadchunk_len;
+  ChunkGeometry** deadchunk_vec;
+
 } WorldState;
 
 /// Synchronously creates a new worldState and awaits setting the center
@@ -109,7 +162,7 @@ bool wld_set_center_async(         //
 /// This method allows our background work to be brought into the foreground.
 /// Remember to call it before 
 /// First, ensure t
-bool wld_showGeometryUpdates_async(     //
+bool wld_doGeometryUpdates_async(     //
     uint32_t *pVertexBufferCount, //
     const WorldState *pWorldState //
 );
