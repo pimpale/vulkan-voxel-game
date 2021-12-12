@@ -69,7 +69,7 @@ typedef enum {
  * @param flags        Unused parameter.
  * @return a newly created thread pool or NULL
  */
-threadpool_t *threadpool_create(uint32_t thread_count, uint32_t  queue_size, int flags);
+threadpool_t *threadpool_create(uint32_t thread_count, uint32_t  queue_size, uint32_t flags);
 
 /**
  * @function threadpool_add
@@ -81,8 +81,8 @@ threadpool_t *threadpool_create(uint32_t thread_count, uint32_t  queue_size, int
  * @return 0 if all goes well, negative values in case of error (@see
  * threadpool_error_t for codes).
  */
-int threadpool_add(threadpool_t *pool, void (*function)(void *),
-                   void *argument, int flags);
+threadpool_error_t threadpool_add(threadpool_t *pool, void (*function)(uint32_t, void *),
+                   void *argument, uint32_t flags);
 
 /**
  * @function threadpool_destroy
@@ -94,7 +94,7 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
  * which case the thread pool doesn't accept any new tasks but
  * processes all pending tasks before shutdown.
  */
-int threadpool_destroy(threadpool_t *pool, int flags);
+threadpool_error_t threadpool_destroy(threadpool_t *pool, uint32_t flags);
 
 #ifdef __cplusplus
 }

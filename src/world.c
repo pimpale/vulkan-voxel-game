@@ -1,11 +1,10 @@
 #include <math.h>
 #include <pthread.h>
+#include <assert.h>
 #include <stdlib.h>
 
 #include "block.h"
 #include "world.h"
-
-#define QUEUE_LEN 50
 
 // gets the world chunk coordinate given from the centerLoc and the local array
 // position (ax, ay, az)
@@ -23,9 +22,8 @@ static void arrayCoords_to_worldChunkCoords( //
   ivec3_add(dest, centerLoc, localOffset);
 }
 
-
 static uint32_t blocks_count_vertexes_internal( //
-    const ChunkData *pCd                    //
+    const ChunkData *pCd                        //
 ) {
   // first look through all blocks and count how many opaque we have
   uint32_t faceCount = 0;
@@ -272,9 +270,25 @@ static void delete_ChunkGeometry_internal( //
   }
 }
 
-static void worker_gen_chunk(
-    volatile Chunk* c,
-    
+static void worker_render_chunk(                   //
+    volatile Chunk *c,               //
+    const vec3 chunkOffset,                //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool pool,              //
+    const VkQueue queue                    //
+) {
+  assert(c->state == wld_cs_NEEDS_RENDER);
+
+  // start working on c
+  c->working = true;
+
+
+
+  c->state 
+}
+
+
 
 // runs synchronously
 static void wld_new_ThreadOwnedData(      //
@@ -360,9 +374,6 @@ static void wld_delete_ThreadOwnedData( //
   }
 }
 
-
-
-
 void wld_new_WorldState(                  //
     WorldState *pWorldState,              //
     const ivec3 centerLoc,                //
@@ -374,7 +385,6 @@ void wld_new_WorldState(                  //
   // set center location
   ivec3_dup(pWorldState->centerLoc, centerLoc);
 
-
   // new thread owned data
   wld_new_ThreadOwnedData( //
       &pWorldState->tod,   //
@@ -385,14 +395,9 @@ void wld_new_WorldState(                  //
       physicalDevice       //
   );
 
-
-
   // start the world thread working in the background
   pthread_create(pWorldState->thread, NULL, thread_opener, &pWorldState->tod);
-
 }
-
-
 
 void wld_delete_WorldState(  //
     WorldState *pWorldState, //
@@ -474,8 +479,6 @@ typedef struct {
   VkQueue graphicsQueue;
   VkCommandPool commandPool;
 } wld_ThreadOwnedData;
-
-
 
 void wld_set_center(                       //
     WorldState *pWorldState,               //

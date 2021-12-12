@@ -108,13 +108,16 @@ typedef struct {
   VkDevice device;
   VkPhysicalDevice physicalDevice;
 
-  //   
+  // different threads get different slices of z
   Chunk *data[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
 
-  // thread owned data, don't touch directly
-  wld_ThreadOwnedData tod;
+  // contains threads
+  threadpool_t* threadpool;
 
-  pthread_t* thread;
+  // each worker thread gets its own command pool
+  VkCommandPool threadCommandPools[RENDER_THREADS];
+  // each worker thread gets its own submit queue
+  VkCommandPool threadQueues[RENDER_THREADS];
 
   // vector of pinned chunk geometries (these are chunks that are being used by the main thread)
   size_t pinned_capacity;
