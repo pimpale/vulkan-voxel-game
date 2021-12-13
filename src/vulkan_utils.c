@@ -217,9 +217,10 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
     /* TODO confirm it has required properties */
     vkGetPhysicalDeviceProperties(arr[i], &deviceProperties);
     uint32_t deviceQueueIndex;
-    uint32_t ret = getQueueFamilyIndexByCapability(&deviceQueueIndex, arr[i],
-                                                   VK_QUEUE_GRAPHICS_BIT |
-                                                       VK_QUEUE_COMPUTE_BIT);
+    uint32_t deviceQueueCount;
+    uint32_t ret = getQueueFamilyIndexByCapability(
+        &deviceQueueIndex, &deviceQueueCount, arr[i],
+        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     if (ret == VK_SUCCESS) {
       selectedDevice = arr[i];
       break;
@@ -248,6 +249,7 @@ void delete_Device(VkDevice *pDevice) {
  * in for the device
  */
 ErrVal getQueueFamilyIndexByCapability(uint32_t *pQueueFamilyIndex,
+                                       uint32_t *pQueueCount,
                                        const VkPhysicalDevice device,
                                        const VkQueueFlags bit) {
   uint32_t queueFamilyCount = 0;
@@ -269,8 +271,9 @@ ErrVal getQueueFamilyIndexByCapability(uint32_t *pQueueFamilyIndex,
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
     if (pFamilyProperties[i].queueCount > 0 &&
         (pFamilyProperties[0].queueFlags & bit)) {
-      free(pFamilyProperties);
       *pQueueFamilyIndex = i;
+      *pQueueCount = pFamilyProperties[i].queueCount;
+      free(pFamilyProperties);
       return (ERR_OK);
     }
   }
@@ -312,17 +315,26 @@ ErrVal getPresentQueueFamilyIndex(uint32_t *pQueueFamilyIndex,
   return (ERR_NOTSUPPORTED);
 }
 
-ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
-                  const uint32_t queueFamilyIndex,
-                  const uint32_t enabledExtensionCount,
-                  const char *const *ppEnabledExtensionNames) {
+ErrVal new_Device(                             //
+    VkDevice *pDevice,                         //
+    const VkPhysicalDevice physicalDevice,     //
+    const uint32_t queueFamilyIndex,           //
+    const uint32_t queueCount,                 //
+    const uint32_t enabledExtensionCount,      //
+    const char *const *ppEnabledExtensionNames //
+) {
+
+  float *pQueuePriorities = malloc(queueCount * sizeof(float));
+  for (uint32_t i = 0; i < queueCount; i++) {
+    pQueuePriorities[i] = 1.0f;
+  }
+
   VkPhysicalDeviceFeatures deviceFeatures = {0};
   VkDeviceQueueCreateInfo queueCreateInfo = {0};
   queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
-  queueCreateInfo.queueCount = 1;
-  float queuePriority = 1.0f;
-  queueCreateInfo.pQueuePriorities = &queuePriority;
+  queueCreateInfo.queueCount = queueCount;
+  queueCreateInfo.pQueuePriorities = pQueuePriorities;
 
   VkDeviceCreateInfo createInfo = {0};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -339,12 +351,15 @@ ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
                    vkstrerror(res));
     PANIC();
   }
+
+  free(pQueuePriorities);
+
   return (ERR_OK);
 }
 
 ErrVal getQueue(VkQueue *pQueue, const VkDevice device,
-                const uint32_t deviceQueueIndex) {
-  vkGetDeviceQueue(device, deviceQueueIndex, 0, pQueue);
+                const uint32_t deviceQueueIndex, const uint32_t queueIndex) {
+  vkGetDeviceQueue(device, deviceQueueIndex, queueIndex, pQueue);
   return (ERR_OK);
 }
 
@@ -900,7 +915,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
     const VkFramebuffer swapchainFramebuffer,           //
     const uint32_t vertexBufferCount,                   //
     const VkBuffer *pVertexBuffers,                     //
-    const uint32_t *pVertexCounts,                         //
+    const uint32_t *pVertexCounts,                      //
     const VkRenderPass renderPass,                      //
     const VkPipelineLayout vertexDisplayPipelineLayout, //
     const VkPipeline vertexDisplayPipeline,             //
@@ -945,7 +960,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
                      cameraTransform);
 
   // bind all vertex buffers, assume offsets are zero
-  for(uint32_t i = 0; i < vertexBufferCount; i++) {
+  for (uint32_t i = 0; i < vertexBufferCount; i++) {
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &pVertexBuffers[i], offsets);
     vkCmdDraw(commandBuffer, pVertexCounts[i], 1, 0, 0);

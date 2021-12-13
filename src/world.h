@@ -23,20 +23,18 @@
 // idea
 // use a threadpool (stored in the main thread)
 // for chunks to be deleted, get rid of them immediately, 
-// unless they are state PINNED, in which case put the buffers and memory in the pinned stack
-// unless they are state RENDERING, in which case, put them in the pinnned buffer
+// unless they are state PINNED, in which case put the chunk in the the deadchunk stack
 // for each new chunk to add, immediately start the task working on it.
-// The task will have a pointer to our chunk, which it will update
-// once it is done, the task will return a malloced pointer containing the new data
 
 // if we get asecond update to the chunk
 
 // when we call wld_doGeometryUpdates_async
 // First, get rid of all the stuff in the pinned bufferm we don't need it anymore
-// iterate through our chunk array and copy paste all of vertex buffers and count from chunks in state READY, to the vertex buffer count and the vertex buffer cache in main thread
-// change those states to PINNED
+// iterate through our chunk array and
+//  if chunk is state PINNED, add to the pinned stack
+//  if chunk is state READY, add to the pinned stack, and change its state to pinned
 
-// when we get normal requests, just hand over data from the cache arrays
+// when we get normal requests, just hand over data from the pinned stack
 
 
 typedef enum {
@@ -44,14 +42,14 @@ typedef enum {
     wld_cs_NEEDS_GENERATE,
     // the world generation process is going asynchronously,
     wld_cs_GENERATING,
-    // the world generation or block update is done, and the chunk is empty
-    wld_cs_EMPTY,
     // the world generation finished, or we just updated the block manually
-    wld_cs_NEEDS_RENDER,
+    wld_cs_NEEDS_MESH,
     // the chunk is rendering asynchronously
-    wld_cs_RENDERING,
-    // the chunk is finished rendering and is read to display
+    wld_cs_MESHING,
+    // the chunk is finished meshing and is read to display
     wld_cs_READY,
+    // the chunk is finished meshing and is empty
+    wld_cs_EMPTY,
     // the chunk is in use in the world
     wld_cs_PINNED
 } wld_ChunkState ;
@@ -116,18 +114,20 @@ typedef struct {
 
   // each worker thread gets its own command pool
   VkCommandPool threadCommandPools[RENDER_THREADS];
-  // each worker thread gets its own submit queue
-  VkCommandPool threadQueues[RENDER_THREADS];
 
-  // vector of pinned chunk geometries (these are chunks that are being used by the main thread)
-  size_t pinned_capacity;
-  size_t pinned_len;
-  ChunkGeometry** pinned_vec;
+  // we have only a few queues, so we will use a mutex to protect it
+  // mutex is allocated because we need the address to stay constant
+  pthread_mutex_t* pQueueMutex;
+  VkQueue queue;
 
-  // vector of dead chunk geometries (this is used for chunks that are now obsolete, but the main thread might still be using)
-  size_t deadchunk_capacity;
-  size_t deadchunk_len;
-  ChunkGeometry** deadchunk_vec;
+  // vector of pinned chunks (these are chunks that are being used by the main thread)
+  uint32_t pinned_len;
+  Chunk* pinned_vec[RENDER_DISTANCE_X*RENDER_DISTANCE_Y*RENDER_DISTANCE_Z];
+
+  // vector of dead chunks (this is used for chunks that are now obsolete, but the main thread might still be using)
+  // these chunks are not inside the grid
+  uint32_t deadchunk_len;
+  Chunk* deadchunk_vec[RENDER_DISTANCE_X*RENDER_DISTANCE_Y*RENDER_DISTANCE_Z];
 
 } WorldState;
 
@@ -137,6 +137,7 @@ void wld_new_WorldState(                  //
     const ivec3 centerLoc,                //
     const uint32_t seed,                  //
     const uint32_t graphicsQueueFamily,   //
+    const VkQueue queue,                  //
     const VkDevice device,                //
     const VkPhysicalDevice physicalDevice //
 );
@@ -155,7 +156,7 @@ void wld_delete_WorldState( //
 ///--- POSTCONDITIONS ---
 /// * if state is UNAVAILABLE returns false
 /// * if state is AVAILABLE, returns true and starts working
-bool wld_set_center_async(         //
+void wld_set_center_async(         //
     WorldState *pWorldState, //
     const ivec3 centerLoc    //
 );
@@ -165,9 +166,8 @@ bool wld_set_center_async(         //
 /// This method allows our background work to be brought into the foreground.
 /// Remember to call it before 
 /// First, ensure t
-bool wld_doGeometryUpdates_async(     //
-    uint32_t *pVertexBufferCount, //
-    const WorldState *pWorldState //
+void wld_doGeometryUpdates_async(     //
+    WorldState *pWorldState //
 );
 
 /// returns the number of vertex buffers

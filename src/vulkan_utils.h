@@ -130,6 +130,7 @@ ErrVal new_Device(                             //
     VkDevice *pDevice,                         //
     const VkPhysicalDevice physicalDevice,     //
     const uint32_t queueFamilyIndex,           //
+    const uint32_t pQueueCount,                //
     const uint32_t enabledExtensionCount,      //
     const char *const *ppEnabledExtensionNames //
 );
@@ -152,6 +153,7 @@ void delete_Device(VkDevice *pDevice);
 /// supporting `bit`
 ErrVal getQueueFamilyIndexByCapability( //
     uint32_t *pQueueFamilyIndex,        //
+    uint32_t *pQueueCount,              //
     const VkPhysicalDevice device,      //
     const VkQueueFlags bit              //
 );
@@ -181,10 +183,11 @@ ErrVal getPresentQueueFamilyIndex(         //
 /// --- POSTCONDITIONS ---
 /// * returns error status
 /// * on success, `pQueue` is set to a new 	queue in the given queue family
-ErrVal getQueue(                    //
-    VkQueue *pQueue,                //
-    const VkDevice device,          //
-    const uint32_t queueFamilyIndex //
+ErrVal getQueue(                     //
+    VkQueue *pQueue,                 //
+    const VkDevice device,           //
+    const uint32_t queueFamilyIndex, //
+    const uint32_t queueIndex        //
 );
 
 /// Gets a surface format that can be rendered to

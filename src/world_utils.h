@@ -16,17 +16,6 @@ typedef struct {
   BlockIndex blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE];
 } ChunkData;
 
-
-// utility function to translate coords
-static inline void blockCoord_to_worldChunkCoords( //
-    ivec3 chunkCoord,                //
-    const vec3 blockCoord            //
-) {
-  chunkCoord[0] = (int32_t)(blockCoord[0] / CHUNK_X_SIZE);
-  chunkCoord[1] = (int32_t)(blockCoord[1] / CHUNK_Y_SIZE);
-  chunkCoord[2] = (int32_t)(blockCoord[2] / CHUNK_Z_SIZE);
-}
-
 // converts from world chunk coordinates to global block coordinates
 static inline void worldChunkCoords_to_iBlockCoords( //
     ivec3 iBlockCoords,                              //

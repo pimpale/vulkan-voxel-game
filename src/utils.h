@@ -18,5 +18,4 @@ uint64_t getLength(FILE *f);
 void readShaderFile(const char *filename, uint32_t *length, uint32_t **code);
 
 
-
 #endif /* SRC_UTILS_H_ */

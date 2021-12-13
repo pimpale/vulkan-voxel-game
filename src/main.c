@@ -30,7 +30,7 @@ typedef struct {
   VkSurfaceKHR surface;
   VkSurfaceFormatKHR surfaceFormat;
   uint32_t graphicsIndex;
-  uint32_t computeIndex;
+  uint32_t graphicsQueueCount;
   uint32_t presentIndex;
   VkQueue graphicsQueue;
   VkQueue presentQueue;
@@ -73,9 +73,9 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
   /* find queues on graphics pGlobal->device */
   {
-    uint32_t ret1 = getQueueFamilyIndexByCapability(&pGlobal->graphicsIndex,
-                                                    pGlobal->physicalDevice,
-                                                    VK_QUEUE_GRAPHICS_BIT);
+    uint32_t ret1 = getQueueFamilyIndexByCapability(
+        &pGlobal->graphicsIndex, &pGlobal->graphicsQueueCount,
+        pGlobal->physicalDevice, VK_QUEUE_GRAPHICS_BIT);
     uint32_t ret3 = getPresentQueueFamilyIndex(
         &pGlobal->presentIndex, pGlobal->physicalDevice, pGlobal->surface);
     /* Panic if indices are unavailable */
@@ -91,11 +91,12 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
   // create pGlobal->device
   new_Device(&pGlobal->device, pGlobal->physicalDevice, pGlobal->graphicsIndex,
-             deviceExtensionCount, ppDeviceExtensionNames);
+             pGlobal->graphicsQueueCount, deviceExtensionCount,
+             ppDeviceExtensionNames);
 
   // create queues
-  getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex);
-  getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex);
+  getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex, 0);
+  getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex, 0);
 
   // We can create command buffers from the command pool
   new_CommandPool(&pGlobal->commandPool, pGlobal->device,
@@ -132,8 +133,9 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   new_VertexDisplayPipelineLayout(&pGlobal->graphicsPipelineLayout,
                                   pGlobal->device);
 
-  new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers, MAX_FRAMES_IN_FLIGHT,
-                     pGlobal->commandPool, pGlobal->device);
+  new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers,
+                     MAX_FRAMES_IN_FLIGHT, pGlobal->commandPool,
+                     pGlobal->device);
 
   // Create image synchronization primitives
   new_Semaphores(pGlobal->pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT,
@@ -313,6 +315,9 @@ static void drawAppFrame(            //
         pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
   }
 
+  // this updates the geometry
+  wld_doGeometryUpdates_async(pWs);
+
   uint32_t vertexBufferCount;
   wld_count_vertexBuffers(&vertexBufferCount, pWs);
 
@@ -362,16 +367,19 @@ int main(void) {
   AppGraphicsGlobalState global;
   new_AppGraphicsGlobalState(&global);
 
+  VkQueue extraQueue;
+  getQueue(&extraQueue, global.device, global.graphicsIndex, 1);
+
   // set up world generation
   WorldState ws;
-  wld_new_WorldState(        //
-      &ws,                   //
-      (ivec3){0, 0, 0},      //
-      42,                    //
-      global.device,         //
-      global.physicalDevice, //
-      global.commandPool,    //
-      global.graphicsQueue   //
+  wld_new_WorldState(       //
+      &ws,                  //
+      (ivec3){0, 0, 0},     //
+      42,                   //
+      global.graphicsIndex, //
+      extraQueue,           //
+      global.device,        //
+      global.physicalDevice //
   );
 
   // Set extent (window width and height)
@@ -399,7 +407,7 @@ int main(void) {
 
     // check camera chunk location,
     ivec3 camChunkCoord;
-    blockCoord_to_worldChunkCoords(camChunkCoord, camera.pos);
+    blockCoords_to_worldChunkCoords(camChunkCoord, camera.pos);
 
     // if we have a new chunk location, set new chunk center
     if (!ivec3_eq(ws.centerLoc, camChunkCoord)) {
@@ -407,16 +415,11 @@ int main(void) {
       vkDeviceWaitIdle(global.device);
 
       double t1 = glfwGetTime();
+
       // when we set the center we may end up deleting some vertex buffers
       // since we'll be going far
-      wld_set_center(            //
-          &ws,                   //
-          camChunkCoord,         //
-          global.device,         //
-          global.physicalDevice, //
-          global.commandPool,    //
-          global.graphicsQueue   //
-      );
+      wld_set_center_async(&ws, camChunkCoord);
+
       double t2 = glfwGetTime();
 
       LOG_ERROR_ARGS(ERR_LEVEL_INFO, "Set Chunk Center: %f", t2 - t1);
@@ -439,7 +442,7 @@ int main(void) {
   vkDeviceWaitIdle(global.device);
 
   // delete our world generator
-  wld_delete_WorldState(&ws, global.device);
+  wld_delete_WorldState(&ws);
 
   // delete graphics resources
   delete_AppGraphicsWindowState(&window, &global);
