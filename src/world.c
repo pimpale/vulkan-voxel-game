@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <math.h>
-#include <pthread.h>
 #include <stdlib.h>
 
 #include "block.h"
@@ -224,98 +223,77 @@ static void blocks_gen(                //
   }
 }
 
-// subtasks are uninterruptible components
-static void worker_subtask_mesh_chunk(     //
-    Chunk *c,                              //
+struct ChunkGeometry_s {
+  uint32_t vertexCount;
+  // these 2 are only defined if vertexCount > 0
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
+};
+
+static void new_ChunkGeometry(             //
+    ChunkGeometry *c,                      //
+    const ChunkData *data,                 //
     const vec3 chunkOffset,                //
     const VkDevice device,                 //
     const VkPhysicalDevice physicalDevice, //
     const VkCommandPool commandPool,       //
-    const VkQueue queue,                   //
-    pthread_mutex_t *pQueueMutex           //
+    const VkQueue queue                    //
 ) {
-  assert(c->state == wld_cs_NEEDS_MESH);
-
-  // start working on c
-  c->working = true;
-
-  // set state to meshing
-  c->state = wld_cs_MESHING;
-
   // count chunk vertexes
-  c->geometry.vertexCount = blocks_count_vertexes_internal(&c->chunkData);
-
-  if (c->geometry.vertexCount == 0) {
-    c->state = wld_cs_EMPTY;
-  } else {
+  c->vertexCount = blocks_count_vertexes_internal(data);
+  if (c->vertexCount > 0) {
     // write mesh to vertex
-    Vertex *vertexData = malloc(c->geometry.vertexCount * sizeof(Vertex));
-    blocks_mesh_internal(vertexData, chunkOffset, &c->chunkData);
-
-    // create vertex buffer + backing memory
-    pthread_mutex_lock(pQueueMutex);
-    new_VertexBuffer(&c->geometry.vertexBuffer, &c->geometry.vertexBufferMemory,
-                     vertexData, c->geometry.vertexCount, device,
-                     physicalDevice, commandPool, queue);
-    pthread_mutex_unlock(pQueueMutex);
-
-    c->state = wld_cs_READY;
+    Vertex *vertexData = malloc(c->vertexCount * sizeof(Vertex));
+    blocks_mesh_internal(vertexData, chunkOffset, data);
+    new_VertexBuffer(&c->vertexBuffer, &c->vertexBufferMemory, vertexData,
+                     c->vertexCount, device, physicalDevice, commandPool,
+                     queue);
+    free(vertexData);
   }
-  c->working = false;
+}
+
+static void delete_ChunkGeometry(ChunkGeometry *geometry,
+                                 const VkDevice device) {
+  delete_Buffer(&geometry->vertexBuffer, device);
+  delete_DeviceMemory(&geometry->vertexBufferMemory, device);
 }
 
 typedef struct {
-  Chunk *c;
-  vec3 chunkOffset;
-  struct osn_context *noiseCtx;
-  VkDevice device;
-  VkPhysicalDevice physicalDevice;
-  VkCommandPool *commandPoolArr;
-  VkQueue queue;
-  pthread_mutex_t *pQueueMutex;
-} wld_WorkerOwnedData;
+  ivec3 chunkCoord;
+  ChunkData data;
+  ChunkGeometry *pGeometry;
+} ivec3_Chunk_KVPair;
 
-// can be interrupted
-static void worker_generate_chunk( //
-    uint32_t thread_id,            //
-    void *arg                      //
-) {
-  wld_WorkerOwnedData *wa = arg;
+static int ivec3_Chunk_KVPair_compare(const void *a, const void *b,
+                                      UNUSED void *udata) {
+  const ivec3_Chunk_KVPair *pa = a;
+  const ivec3_Chunk_KVPair *pb = b;
 
-  assert(wa->c->state == wld_cs_NEEDS_GENERATE);
+  int32_t d0 = pa->chunkCoord[0] - pb->chunkCoord[0];
+  int32_t d1 = pa->chunkCoord[1] - pb->chunkCoord[1];
+  int32_t d2 = pa->chunkCoord[2] - pb->chunkCoord[2];
 
-  // start working on c
-  wa->c->working = true;
-  // set state to generating
-  wa->c->state = wld_cs_GENERATING;
-  // work on generating
-  blocks_gen(&wa->c->chunkData, wa->chunkOffset, wa->noiseCtx);
-  wa->c->state = wld_cs_NEEDS_MESH;
-  wa->c->working = false;
-
-  if (!wa->c->chunk_dead) {
-    // mesh
-    worker_subtask_mesh_chunk(         //
-        wa->c,                         //
-        wa->chunkOffset,               //
-        wa->device,                    //
-        wa->physicalDevice,            //
-        wa->commandPoolArr[thread_id], //
-        wa->queue,                     //
-        wa->pQueueMutex                //
-    );
+  if (d0 != 0) {
+    return d0;
   }
+  if (d1 != 0) {
+    return d1;
+  }
+  return d2;
+}
 
-  // now get rid of data
-  free(wa);
+static uint64_t ivec3_Chunk_KVPair_hash(const void *item, uint64_t seed0,
+                                        uint64_t seed1) {
+  const ivec3_Chunk_KVPair *pair = item;
+  return hashmap_sip(pair->chunkCoord, sizeof(ivec3), seed0, seed1);
 }
 
 void wld_new_WorldState(                  //
     WorldState *pWorldState,              //
     const ivec3 centerLoc,                //
     const uint32_t seed,                  //
-    const uint32_t graphicsQueueFamily,   //
     const VkQueue queue,                  //
+    const VkCommandPool commandPool,      //
     const VkDevice device,                //
     const VkPhysicalDevice physicalDevice //
 ) {
@@ -329,166 +307,219 @@ void wld_new_WorldState(                  //
   pWorldState->device = device;
   pWorldState->physicalDevice = physicalDevice;
   pWorldState->queue = queue;
+  pWorldState->commandPool = commandPool;
 
-  // start mutex
-  pWorldState->pQueueMutex = malloc(sizeof(pthread_mutex_t));
-  pthread_mutex_init(pWorldState->pQueueMutex, NULL);
+  // initialize stacks to empty
+  new_ivec3_vec(&pWorldState->togenerate);
+  new_ivec3_vec(&pWorldState->tomesh);
+  new_ivec3_vec(&pWorldState->ready);
+  new_ivec3_vec(&pWorldState->tounload);
 
-  // generate thread queues and pools
-  for (uint32_t i = 0; i < RENDER_THREADS; i++) {
-    if (new_CommandPool(&pWorldState->threadCommandPools[i], device,
-                        graphicsQueueFamily) != ERR_OK) {
-      LOG_ERROR(ERR_LEVEL_ERROR, "failed to create command pool");
-      PANIC();
-    }
-  }
+  // initialize hash maps
+  pWorldState->chunk_map =
+      hashmap_new(sizeof(ivec3_Chunk_KVPair), 0, 0, 0, ivec3_Chunk_KVPair_hash,
+                  ivec3_Chunk_KVPair_compare, NULL, NULL);
 
-  // generate threads
-  pWorldState->threadpool = threadpool_create(RENDER_THREADS, MAX_QUEUE, 0);
-
-  // initialize vector lengths to zero
-  pWorldState->deadchunk_len = 0;
-  pWorldState->pinned_len = 0;
-
-  // begin task of initializing
-
-  // note that, x, y, and z are relative to the array
+  // initialize all of our neighboring chunks to be on the load list
   for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
     for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
       for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        // calculate chunk offset
-        ivec3 worldChunkCoords;
-        arrayCoords_to_worldChunkCoords(worldChunkCoords, centerLoc, x, y, z);
-
-        // allocate data
-        pWorldState->data[x][y][z] = malloc(sizeof(Chunk));
-        pWorldState->data[x][y][z]->state = wld_cs_NEEDS_GENERATE;
-
-        // construct data to be sent to task
-        wld_WorkerOwnedData *wod = malloc(sizeof(wld_WorkerOwnedData));
-        wod->c = pWorldState->data[x][y][z];
-        worldChunkCoords_to_blockCoords(wod->chunkOffset, worldChunkCoords);
-        wod->noiseCtx = pWorldState->noise1;
-        wod->device = pWorldState->device;
-        wod->physicalDevice = pWorldState->physicalDevice;
-        wod->commandPoolArr = pWorldState->threadCommandPools;
-        wod->queue = pWorldState->queue;
-        wod->pQueueMutex = pWorldState->pQueueMutex;
-
-        // the thread will take ownership of the worker owned data
-        threadpool_error_t err = threadpool_add(pWorldState->threadpool,
-                                                worker_generate_chunk, wod, 0);
-
-        // check for error
-        if (err != 0) {
-          LOG_ERROR(ERR_LEVEL_FATAL, "threadpool failed to accept task");
-          PANIC();
-        }
+        // push the chunk into our vector
+        ivec3 tmp;
+        arrayCoords_to_worldChunkCoords(tmp, centerLoc, x, y, z);
+        ivec3_vec_push(pWorldState->togenerate, tmp);
       }
     }
   }
 }
 
-static void wld_delete_Chunk(Chunk *c, const VkDevice device) {
-  // get rid of geometry
-  if (c->state == wld_cs_PINNED || c->state == wld_cs_READY) {
-    delete_Buffer(&c->geometry.vertexBuffer, device);
-    delete_DeviceMemory(&c->geometry.vertexBufferMemory, device);
+static bool wld_shouldBeLoaded(    //
+    const WorldState *pWorldState, //
+    const ivec3 worldChunkCoords   //
+) {
+
+  ivec3 minDisp = {-RENDER_DISTANCE_X / 2, -RENDER_DISTANCE_Y / 2,
+                   -RENDER_DISTANCE_Z / 2};
+
+  ivec3 maxDisp = {(RENDER_DISTANCE_X + 1) / 2, (RENDER_DISTANCE_Y + 1) / 2,
+                   (RENDER_DISTANCE_Z + 1) / 2};
+
+  ivec3 disp;
+  ivec3_sub(disp, worldChunkCoords, pWorldState->centerLoc);
+
+  return (disp[0] >= minDisp[0] && disp[0] <= maxDisp[0]) &&
+         (disp[1] >= minDisp[1] && disp[1] <= maxDisp[1]) &&
+         (disp[2] >= minDisp[2] && disp[2] <= maxDisp[2]);
+}
+
+static void wld_pushGarbage(WorldState *pWorldState, ChunkGeometry *geometry) {
+  if (pWorldState->garbage_len >= pWorldState->garbage_cap) {
+    pWorldState->garbage_cap *= 2;
+    pWorldState->garbage_data =
+        realloc(pWorldState->garbage_data,
+                pWorldState->garbage_cap * sizeof(ChunkGeometry *));
   }
+
+  pWorldState->garbage_data[pWorldState->garbage_len] = geometry;
+  pWorldState->garbage_len++;
+}
+
+void wld_clearGarbage(WorldState *pWorldState) {
+  for (uint32_t i = 0; i < pWorldState->garbage_len; i++) {
+    delete_ChunkGeometry(pWorldState->garbage_data[i], pWorldState->device);
+    free(pWorldState->garbage_data[i]);
+  }
+  pWorldState->garbage_len = 0;
+}
+
+void wld_update(            //
+    WorldState *pWorldState //
+) {
+  // process stuff off the togenerate list
+  for (uint32_t i = 0;
+       i < MAX_CHUNKS_TO_GENERATE && ivec3_vec_len(pWorldState->togenerate) > 0;
+       i++) {
+    ivec3_Chunk_KVPair chunkToLoad;
+    ivec3_vec_pop(pWorldState->togenerate, chunkToLoad.chunkCoord);
+
+    // check that we still even need to load this
+    if (!wld_shouldBeLoaded(pWorldState, chunkToLoad.chunkCoord)) {
+      continue;
+    }
+
+    // check we haven't already loaded this
+    if (hashmap_get(pWorldState->chunk_map, &chunkToLoad) != NULL) {
+      continue;
+    }
+
+    // generate chunk, we need to give it the block coordinate to generate at
+    vec3 chunkOffset;
+    worldChunkCoords_to_blockCoords(chunkOffset, chunkToLoad.chunkCoord);
+    blocks_gen(&chunkToLoad.data, chunkOffset, pWorldState->noise1);
+
+    // no geometry yet
+    chunkToLoad.pGeometry = NULL;
+
+    // hashmap will clone the chunk to load
+    hashmap_set(pWorldState->chunk_map, &chunkToLoad);
+
+    // push the chunk coord to the chunks to mesh
+    ivec3_vec_push(pWorldState->tomesh, chunkToLoad.chunkCoord);
+  }
+
+  // process stuff on the to mesh list
+  for (uint32_t i = 0;
+       i < MAX_CHUNKS_TO_MESH && ivec3_vec_len(pWorldState->tomesh) > 0; i++) {
+    ivec3_Chunk_KVPair chunkToMesh;
+    ivec3_vec_pop(pWorldState->tomesh, chunkToMesh.chunkCoord);
+
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_get(pWorldState->chunk_map, chunkToMesh.chunkCoord);
+
+    if (pChunk->pGeometry != NULL) {
+      // if some data already exists, place this geometry in the Garbage heap,
+      // and make a new one
+      wld_pushGarbage(pWorldState, pChunk->pGeometry);
+      pChunk->pGeometry = malloc(sizeof(ChunkGeometry));
+    } else {
+      // otherwise malloc space
+      pChunk->pGeometry = malloc(sizeof(ChunkGeometry));
+    }
+
+    vec3 chunkOffset;
+    worldChunkCoords_to_blockCoords(chunkOffset, pChunk->chunkCoord);
+
+    new_ChunkGeometry(pChunk->pGeometry, &pChunk->data, chunkOffset,
+                      pWorldState->device, pWorldState->physicalDevice,
+                      pWorldState->commandPool, pWorldState->queue);
+
+    // push onto the ready list
+    // push the chunk coord to the chunks to mesh
+    ivec3_vec_push(pWorldState->ready, pChunk->chunkCoord);
+  }
+
+  // process stuff on the ready list
+  for (int32_t i = (int32_t)ivec3_vec_len(pWorldState->ready) - 1; i >= 0;
+       i--) {
+    ivec3 chunkCoords;
+    ivec3_vec_get(pWorldState->ready, (uint32_t)i, chunkCoords);
+
+    // check that we still even need to have this
+    if (!wld_shouldBeLoaded(pWorldState, chunkCoords)) {
+      // this gets rid of the current chunk coord, but in an O(1) fashion
+      ivec3_vec_swapAndPop(pWorldState->ready, (uint32_t)i);
+      // add this to the unload coordinates
+      ivec3_vec_push(pWorldState->tounload, chunkCoords);
+    }
+  }
+
+  // finally process stuff on the unload list
+  for (uint32_t i = 0;
+       i < MAX_CHUNKS_TO_UNLOAD && ivec3_vec_len(pWorldState->tounload) > 0;
+       i++) {
+    ivec3_Chunk_KVPair c;
+    ivec3_vec_pop(pWorldState->tounload, c.chunkCoord);
+
+    // remove from hashmap
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_delete(pWorldState->chunk_map, c.chunkCoord);
+
+    // put chunk geometry on garbage heap
+    wld_pushGarbage(pWorldState, pChunk->pGeometry);
+  }
+}
+
+static bool wld_delete_Geometries(const void *item, void *udata) {
+  const ivec3_Chunk_KVPair *pChunk = item;
+  const VkDevice device = udata;
+  if (pChunk->pGeometry != NULL) {
+    delete_ChunkGeometry(pChunk->pGeometry, device);
+  }
+  return true;
 }
 
 void wld_delete_WorldState( //
     WorldState *pWorldState //
 ) {
-
-  // first we wait for all of the tasks to finish
-  threadpool_error_t err =
-      threadpool_destroy(pWorldState->threadpool, threadpool_graceful);
-  if (err != 0) {
-    LOG_ERROR(ERR_LEVEL_FATAL, "threadpool failed to shut down");
-    PANIC();
-  }
-
-  // free vulkan stuff that we own
-  for (uint32_t i = 0; i < RENDER_THREADS; i++) {
-    delete_CommandPool(&pWorldState->threadCommandPools[i],
-                       pWorldState->device);
-    // queues are automatically deleted, we don't have to do anything
-  }
-
-  // end mutex
-  pthread_mutex_destroy(pWorldState->pQueueMutex);
-  free(pWorldState->pQueueMutex);
-
   // free simplex noise
   open_simplex_noise_free(pWorldState->noise1);
 
-  // go through chunks and free and delete
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        Chunk *c = pWorldState->data[x][y][z];
-        wld_delete_Chunk(c, pWorldState->device);
-        free(c);
-      }
-    }
-  }
+  // free vectors
+  delete_ivec3_vec(&pWorldState->togenerate);
+  delete_ivec3_vec(&pWorldState->tomesh);
+  delete_ivec3_vec(&pWorldState->ready);
+  delete_ivec3_vec(&pWorldState->tounload);
 
-  // don't have to do anything to pinned chunk vector
-  // (the contents are already destroyed)
+  // iterate through hashmap and free the geometries
+  hashmap_scan(pWorldState->chunk_map, wld_delete_Geometries,
+               pWorldState->device);
 
-  // free everything in the dead chunk vector
-  // (these weren't in the grid)
-  for (uint32_t i = 0; i < pWorldState->deadchunk_len; i++) {
-    Chunk *c = pWorldState->deadchunk_vec[i];
-    wld_delete_Chunk(c, pWorldState->device);
-    free(c);
-  }
-}
-
-void wld_doGeometryUpdates_async( //
-    WorldState *pWorldState       //
-) {
-  // clear the pinned chunks vec, then go through the array and update with all
-  // that are in states RENDERING or READY
-
-  pWorldState->pinned_len = 0;
-
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        switch (pWorldState->data[x][y][z]->state) {
-        case wld_cs_PINNED:
-          pWorldState->pinned_vec[pWorldState->pinned_len] =
-              pWorldState->data[x][y][z];
-          break;
-        case wld_cs_READY:
-          pWorldState->pinned_vec[pWorldState->pinned_len] =
-              pWorldState->data[x][y][z];
-          pWorldState->pinned_len++;
-          // make pinned
-          pWorldState->data[x][y][z]->state = wld_cs_PINNED;
-          break;
-        default:
-          break;
-        }
-      }
-    }
-  }
-
-  // delete everything in the dead chunk vector, since we no longer need it
-  for (uint32_t i = 0; i < pWorldState->deadchunk_len; i++) {
-    Chunk *c = pWorldState->deadchunk_vec[i];
-    wld_delete_Chunk(c, pWorldState->device);
-    free(c);
-  }
+  // free the map
+  hashmap_free(pWorldState->chunk_map);
 }
 
 void wld_count_vertexBuffers(     //
     uint32_t *pVertexBufferCount, //
     const WorldState *pWorldState //
 ) {
-  *pVertexBufferCount = pWorldState->pinned_len;
+
+  uint32_t count = 0;
+  for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
+    // get coord
+    ivec3_Chunk_KVPair lookup_tmp;
+    ivec3_vec_get(pWorldState->ready, i, lookup_tmp.chunkCoord);
+
+    // get chunk
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_get(pWorldState->chunk_map, lookup_tmp.chunkCoord);
+
+    // if chunk not empty add
+    if (pChunk->pGeometry->vertexCount > 0) {
+      count++;
+    }
+  }
+
+  *pVertexBufferCount = count;
 }
 
 // these buffers are for reading only! don't delete or modify
@@ -497,149 +528,42 @@ void wld_getVertexBuffers(        //
     uint32_t *pVertexCounts,      //
     const WorldState *pWorldState //
 ) {
-  for (uint32_t i = 0; i < pWorldState->pinned_len; i++) {
-    pVertexCounts[i] = pWorldState->pinned_vec[i]->geometry.vertexCount;
-    pVertexBuffers[i] = pWorldState->pinned_vec[i]->geometry.vertexBuffer;
+
+  uint32_t count = 0;
+  for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
+    // get coord
+    ivec3_Chunk_KVPair lookup_tmp;
+    ivec3_vec_get(pWorldState->ready, i, lookup_tmp.chunkCoord);
+
+    // get chunk
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_get(pWorldState->chunk_map, lookup_tmp.chunkCoord);
+
+    // write data
+    if (pChunk->pGeometry->vertexCount > 0) {
+      pVertexCounts[count] = pChunk->pGeometry->vertexCount;
+      pVertexBuffers[count] = pChunk->pGeometry->vertexBuffer;
+      count++;
+    }
   }
 }
 
-static int32_t max(int32_t a, int32_t b) {
-  if (a > b) {
-    return a;
-  } else {
-    return b;
-  }
-}
-
-static int32_t min(int32_t a, int32_t b) {
-  if (a < b) {
-    return a;
-  } else {
-    return b;
-  }
-}
-
-// this data is owned by the thread
-typedef struct {
-  // these are owned, we have to delete them
-  VkQueue graphicsQueue;
-  VkCommandPool commandPool;
-} wld_ThreadOwnedData;
-
-void wld_set_center_async(   //
+void wld_set_center(         //
     WorldState *pWorldState, //
     const ivec3 centerLoc    //
 ) {
-  // copy our source volume to another array to avoid clobbering it
-  Chunk *old[RENDER_DISTANCE_X][RENDER_DISTANCE_Y][RENDER_DISTANCE_Z];
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        // move
-        old[x][y][z] = pWorldState->data[x][y][z];
-        pWorldState->data[x][y][z] = NULL;
-      }
-    }
-  }
-  // calculate our displacement from old state to new state
-  ivec3 disp;
-  ivec3_sub(disp, centerLoc, pWorldState->centerLoc);
-
-  // now copy all the chunks we can from old to new
-
-  // idea:
-  //
-  // old: *****
-  // new:   *****
-  //
-  // disp = +2
-  //
-  // new[0] = old[2]
-  // new[1] = old[3]
-  // new[2] = old[4]
-  //
-  // new[0] = old[0+disp]
-  // new[1] = old[1+disp]
-  // new[2] = old[2+disp]
-  //
-  // start = max(0, 0-disp) = max(0, -2) = 0 (inclusive index)
-  // end = min(len, len-disp) = min(5, 5-2) = 3 (exclusive index)
-
-  int32_t startx = max(0, 0 - disp[0]);
-  int32_t starty = max(0, 0 - disp[1]);
-  int32_t startz = max(0, 0 - disp[2]);
-  int32_t endx = min(RENDER_DISTANCE_X, RENDER_DISTANCE_X - disp[0]);
-  int32_t endy = min(RENDER_DISTANCE_Y, RENDER_DISTANCE_Y - disp[1]);
-  int32_t endz = min(RENDER_DISTANCE_Z, RENDER_DISTANCE_Z - disp[2]);
-
-  for (int32_t x = startx; x < endx; x++) {
-    for (int32_t y = starty; y < endy; y++) {
-      for (int32_t z = startz; z < endz; z++) {
-        // move some values from old to new array
-        pWorldState->data[x][y][z] = old[x + disp[0]][y + disp[1]][z + disp[2]];
-
-        // set to null
-        old[x + disp[0]][y + disp[1]][z + disp[2]] = NULL;
-      }
-    }
-  }
-
-  // delete all the chunks we weren't able to move
-  // unless they are currently pinned, in which case put them in the deadlist
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        Chunk *outOfRangeChunk = old[x][y][z];
-        if (outOfRangeChunk != NULL) {
-          if (outOfRangeChunk->state == wld_cs_PINNED) {
-            pWorldState->deadchunk_vec[pWorldState->deadchunk_len] =
-                outOfRangeChunk;
-            pWorldState->deadchunk_len++;
-          } else {
-            wld_delete_Chunk(outOfRangeChunk, pWorldState->device);
-            free(outOfRangeChunk);
-          }
-        }
-      }
-    }
-  }
-
-  // start a thread to generate all chunks not yet initialized
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        if (pWorldState->data[x][y][z] == NULL) {
-          // calculate chunk offset
-          ivec3 worldChunkCoords;
-          arrayCoords_to_worldChunkCoords(worldChunkCoords, centerLoc, x, y, z);
-
-          // allocate data
-          pWorldState->data[x][y][z] = malloc(sizeof(Chunk));
-
-          // construct data to be sent to task
-          wld_WorkerOwnedData *wod = malloc(sizeof(wld_WorkerOwnedData));
-          wod->c = pWorldState->data[x][y][z];
-          worldChunkCoords_to_blockCoords(wod->chunkOffset, worldChunkCoords);
-          wod->noiseCtx = pWorldState->noise1;
-          wod->device = pWorldState->device;
-          wod->physicalDevice = pWorldState->physicalDevice;
-          wod->commandPoolArr = pWorldState->threadCommandPools;
-          wod->queue = pWorldState->queue;
-          wod->pQueueMutex = pWorldState->pQueueMutex;
-
-          // the thread will take ownership of the worker owned data
-          threadpool_error_t err = threadpool_add(
-              pWorldState->threadpool, worker_generate_chunk, wod, 0);
-
-          // check for error
-          if (err != 0) {
-            LOG_ERROR(ERR_LEVEL_FATAL, "threadpool failed to accept task");
-            PANIC();
-          }
-        }
-      }
-    }
-  }
-
+  // set our center location
   ivec3_dup(pWorldState->centerLoc, centerLoc);
+
+  // initialize all of our neighboring chunks to be on the load list
+  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
+    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
+      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
+        // push the chunk into our vector
+        ivec3 tmp;
+        arrayCoords_to_worldChunkCoords(tmp, centerLoc, x, y, z);
+        ivec3_vec_push(pWorldState->togenerate, tmp);
+      }
+    }
+  }
 }

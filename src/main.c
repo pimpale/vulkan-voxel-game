@@ -96,6 +96,8 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
   // create queues
   getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex, 0);
+  printf("main thread queue: %p\n", (void*)pGlobal->graphicsQueue);
+
   getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex, 0);
 
   // We can create command buffers from the command pool
@@ -316,7 +318,7 @@ static void drawAppFrame(            //
   }
 
   // this updates the geometry
-  wld_doGeometryUpdates_async(pWs);
+  wld_update(pWs);
 
   uint32_t vertexBufferCount;
   wld_count_vertexBuffers(&vertexBufferCount, pWs);
@@ -368,7 +370,9 @@ int main(void) {
   new_AppGraphicsGlobalState(&global);
 
   VkQueue extraQueue;
-  getQueue(&extraQueue, global.device, global.graphicsIndex, 1);
+  getQueue(&extraQueue, global.device, global.graphicsIndex, 14);
+
+  printf("extra queue: %p\n", (void*)extraQueue);
 
   // set up world generation
   WorldState ws;
@@ -376,8 +380,8 @@ int main(void) {
       &ws,                  //
       (ivec3){0, 0, 0},     //
       42,                   //
-      global.graphicsIndex, //
       extraQueue,           //
+      global.commandPool, //
       global.device,        //
       global.physicalDevice //
   );
@@ -411,18 +415,7 @@ int main(void) {
 
     // if we have a new chunk location, set new chunk center
     if (!ivec3_eq(ws.centerLoc, camChunkCoord)) {
-      // wait for finish
-      vkDeviceWaitIdle(global.device);
-
-      double t1 = glfwGetTime();
-
-      // when we set the center we may end up deleting some vertex buffers
-      // since we'll be going far
-      wld_set_center_async(&ws, camChunkCoord);
-
-      double t2 = glfwGetTime();
-
-      LOG_ERROR_ARGS(ERR_LEVEL_INFO, "Set Chunk Center: %f", t2 - t1);
+      wld_set_center(&ws, camChunkCoord);
     }
 
     // draw frame

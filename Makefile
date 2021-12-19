@@ -13,7 +13,7 @@ LDFLAGS := -lm -lvulkan -lglfw -lpthread -fsanitize=address
 
 CC := clang
 CFLAGS ?= $(INC_FLAGS) -std=gnu2x -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum -fsanitize=address
-
+ 
 #CC := clang
 #CFLAGS ?= $(INC_FLAGS) $(LDFLAGS) -std=c11 --analyze -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum 
 
