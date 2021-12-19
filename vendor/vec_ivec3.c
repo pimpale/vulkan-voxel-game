@@ -47,5 +47,6 @@ uint32_t ivec3_vec_len(const ivec3_vec *vec) { return vec->len; }
 
 void delete_ivec3_vec(ivec3_vec **pVec) {
   free((*pVec)->pData);
+  free(*pVec);
   *pVec = NULL;
 }

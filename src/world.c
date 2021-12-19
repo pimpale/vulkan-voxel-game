@@ -315,6 +315,12 @@ void wld_new_WorldState(                  //
   new_ivec3_vec(&pWorldState->ready);
   new_ivec3_vec(&pWorldState->tounload);
 
+  // initialize garbage heap
+  pWorldState->garbage_cap = 16;
+  pWorldState->garbage_data =
+      malloc(pWorldState->garbage_cap * sizeof(ChunkGeometry *));
+  pWorldState->garbage_len = 0;
+
   // initialize hash maps
   pWorldState->chunk_map =
       hashmap_new(sizeof(ivec3_Chunk_KVPair), 0, 0, 0, ivec3_Chunk_KVPair_hash,
@@ -420,11 +426,8 @@ void wld_update(            //
       // if some data already exists, place this geometry in the Garbage heap,
       // and make a new one
       wld_pushGarbage(pWorldState, pChunk->pGeometry);
-      pChunk->pGeometry = malloc(sizeof(ChunkGeometry));
-    } else {
-      // otherwise malloc space
-      pChunk->pGeometry = malloc(sizeof(ChunkGeometry));
     }
+    pChunk->pGeometry = malloc(sizeof(ChunkGeometry));
 
     vec3 chunkOffset;
     worldChunkCoords_to_blockCoords(chunkOffset, pChunk->chunkCoord);
@@ -464,7 +467,7 @@ void wld_update(            //
     ivec3_Chunk_KVPair *pChunk =
         hashmap_delete(pWorldState->chunk_map, c.chunkCoord);
 
-    // put chunk geometry on garbage heap
+    // put chunk geometry on garbage pile
     wld_pushGarbage(pWorldState, pChunk->pGeometry);
   }
 }
@@ -474,6 +477,7 @@ static bool wld_delete_Geometries(const void *item, void *udata) {
   const VkDevice device = udata;
   if (pChunk->pGeometry != NULL) {
     delete_ChunkGeometry(pChunk->pGeometry, device);
+    free(pChunk->pGeometry);
   }
   return true;
 }
@@ -481,6 +485,14 @@ static bool wld_delete_Geometries(const void *item, void *udata) {
 void wld_delete_WorldState( //
     WorldState *pWorldState //
 ) {
+
+    printf("oof!\n");
+
+  // clear the garbage
+  wld_clearGarbage(pWorldState);
+  // free garbage heap
+  free(pWorldState->garbage_data);
+
   // free simplex noise
   open_simplex_noise_free(pWorldState->noise1);
 

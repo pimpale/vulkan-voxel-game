@@ -96,7 +96,7 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
   // create queues
   getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex, 0);
-  printf("main thread queue: %p\n", (void*)pGlobal->graphicsQueue);
+  printf("main thread queue: %p\n", (void *)pGlobal->graphicsQueue);
 
   getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex, 0);
 
@@ -317,9 +317,6 @@ static void drawAppFrame(            //
         pGlobal->pImageAvailableSemaphores[pGlobal->currentFrame]);
   }
 
-  // this updates the geometry
-  wld_update(pWs);
-
   uint32_t vertexBufferCount;
   wld_count_vertexBuffers(&vertexBufferCount, pWs);
 
@@ -372,7 +369,7 @@ int main(void) {
   VkQueue extraQueue;
   getQueue(&extraQueue, global.device, global.graphicsIndex, 14);
 
-  printf("extra queue: %p\n", (void*)extraQueue);
+  printf("extra queue: %p\n", (void *)extraQueue);
 
   // set up world generation
   WorldState ws;
@@ -381,7 +378,7 @@ int main(void) {
       (ivec3){0, 0, 0},     //
       42,                   //
       extraQueue,           //
-      global.commandPool, //
+      global.commandPool,   //
       global.device,        //
       global.physicalDevice //
   );
@@ -401,13 +398,18 @@ int main(void) {
   uint32_t fpsFrameCounter = 0;
   double fpsStartTime = glfwGetTime();
 
-  /*wait till close*/
+  uint32_t frameCounter = 0;
+
+  // wait till close
   while (!glfwWindowShouldClose(global.pWindow)) {
     // glfw check for new events
     glfwPollEvents();
 
     // update camera
     updateCamera(&camera, global.pWindow);
+
+    // update world
+    wld_update(&ws);
 
     // check camera chunk location,
     ivec3 camChunkCoord;
@@ -420,6 +422,13 @@ int main(void) {
 
     // draw frame
     drawAppFrame(&window, &global, &camera, &ws);
+
+    frameCounter++;
+
+    if(frameCounter % 100 == 0) {
+        vkDeviceWaitIdle(global.device);
+        wld_clearGarbage(&ws);
+    }
 
     fpsFrameCounter++;
     if (fpsFrameCounter >= 100) {

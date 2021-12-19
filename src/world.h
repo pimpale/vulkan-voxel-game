@@ -13,9 +13,9 @@
 #include "world_utils.h"
 
 // how many chunks to render
-#define RENDER_DISTANCE_X 19
-#define RENDER_DISTANCE_Y 19
-#define RENDER_DISTANCE_Z 19
+#define RENDER_DISTANCE_X 5
+#define RENDER_DISTANCE_Y 5
+#define RENDER_DISTANCE_Z 5
 
 // max chunks to generate per tick
 #define MAX_CHUNKS_TO_GENERATE 10
