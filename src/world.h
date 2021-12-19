@@ -12,19 +12,6 @@
 
 #include "world_utils.h"
 
-// how many chunks to render
-#define RENDER_DISTANCE_X 5
-#define RENDER_DISTANCE_Y 5
-#define RENDER_DISTANCE_Z 5
-
-// max chunks to generate per tick
-#define MAX_CHUNKS_TO_GENERATE 10
-// max chunks to mesh per tick
-#define MAX_CHUNKS_TO_MESH 10
-
-// max chunks to unload per tick
-#define MAX_CHUNKS_TO_UNLOAD 10
-
 typedef struct ChunkGeometry_s ChunkGeometry;
 
 /// wld_WorldState

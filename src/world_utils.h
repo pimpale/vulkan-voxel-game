@@ -7,9 +7,9 @@
 #include "block.h"
 
 // Size of chunk in blocks
-#define CHUNK_X_SIZE 16
-#define CHUNK_Y_SIZE 16
-#define CHUNK_Z_SIZE 16
+#define CHUNK_X_SIZE 32
+#define CHUNK_Y_SIZE 32
+#define CHUNK_Z_SIZE 32
 
 // contains block data for the chunk
 typedef struct {

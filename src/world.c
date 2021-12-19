@@ -5,21 +5,17 @@
 #include "block.h"
 #include "world.h"
 
-// gets the world chunk coordinate given from the centerLoc and the local array
-// position (ax, ay, az)
-static void arrayCoords_to_worldChunkCoords( //
-    ivec3 dest,                              //
-    const ivec3 centerLoc,                   //
-    uint32_t ax,                             // array x
-    uint32_t ay,                             // array y
-    uint32_t az                              // array z
-) {
-  ivec3 localOffset = {(int32_t)ax - RENDER_DISTANCE_X / 2,
-                       (int32_t)ay - RENDER_DISTANCE_Y / 2,
-                       (int32_t)az - RENDER_DISTANCE_Z / 2};
+// max chunks to generate per tick
+#define MAX_CHUNKS_TO_GENERATE 2
+// max chunks to mesh per tick
+#define MAX_CHUNKS_TO_MESH 10
+// max chunks to unload per tick
+#define MAX_CHUNKS_TO_UNLOAD 10
 
-  ivec3_add(dest, centerLoc, localOffset);
-}
+// how many chunks to render
+#define RENDER_RADIUS_X 3
+#define RENDER_RADIUS_Y 3
+#define RENDER_RADIUS_Z 3
 
 static uint32_t blocks_count_vertexes_internal( //
     const ChunkData *pCd                        //
@@ -202,7 +198,6 @@ static void blocks_gen(                //
     const struct osn_context *noiseCtx //
 ) {
   double scale1 = 20.0;
-  double scale2 = 10.0;
   for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
     for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
       for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
@@ -212,7 +207,6 @@ static void blocks_gen(                //
         double wz = z + (double)chunkOffset[2];
         double val = open_simplex_noise3(noiseCtx, wx / scale1, wy / scale1,
                                          wz / scale1);
-        open_simplex_noise3(noiseCtx, wx / scale2, wy / scale2, wz / scale2);
         if (val > 0.0) {
           pCd->blocks[x][y][z] = 1; // soil
         } else {
@@ -260,7 +254,7 @@ static void delete_ChunkGeometry(ChunkGeometry *geometry,
 
 typedef struct {
   ivec3 chunkCoord;
-  ChunkData data;
+  ChunkData *pData;
   ChunkGeometry *pGeometry;
 } ivec3_Chunk_KVPair;
 
@@ -327,13 +321,12 @@ void wld_new_WorldState(                  //
                   ivec3_Chunk_KVPair_compare, NULL, NULL);
 
   // initialize all of our neighboring chunks to be on the load list
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        // push the chunk into our vector
-        ivec3 tmp;
-        arrayCoords_to_worldChunkCoords(tmp, centerLoc, x, y, z);
-        ivec3_vec_push(pWorldState->togenerate, tmp);
+  for (int32_t x = -RENDER_RADIUS_X; x <= RENDER_RADIUS_X; x++) {
+    for (int32_t y = -RENDER_RADIUS_Y; y <= RENDER_RADIUS_Y; y++) {
+      for (int32_t z = -RENDER_RADIUS_Z; z <= RENDER_RADIUS_Z; z++) {
+        ivec3 chunkCoord;
+        ivec3_add(chunkCoord, centerLoc, (ivec3){x, y, z});
+        ivec3_vec_push(pWorldState->togenerate, chunkCoord);
       }
     }
   }
@@ -343,19 +336,12 @@ static bool wld_shouldBeLoaded(    //
     const WorldState *pWorldState, //
     const ivec3 worldChunkCoords   //
 ) {
-
-  ivec3 minDisp = {-RENDER_DISTANCE_X / 2, -RENDER_DISTANCE_Y / 2,
-                   -RENDER_DISTANCE_Z / 2};
-
-  ivec3 maxDisp = {(RENDER_DISTANCE_X + 1) / 2, (RENDER_DISTANCE_Y + 1) / 2,
-                   (RENDER_DISTANCE_Z + 1) / 2};
-
   ivec3 disp;
   ivec3_sub(disp, worldChunkCoords, pWorldState->centerLoc);
 
-  return (disp[0] >= minDisp[0] && disp[0] <= maxDisp[0]) &&
-         (disp[1] >= minDisp[1] && disp[1] <= maxDisp[1]) &&
-         (disp[2] >= minDisp[2] && disp[2] <= maxDisp[2]);
+  return (disp[0] >= -RENDER_RADIUS_X && disp[0] <= RENDER_RADIUS_X) &&
+         (disp[1] >= -RENDER_RADIUS_Y && disp[1] <= RENDER_RADIUS_Y) &&
+         (disp[2] >= -RENDER_RADIUS_Z && disp[2] <= RENDER_RADIUS_Z);
 }
 
 static void wld_pushGarbage(WorldState *pWorldState, ChunkGeometry *geometry) {
@@ -385,32 +371,34 @@ void wld_update(            //
   for (uint32_t i = 0;
        i < MAX_CHUNKS_TO_GENERATE && ivec3_vec_len(pWorldState->togenerate) > 0;
        i++) {
-    ivec3_Chunk_KVPair chunkToLoad;
-    ivec3_vec_pop(pWorldState->togenerate, chunkToLoad.chunkCoord);
+    ivec3_Chunk_KVPair c;
+    ivec3_vec_pop(pWorldState->togenerate, c.chunkCoord);
 
     // check that we still even need to load this
-    if (!wld_shouldBeLoaded(pWorldState, chunkToLoad.chunkCoord)) {
+    if (!wld_shouldBeLoaded(pWorldState, c.chunkCoord)) {
       continue;
     }
 
     // check we haven't already loaded this
-    if (hashmap_get(pWorldState->chunk_map, &chunkToLoad) != NULL) {
+    if (hashmap_get(pWorldState->chunk_map, &c) != NULL) {
       continue;
     }
 
     // generate chunk, we need to give it the block coordinate to generate at
     vec3 chunkOffset;
-    worldChunkCoords_to_blockCoords(chunkOffset, chunkToLoad.chunkCoord);
-    blocks_gen(&chunkToLoad.data, chunkOffset, pWorldState->noise1);
+    worldChunkCoords_to_blockCoords(chunkOffset, c.chunkCoord);
+
+    c.pData = malloc(sizeof(ChunkData));
+    blocks_gen(c.pData, chunkOffset, pWorldState->noise1);
 
     // no geometry yet
-    chunkToLoad.pGeometry = NULL;
-
-    // hashmap will clone the chunk to load
-    hashmap_set(pWorldState->chunk_map, &chunkToLoad);
+    c.pGeometry = NULL;
 
     // push the chunk coord to the chunks to mesh
-    ivec3_vec_push(pWorldState->tomesh, chunkToLoad.chunkCoord);
+    ivec3_vec_push(pWorldState->tomesh, c.chunkCoord);
+
+    // hashmap will clone the chunk to load
+    hashmap_set(pWorldState->chunk_map, &c);
   }
 
   // process stuff on the to mesh list
@@ -432,7 +420,7 @@ void wld_update(            //
     vec3 chunkOffset;
     worldChunkCoords_to_blockCoords(chunkOffset, pChunk->chunkCoord);
 
-    new_ChunkGeometry(pChunk->pGeometry, &pChunk->data, chunkOffset,
+    new_ChunkGeometry(pChunk->pGeometry, pChunk->pData, chunkOffset,
                       pWorldState->device, pWorldState->physicalDevice,
                       pWorldState->commandPool, pWorldState->queue);
 
@@ -467,6 +455,8 @@ void wld_update(            //
     ivec3_Chunk_KVPair *pChunk =
         hashmap_delete(pWorldState->chunk_map, c.chunkCoord);
 
+    free(pChunk->pData);
+
     // put chunk geometry on garbage pile
     wld_pushGarbage(pWorldState, pChunk->pGeometry);
   }
@@ -485,9 +475,6 @@ static bool wld_delete_Geometries(const void *item, void *udata) {
 void wld_delete_WorldState( //
     WorldState *pWorldState //
 ) {
-
-    printf("oof!\n");
-
   // clear the garbage
   wld_clearGarbage(pWorldState);
   // free garbage heap
@@ -568,13 +555,12 @@ void wld_set_center(         //
   ivec3_dup(pWorldState->centerLoc, centerLoc);
 
   // initialize all of our neighboring chunks to be on the load list
-  for (uint32_t x = 0; x < RENDER_DISTANCE_X; x++) {
-    for (uint32_t y = 0; y < RENDER_DISTANCE_Y; y++) {
-      for (uint32_t z = 0; z < RENDER_DISTANCE_Z; z++) {
-        // push the chunk into our vector
-        ivec3 tmp;
-        arrayCoords_to_worldChunkCoords(tmp, centerLoc, x, y, z);
-        ivec3_vec_push(pWorldState->togenerate, tmp);
+  for (int32_t x = -RENDER_RADIUS_X; x <= RENDER_RADIUS_X; x++) {
+    for (int32_t y = -RENDER_RADIUS_Y; y <= RENDER_RADIUS_Y; y++) {
+      for (int32_t z = -RENDER_RADIUS_Z; z <= RENDER_RADIUS_Z; z++) {
+        ivec3 chunkCoord;
+        ivec3_add(chunkCoord, centerLoc, (ivec3){x, y, z});
+        ivec3_vec_push(pWorldState->togenerate, chunkCoord);
       }
     }
   }
