@@ -565,6 +565,198 @@ void delete_SwapchainImageViews( //
   }
 }
 
+static VkCommandBuffer
+createBeginOneTimeCmdBuffer(const VkCommandPool commandPool,
+                            const VkDevice device) {
+  VkCommandBuffer commandBuffer;
+  new_CommandBuffers(&commandBuffer, 1, commandPool, device);
+
+  VkCommandBufferBeginInfo beginInfo = {0};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+  VkResult beginRet = vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  if (beginRet != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
+                   "Failed to begine one time command buffer: %s",
+                   vkstrerror(beginRet));
+    PANIC();
+  }
+
+  return commandBuffer;
+}
+
+static void submitEndOneTimeCmdBuffer(VkCommandBuffer buffer,
+                                      const VkQueue queue,
+                                      const VkDevice device) {
+
+  // End buffer
+  VkResult bufferEndResult = vkEndCommandBuffer(buffer);
+  if (bufferEndResult != VK_SUCCESS) {
+    /* Clean up resources */
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to end command buffer: %s",
+                   vkstrerror(bufferEndResult));
+    PANIC();
+  }
+
+  // wait for completion with a fence
+  VkFence fence;
+  if (new_Fence(&fence, device, false) != ERR_OK) {
+    LOG_ERROR(ERR_LEVEL_FATAL, "Failed to make fence to wait for buffer");
+    PANIC();
+  }
+
+  VkSubmitInfo submitInfo = {0};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &buffer;
+
+  VkResult queueSubmitResult = vkQueueSubmit(queue, 1, &submitInfo, fence);
+  if (queueSubmitResult != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
+                   "failed to submit command buffer to queue: %s",
+                   vkstrerror(queueSubmitResult));
+    PANIC();
+  }
+
+  VkResult waitRet = vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+  if (waitRet != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to wait for fence: %s",
+                   vkstrerror(waitRet));
+    PANIC();
+  }
+
+  delete_Fence(&fence, device);
+}
+
+void transitionImageLayout(          //
+    VkImage image,                   //
+    const VkFormat format,           //
+    const VkImageLayout oldLayout,   //
+    const VkImageLayout newLayout,   //
+    const VkCommandPool commandPool, //
+    const VkDevice device,           //
+    const VkQueue queue              //
+) {
+  VkCommandBuffer commandBuffer =
+      createBeginOneTimeCmdBuffer(commandPool, device);
+
+  VkImageMemoryBarrier barrier = {0};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = oldLayout;
+  barrier.newLayout = newLayout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+
+  VkPipelineStageFlags sourceStage;
+  VkPipelineStageFlags destinationStage;
+
+  if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+      newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  } else {
+    LOG_ERROR(ERR_LEVEL_FATAL, "Unsupported layout transition");
+    PANIC();
+  }
+
+  vkCmdPipelineBarrier(              //
+      commandBuffer,                 //
+      sourceStage, destinationStage, //
+      0,                             //
+      0, NULL,                       //
+      0, NULL,                       //
+      1, &barrier                    //
+  );                                 //
+
+  submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
+}
+
+void copyBufferToImage(VkImage image, const VkBuffer buffer,
+                       const uint32_t width, const uint32_t height,
+                       const VkCommandPool commandPool, const VkDevice device,
+                       const VkQueue queue) {
+  VkCommandBuffer commandBuffer =
+      createBeginOneTimeCmdBuffer(commandPool, device);
+
+  VkBufferImageCopy region = {0};
+  region.bufferOffset = 0;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.mipLevel = 0;
+  region.imageSubresource.baseArrayLayer = 0;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = (VkOffset3D){0, 0, 0};
+  region.imageExtent = (VkExtent3D){width, height, 1};
+
+  vkCmdCopyBufferToImage(commandBuffer, buffer, image,
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+  submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
+}
+
+void createTextureImage() {
+  int texWidth, texHeight, texChannels;
+  stbi_uc *pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight,
+                              &texChannels, STBI_rgb_alpha);
+  VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image!");
+  }
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+
+
+  createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               stagingBuffer, stagingBufferMemory);
+
+  void *data;
+  vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+  memcpy(data, pixels, static_cast<size_t>(imageSize));
+  vkUnmapMemory(device, stagingBufferMemory);
+
+  stbi_image_free(pixels);
+
+  createImage(
+      texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+
+  transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                        VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  copyBufferToImage(stagingBuffer, textureImage,
+                    static_cast<uint32_t>(texWidth),
+                    static_cast<uint32_t>(texHeight));
+  transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  vkDestroyBuffer(device, stagingBuffer, nullptr);
+  vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
 ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
                         const uint32_t codeSize, const uint32_t *pCode) {
   VkShaderModuleCreateInfo createInfo = {0};
@@ -1326,65 +1518,15 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
 ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
                   const VkDeviceSize size, const VkCommandPool commandPool,
                   const VkQueue queue, const VkDevice device) {
-  VkCommandBuffer copyCommandBuffer;
-  ErrVal createResult =
-      new_CommandBuffers(&copyCommandBuffer, 1, commandPool, device);
-  if (createResult != ERR_OK) {
-  }
 
-  VkCommandBufferBeginInfo beginInfo = {0};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-
-  VkResult beginRet = vkBeginCommandBuffer(copyCommandBuffer, &beginInfo);
-  if (beginRet != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "Failed to begin copy command buffer: %s",
-                   vkstrerror(beginRet));
-    PANIC();
-  }
+  VkCommandBuffer copyCommandBuffer =
+      createBeginOneTimeCmdBuffer(commandPool, device);
 
   VkBufferCopy copyRegion = {.size = size, .srcOffset = 0, .dstOffset = 0};
   vkCmdCopyBuffer(copyCommandBuffer, sourceBuffer, destinationBuffer, 1,
                   &copyRegion);
 
-  // End buffer
-  VkResult bufferEndResult = vkEndCommandBuffer(copyCommandBuffer);
-  if (bufferEndResult != VK_SUCCESS) {
-    /* Clean up resources */
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to end command buffer: %s",
-                   vkstrerror(bufferEndResult));
-    PANIC();
-  }
-
-  // wait for completion with a fence
-  VkFence fence;
-  if (new_Fence(&fence, device, false) != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_FATAL, "Failed to make copy fence");
-    PANIC();
-  }
-
-  VkSubmitInfo submitInfo = {0};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &copyCommandBuffer;
-
-  VkResult queueSubmitResult = vkQueueSubmit(queue, 1, &submitInfo, fence);
-  if (queueSubmitResult != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
-                   "failed to submit command buffer to queue: %s",
-                   vkstrerror(queueSubmitResult));
-    PANIC();
-  }
-
-  VkResult waitRet = vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-  if (waitRet != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to wait for fence: %s",
-                   vkstrerror(waitRet));
-    PANIC();
-  }
-
-  delete_Fence(&fence, device);
-
+  submitEndOneTimeCmdBuffer(copyCommandBuffer, queue, device);
   return (ERR_OK);
 }
 

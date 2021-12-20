@@ -14,8 +14,8 @@ typedef struct {
 
 const static BlockDef BLOCKS[] = {
     (BlockDef){.transparent = true, .name = "air"},
+    (BlockDef){.transparent = false, .name = "grass"},
     (BlockDef){.transparent = false, .name = "soil"},
-    (BlockDef){.transparent = false, .name = "stone"},
 };
 
 #define BLOCKS_LEN (sizeof(BLOCKS) / sizeof(BlockDef))
@@ -42,7 +42,11 @@ typedef enum {
 } BlockFaceKind;
 
 // calculates the base UV of a given index (unnormalized coordinates)
-void calculateBaseUV(BlockIndex i, vec3 baseUV);
+void calculateBaseUV(        //
+    vec3 baseTexCoord,       //
+    const BlockIndex i,      //
+    const BlockFaceKind face //
+);
 
 void buildTextureAtlas(                             //
     uint8_t pTextureAtlas[BLOCK_TEXTURE_ATLAS_LEN], //
