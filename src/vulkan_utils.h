@@ -332,13 +332,13 @@ ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,
 
 void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device);
 
-ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
+void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
                                        const VkDevice device);
 
 void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
                            const VkDevice device);
 
-ErrVal new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
+void new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
                                  const VkDevice device,
                                  const VkShaderModule vertShaderModule,
                                  const VkShaderModule fragShaderModule,
@@ -348,7 +348,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
 
 void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device);
 
-ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
+void new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
                        const VkRenderPass renderPass,
                        const VkImageView imageView,
                        const VkImageView depthImageView,
@@ -356,7 +356,7 @@ ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
 
 void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device);
 
-ErrVal new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
+void new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
                                  const VkDevice device,
                                  const VkRenderPass renderPass,
                                  const VkExtent2D swapchainExtent,
@@ -470,7 +470,7 @@ void delete_Buffer(VkBuffer *pBuffer, const VkDevice device);
 
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device);
 
-ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
+void copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
                           const VkDeviceSize deviceSize, const void *source,
                           const VkDevice device);
 

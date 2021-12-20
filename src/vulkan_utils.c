@@ -565,6 +565,38 @@ void delete_SwapchainImageViews( //
   }
 }
 
+void new_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
+  VkSamplerCreateInfo samplerInfo = {0};
+  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  samplerInfo.magFilter = VK_FILTER_LINEAR;
+  samplerInfo.minFilter = VK_FILTER_LINEAR;
+  // white border to check for error in uv mapping
+  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+  // we clamp to border to make errors more obvious
+  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  // no anisotropy for now
+  samplerInfo.anisotropyEnable = VK_FALSE;
+  samplerInfo.maxAnisotropy = 1.0f;
+  samplerInfo.unnormalizedCoordinates = VK_FALSE;
+  samplerInfo.compareEnable = VK_FALSE;
+  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+  VkResult ret = vkCreateSampler(device, &samplerInfo, NULL, pTextureSampler);
+  if (ret != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create sampler: %s",
+                   vkstrerror(ret));
+    PANIC();
+  }
+}
+
+void delete_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
+  vkDestroySampler(device, *pTextureSampler, NULL);
+  *pTextureSampler = VK_NULL_HANDLE;
+}
+
 static VkCommandBuffer
 createBeginOneTimeCmdBuffer(const VkCommandPool commandPool,
                             const VkDevice device) {
@@ -631,7 +663,7 @@ static void submitEndOneTimeCmdBuffer(VkCommandBuffer buffer,
 
 void transitionImageLayout(          //
     VkImage image,                   //
-    const VkFormat format,           //
+    UNUSED const VkFormat format,    //
     const VkImageLayout oldLayout,   //
     const VkImageLayout newLayout,   //
     const VkCommandPool commandPool, //
@@ -688,10 +720,14 @@ void transitionImageLayout(          //
   submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
 }
 
-void copyBufferToImage(VkImage image, const VkBuffer buffer,
-                       const uint32_t width, const uint32_t height,
-                       const VkCommandPool commandPool, const VkDevice device,
-                       const VkQueue queue) {
+void copyBufferToImage(              //
+    VkImage image,                   //
+    const VkBuffer buffer,           //
+    VkExtent2D dimensions,           //
+    const VkCommandPool commandPool, //
+    const VkDevice device,           //
+    const VkQueue queue              //
+) {
   VkCommandBuffer commandBuffer =
       createBeginOneTimeCmdBuffer(commandPool, device);
 
@@ -704,7 +740,7 @@ void copyBufferToImage(VkImage image, const VkBuffer buffer,
   region.imageSubresource.baseArrayLayer = 0;
   region.imageSubresource.layerCount = 1;
   region.imageOffset = (VkOffset3D){0, 0, 0};
-  region.imageExtent = (VkExtent3D){width, height, 1};
+  region.imageExtent = (VkExtent3D){dimensions.width, dimensions.height, 1};
 
   vkCmdCopyBufferToImage(commandBuffer, buffer, image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -712,49 +748,77 @@ void copyBufferToImage(VkImage image, const VkBuffer buffer,
   submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
 }
 
-void createTextureImage() {
-  int texWidth, texHeight, texChannels;
-  stbi_uc *pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight,
-                              &texChannels, STBI_rgb_alpha);
-  VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-  if (!pixels) {
-    throw std::runtime_error("failed to load texture image!");
-  }
+void createTextureImage(                   //
+    VkImage *pImage,                       //
+    VkDeviceMemory *pImageMemory,          //
+    const uint8_t *rgbaPxArr,              //
+    const VkExtent2D dimensions,           //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool commandPool,       //
+    const VkQueue queue                    //
+) {
+  // each pix has 4 channels
+  VkDeviceSize bufferSize = dimensions.height * dimensions.width * 4;
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
 
+  ErrVal stagingBufferCreateResult = new_Buffer_DeviceMemory(
+      &stagingBuffer, &stagingBufferMemory, bufferSize, physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-  createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+  if (stagingBufferCreateResult != ERR_OK) {
+    LOG_ERROR(ERR_LEVEL_FATAL,
+              "failed to create texture: failed to create staging buffer");
+    PANIC();
+  }
 
-  void *data;
-  vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-  memcpy(data, pixels, static_cast<size_t>(imageSize));
-  vkUnmapMemory(device, stagingBufferMemory);
+  copyToDeviceMemory(&stagingBufferMemory, bufferSize, rgbaPxArr, device);
 
-  stbi_image_free(pixels);
+  // create new image
+  new_Image(                                                        //
+      pImage,                                                       //
+      pImageMemory,                                                 //
+      dimensions,                                                   //
+      VK_FORMAT_R8G8B8A8_SRGB,                                      //
+      VK_IMAGE_TILING_OPTIMAL,                                      //
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, //
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,                          //
+      physicalDevice,                                               //
+      device                                                        //
+  );                                                                //
 
-  createImage(
-      texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+  // prepare image for data transfer
+  transitionImageLayout(                    //
+      *pImage,                              //
+      VK_FORMAT_R8G8B8A8_SRGB,              //
+      VK_IMAGE_LAYOUT_UNDEFINED,            //
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, //
+      commandPool,                          //
+      device,                               //
+      queue                                 //
+  );
 
-  transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-  copyBufferToImage(stagingBuffer, textureImage,
-                    static_cast<uint32_t>(texWidth),
-                    static_cast<uint32_t>(texHeight));
-  transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  copyBufferToImage(*pImage, stagingBuffer, dimensions, commandPool, device,
+                    queue);
 
-  vkDestroyBuffer(device, stagingBuffer, nullptr);
-  vkFreeMemory(device, stagingBufferMemory, nullptr);
+  // prepare image to only be read by shaders
+  transitionImageLayout(                        //
+      *pImage,                                  //
+      VK_FORMAT_R8G8B8A8_SRGB,                  //
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,     //
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, //
+      commandPool,                              //
+      device,                                   //
+      queue                                     //
+  );
+
+  /* Delete the temporary staging buffers */
+  delete_Buffer(&stagingBuffer, device);
+  delete_DeviceMemory(&stagingBufferMemory, device);
 }
 
 ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
@@ -851,8 +915,34 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
   *pRenderPass = VK_NULL_HANDLE;
 }
 
-ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                       const VkDevice device) {
+// creates a new image sampler at binding 0
+void new_SamplerDescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
+                                    const VkDevice device) {
+  VkDescriptorSetLayoutBinding samplerLayoutBinding = {0};
+  samplerLayoutBinding.binding = 0;
+  samplerLayoutBinding.descriptorCount = 1;
+  samplerLayoutBinding.descriptorType =
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  samplerLayoutBinding.pImmutableSamplers = NULL;
+  samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo = {0};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &samplerLayoutBinding;
+
+  VkResult ret = vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
+                                             pDescriptorSetLayout);
+  if (ret != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
+                   "failed to create descriptor set layout with error: %s",
+                   vkstrerror(ret));
+    PANIC();
+  }
+}
+
+void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
+                                     const VkDevice device) {
   VkPushConstantRange pushConstantRange = {0};
   pushConstantRange.offset = 0;
   pushConstantRange.size = sizeof(mat4x4);
@@ -871,7 +961,6 @@ ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
                    vkstrerror(res));
     PANIC();
   }
-  return (ERR_OK);
 }
 
 void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
@@ -880,13 +969,13 @@ void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
   *pPipelineLayout = VK_NULL_HANDLE;
 }
 
-ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
-                                 const VkDevice device,
-                                 const VkShaderModule vertShaderModule,
-                                 const VkShaderModule fragShaderModule,
-                                 const VkExtent2D extent,
-                                 const VkRenderPass renderPass,
-                                 const VkPipelineLayout pipelineLayout) {
+void new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
+                               const VkDevice device,
+                               const VkShaderModule vertShaderModule,
+                               const VkShaderModule fragShaderModule,
+                               const VkExtent2D extent,
+                               const VkRenderPass renderPass,
+                               const VkPipelineLayout pipelineLayout) {
   VkPipelineShaderStageCreateInfo vertShaderStageInfo = {0};
   vertShaderStageInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1019,18 +1108,16 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
     LOG_ERROR(ERR_LEVEL_FATAL, "failed to create graphics pipeline!");
     PANIC();
   }
-  return (ERR_OK);
 }
 
 void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device) {
   vkDestroyPipeline(device, *pPipeline, NULL);
 }
 
-ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
-                       const VkRenderPass renderPass,
-                       const VkImageView imageView,
-                       const VkImageView depthImageView,
-                       const VkExtent2D swapchainExtent) {
+void new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
+                     const VkRenderPass renderPass, const VkImageView imageView,
+                     const VkImageView depthImageView,
+                     const VkExtent2D swapchainExtent) {
   VkFramebufferCreateInfo framebufferInfo = {0};
   framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebufferInfo.renderPass = renderPass;
@@ -1041,12 +1128,10 @@ ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
   framebufferInfo.layers = 1;
   VkResult res =
       vkCreateFramebuffer(device, &framebufferInfo, NULL, pFramebuffer);
-  if (res == VK_SUCCESS) {
-    return (ERR_OK);
-  } else {
-    LOG_ERROR_ARGS(ERR_LEVEL_WARN, "failed to create framebuffers: %s",
+  if (res != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create framebuffers: %s",
                    vkstrerror(res));
-    return (ERR_UNKNOWN);
+    PANIC();
   }
 }
 
@@ -1055,24 +1140,17 @@ void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device) {
   *pFramebuffer = VK_NULL_HANDLE;
 }
 
-ErrVal new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
-                                 const VkDevice device,
-                                 const VkRenderPass renderPass,
-                                 const VkExtent2D swapchainExtent,
-                                 const uint32_t imageCount,
-                                 const VkImageView depthImageView,
-                                 const VkImageView *pSwapchainImageViews) {
+void new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
+                               const VkDevice device,
+                               const VkRenderPass renderPass,
+                               const VkExtent2D swapchainExtent,
+                               const uint32_t imageCount,
+                               const VkImageView depthImageView,
+                               const VkImageView *pSwapchainImageViews) {
   for (uint32_t i = 0; i < imageCount; i++) {
-    ErrVal retVal = new_Framebuffer(&pFramebuffers[i], device, renderPass,
-                                    pSwapchainImageViews[i], depthImageView,
-                                    swapchainExtent);
-    if (retVal != ERR_OK) {
-      LOG_ERROR(ERR_LEVEL_ERROR, "could not create framebuffers");
-      delete_SwapchainFramebuffers(pFramebuffers, i, device);
-      return (retVal);
-    }
+    new_Framebuffer(&pFramebuffers[i], device, renderPass,
+                    pSwapchainImageViews[i], depthImageView, swapchainExtent);
   }
-  return (ERR_OK);
 }
 
 void delete_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
@@ -1431,16 +1509,8 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
     PANIC();
   }
 
-  /* Copy data to staging buffer, making sure to clean up leaks */
-  ErrVal copyResult =
-      copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
-  if (copyResult != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_ERROR,
-              "failed to create vertex buffer: could not map memory");
-    delete_Buffer(&stagingBuffer, device);
-    delete_DeviceMemory(&stagingBufferMemory, device);
-    return (copyResult);
-  }
+  // Copy data to staging buffer, making sure to clean up leaks
+  copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
 
   /* Create vertex buffer and allocate memory for it */
   ErrVal vertexBufferCreateResult = new_Buffer_DeviceMemory(
@@ -1577,9 +1647,9 @@ void delete_CommandBuffers(            //
   }
 }
 
-ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
-                          const VkDeviceSize deviceSize, const void *source,
-                          const VkDevice device) {
+void copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
+                        const VkDeviceSize deviceSize, const void *source,
+                        const VkDevice device) {
   void *data;
   VkResult mapMemoryResult =
       vkMapMemory(device, *pDeviceMemory, 0, deviceSize, 0, &data);
@@ -1592,11 +1662,10 @@ ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
     PANIC();
   }
 
-  /* If it was successful, go on and actually copy it, making sure to unmap once
-   * done */
+  // If it was successful, go on and actually copy it, making sure to unmap once
+  // done
   memcpy(data, source, (size_t)deviceSize);
   vkUnmapMemory(device, *pDeviceMemory);
-  return (ERR_OK);
 }
 
 ErrVal new_Image(                           //
