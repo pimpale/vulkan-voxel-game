@@ -22,9 +22,9 @@ typedef struct bmp_header_s {
   uint32_t bfOffBits;
 
   uint32_t biSize;
-  int biWidth;
-  int biHeight;
-  uint16_t biPlanes;
+  int32_t biWidth;
+  int32_t biHeight;
+  uint16_t biPlanes; // must be 1
   uint16_t biBitCount;
   uint32_t biCompression;
   uint32_t biSizeImage;

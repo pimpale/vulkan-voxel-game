@@ -2,14 +2,17 @@
  * Project: LibBMP
  */
 #include "libbmp.h"
+#include <stdio.h>
 #include <stdlib.h>
+
+static inline uint32_t bmpabs(int32_t a) { return (uint32_t)abs(a); }
 
 // BMP_HEADER
 
-void bmp_header_init_df(bmp_header *header, const int32_t width,
-                        const int32_t height) {
+void bmp_header_init_df(bmp_header *header, const int width, const int height) {
   header->bfSize =
-      (sizeof(bmp_pixel) * width + BMP_GET_PADDING(width)) * abs(height);
+      (sizeof(bmp_pixel) * bmpabs(width) + BMP_GET_PADDING(bmpabs(width))) *
+      bmpabs(height);
   header->bfReserved = 0;
   header->bfOffBits = 54;
   header->biSize = 40;
@@ -33,7 +36,7 @@ enum bmp_error bmp_header_write(const bmp_header *header, FILE *img_file) {
   }
 
   // Since an adress must be passed to fwrite, create a variable!
-  const uint16_t magic = BMP_MAGIC;
+  const unsigned short magic = BMP_MAGIC;
   fwrite(&magic, sizeof(magic), 1, img_file);
 
   // Use the type instead of the variable because its a pointer!
@@ -47,7 +50,7 @@ enum bmp_error bmp_header_read(bmp_header *header, FILE *img_file) {
   }
 
   // Since an adress must be passed to fread, create a variable!
-  uint16_t magic;
+  unsigned short magic;
 
   // Check if its an bmp file by comparing the magic nbr:
   if (fread(&magic, sizeof(magic), 1, img_file) != 1 || magic != BMP_MAGIC) {
@@ -73,24 +76,25 @@ void bmp_pixel_init(bmp_pixel *pxl, const uint8_t red, const uint8_t green,
 // BMP_IMG
 
 void bmp_img_alloc(bmp_img *img) {
-  const size_t h = abs(img->img_header.biHeight);
+  const size_t h = bmpabs(img->img_header.biHeight);
 
   // Allocate the required memory for the pixels:
   img->img_pixels = malloc(sizeof(bmp_pixel *) * h);
 
   for (size_t y = 0; y < h; y++) {
-    img->img_pixels[y] = malloc(sizeof(bmp_pixel) * img->img_header.biWidth);
+    img->img_pixels[y] =
+        malloc(sizeof(bmp_pixel) * bmpabs(img->img_header.biWidth));
   }
 }
 
-void bmp_img_init_df(bmp_img *img, const int32_t width, const int32_t height) {
+void bmp_img_init_df(bmp_img *img, const int width, const int height) {
   // INIT the header with default values:
   bmp_header_init_df(&img->img_header, width, height);
   bmp_img_alloc(img);
 }
 
 void bmp_img_free(bmp_img *img) {
-  const size_t h = abs(img->img_header.biHeight);
+  const size_t h = bmpabs(img->img_header.biHeight);
 
   for (size_t y = 0; y < h; y++) {
     free(img->img_pixels[y]);
@@ -115,7 +119,7 @@ enum bmp_error bmp_img_write(const bmp_img *img, const char *filename) {
   }
 
   // Select the mode (bottom-up or top-down):
-  const size_t h = abs(img->img_header.biHeight);
+  const size_t h = bmpabs(img->img_header.biHeight);
   const size_t offset = (img->img_header.biHeight > 0 ? h - 1 : 0);
 
   // Create the padding:
@@ -124,12 +128,12 @@ enum bmp_error bmp_img_write(const bmp_img *img, const char *filename) {
   // Write the content:
   for (size_t y = 0; y < h; y++) {
     // Write a whole row of pixels to the file:
-    fwrite(img->img_pixels[abs(offset - y)], sizeof(bmp_pixel),
-           img->img_header.biWidth, img_file);
+    fwrite(img->img_pixels[offset - y], sizeof(bmp_pixel),
+           bmpabs(img->img_header.biWidth), img_file);
 
     // Write the padding for the row!
-    fwrite(padding, sizeof(uint8_t), BMP_GET_PADDING(img->img_header.biWidth),
-           img_file);
+    fwrite(padding, sizeof(uint8_t),
+           BMP_GET_PADDING(bmpabs(img->img_header.biWidth)), img_file);
   }
 
   // NOTE: All good!
@@ -156,24 +160,24 @@ enum bmp_error bmp_img_read(bmp_img *img, const char *filename) {
   bmp_img_alloc(img);
 
   // Select the mode (bottom-up or top-down):
-  const size_t h = abs(img->img_header.biHeight);
+  const size_t h = bmpabs(img->img_header.biHeight);
   const size_t offset = (img->img_header.biHeight > 0 ? h - 1 : 0);
-  const size_t padding = BMP_GET_PADDING(img->img_header.biWidth);
+  const size_t padding = BMP_GET_PADDING(bmpabs(img->img_header.biWidth));
 
   // Needed to compare the return value of fread
-  const size_t items = img->img_header.biWidth;
+  const size_t items = bmpabs(img->img_header.biWidth);
 
   // Read the content:
   for (size_t y = 0; y < h; y++) {
     // Read a whole row of pixels from the file:
-    if (fread(img->img_pixels[abs(offset - y)], sizeof(bmp_pixel), items,
+    if (fread(img->img_pixels[offset - y], sizeof(bmp_pixel), items,
               img_file) != items) {
       fclose(img_file);
       return BMP_ERROR;
     }
 
     // Skip the padding:
-    fseek(img_file, padding, SEEK_CUR);
+    fseek(img_file, (long)padding, SEEK_CUR);
   }
 
   // NOTE: All good!

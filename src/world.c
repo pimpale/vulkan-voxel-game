@@ -215,6 +215,16 @@ static void blocks_gen(                //
       }
     }
   }
+  // iterate through blocks again, and for all blocks under air, make them stone
+  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
+    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
+      for (uint32_t z = 0; z < CHUNK_Z_SIZE-1; z++) {
+        if (pCd->blocks[x][y][z] == 1 && pCd->blocks[x][y][z +1] == 1) {
+          pCd->blocks[x][y][z] = 2;
+        }
+      }
+    }
+  }
 }
 
 struct ChunkGeometry_s {
