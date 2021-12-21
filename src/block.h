@@ -35,7 +35,7 @@ const static BlockDef BLOCKS[] = {
 
 // the size of the tile in normalized texture corodinates
 #define BLOCK_TILE_TEX_XSIZE ((float)(1.0/6))
-#define BLOCK_TILE_TEX_YSIZE ((float)(1.0/BLOCKS_LEN))
+#define BLOCK_TILE_TEX_YSIZE (1.0f / ((float)sizeof(BLOCKS) / sizeof(BlockDef)))
 
 typedef enum {
   Block_DOWN,
