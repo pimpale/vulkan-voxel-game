@@ -30,7 +30,11 @@ const static BlockDef BLOCKS[] = {
 
 /// the length in bytes of the texture atlas
 #define BLOCK_TEXTURE_ATLAS_LEN                                                \
-  (BLOCK_TEXTURE_ATLAS_WIDTH  * BLOCK_TEXTURE_ATLAS_HEIGHT* 4)
+  (BLOCK_TEXTURE_ATLAS_WIDTH * BLOCK_TEXTURE_ATLAS_HEIGHT * 4)
+
+// the size of the tile in normalized texture corodinates
+#define BLOCK_TILE_TEX_XSIZE ((float)(1.0/6))
+#define BLOCK_TILE_TEX_YSIZE ((float)(1.0/BLOCKS_LEN))
 
 typedef enum {
   Block_DOWN,
@@ -41,14 +45,7 @@ typedef enum {
   Block_FRONT,
 } BlockFaceKind;
 
-// calculates the base UV of a given index (unnormalized coordinates)
-void block_calculateBaseUV(        //
-    vec3 baseTexCoord,       //
-    const BlockIndex i,      //
-    const BlockFaceKind face //
-);
-
-void block_buildTextureAtlas(                             //
+void block_buildTextureAtlas(                       //
     uint8_t pTextureAtlas[BLOCK_TEXTURE_ATLAS_LEN], //
     const char *assetPath                           //
 );

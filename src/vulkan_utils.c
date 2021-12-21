@@ -806,7 +806,7 @@ ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
 void new_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
   VkSamplerCreateInfo samplerInfo = {0};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = VK_FILTER_LINEAR;
+  samplerInfo.magFilter = VK_FILTER_NEAREST;
   samplerInfo.minFilter = VK_FILTER_LINEAR;
   // white border to check for error in uv mapping
   samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;

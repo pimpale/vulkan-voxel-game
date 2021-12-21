@@ -30,11 +30,12 @@ static void overwriteRectBmp(uint8_t *rgbaBuffer,     //
       uint32_t bufX = x + xoff;
 
       // calculate pixel index in buffer
-      uint32_t pxIndex = bufY * bufferWidthPx + bufX;
+      uint32_t pxIndex = bufY * (bufferWidthPx) + bufX;
       // set colors
-      rgbaBuffer[pxIndex * 4 + 0] = src->img_pixels[y][x].red;
-      rgbaBuffer[pxIndex * 4 + 1] = src->img_pixels[y][x].green;
-      rgbaBuffer[pxIndex * 4 + 2] = src->img_pixels[y][x].blue;
+      rgbaBuffer[pxIndex * 4 + 0] = src->img_pixels[y][x].red*2;
+      rgbaBuffer[pxIndex * 4 + 1] = src->img_pixels[y][x].green*2;
+      printf("%u\n", src->img_pixels[y][x].green);
+      rgbaBuffer[pxIndex * 4 + 2] = src->img_pixels[y][x].blue*2;
       rgbaBuffer[pxIndex * 4 + 3] = 0xFF;
     }
   }
@@ -76,12 +77,15 @@ static void writePicTexAtlas(                       //
                         strlen("/") + strlen(faceFilename) + 1;
   char *fileName = malloc(fileNameSize * sizeof(char));
 
+
   // build string
   strcpy(fileName, assetPath);
   strcat(fileName, "/");
   strcat(fileName, blockName);
   strcat(fileName, "/");
   strcat(fileName, faceFilename);
+
+  printf("%s\n", fileName);
 
   bmp_img img;
   enum bmp_error e = bmp_img_read(&img, fileName);

@@ -13,10 +13,13 @@ static CameraBasis new_CameraBasis(const float pitch, const float yaw) {
   cb.front[0] = cosf(yaw) * cosf(pitch);
   cb.front[1] = sinf(pitch);
   cb.front[2] = sinf(yaw) * cosf(pitch);
+  vec3_norm(cb.front, cb.front);
 
   // calculate others from via gram schmidt process
   vec3_mul_cross(cb.right, cb.front, worldup);
+  vec3_norm(cb.right, cb.right);
   vec3_mul_cross(cb.up, cb.right, cb.front);
+  vec3_norm(cb.up, cb.up);
 
   return cb;
 }

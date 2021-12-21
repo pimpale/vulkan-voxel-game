@@ -68,6 +68,16 @@ static uint32_t blocks_count_vertexes_internal( //
   return faceCount * 6;
 }
 
+static inline void writeVertex(Vertex *pVertex, const vec3 pos,
+                               const vec3 color, const vec2 texCoord) {
+  vec3_dup(pVertex->position, pos);
+  vec3_dup(pVertex->color, color);
+  vec2_dup(pVertex->position, texCoord);
+}
+
+#define V3(x)                                                                  \
+  { x[0], x[1], x[2] }
+
 // returns the number of vertexes written
 static uint32_t blocks_mesh_internal( //
     Vertex *pVertexes,                //
@@ -78,120 +88,104 @@ static uint32_t blocks_mesh_internal( //
   for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
     for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
       for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
+        BlockIndex bi = pCd->blocks[x][y][z];
         // check that its not transparent
-        if (BLOCKS[pCd->blocks[x][y][z]].transparent) {
+        if (BLOCKS[bi].transparent) {
           continue;
         }
 
+        const float fx = (float)x + offset[0];
+        const float fy = (float)y + offset[1];
+        const float fz = (float)z + offset[2];
+
         // calculate vertexes
-        Vertex lbu = (Vertex){
-            .position = {offset[0] + (float)x, offset[1] + (float)y,
-                         offset[2] + (float)z},
-            .color = {0.5f, 0.9f, 0.5f},
-            .texCoords={0.0, 1.0},
-        };
-        Vertex rbu = (Vertex){
-            .position = {offset[0] + (float)(x + 1), offset[1] + (float)y,
-                         offset[2] + (float)z},
-            .color = {0.5f, 0.5f, 0.9f},
-            .texCoords={0.0, 0.0},
-        };
-        Vertex lfu = (Vertex){
-            .position = {offset[0] + (float)x, offset[1] + (float)y,
-                         offset[2] + (float)(z + 1)},
-            .color = {0.9f, 0.5f, 0.5f},
-            .texCoords={0.0, 1.0},
-        };
-        Vertex rfu = (Vertex){
-            .position = {offset[0] + (float)(x + 1), offset[1] + (float)y,
-                         offset[2] + (float)(z + 1)},
-            .color = {0.5f, 0.9f, 0.5f},
-            .texCoords={0.0, 0.0},
-        };
-        Vertex lbl = (Vertex){
-            .position = {offset[0] + (float)x, offset[1] + (float)(y + 1),
-                         offset[2] + (float)z},
-            .color = {0.5f, 0.5f, 0.9f},
-            .texCoords={0.0, 1.0},
-        };
-        Vertex rbl = (Vertex){
-            .position = {offset[0] + (float)(x + 1), offset[1] + (float)(y + 1),
-                         offset[2] + (float)z},
-            .color = {0.9f, 0.5f, 0.5f},
-        };
-        Vertex lfl = (Vertex){
-            .position = {offset[0] + (float)x, offset[1] + (float)(y + 1),
-                         offset[2] + (float)(z + 1)},
-            .color = {0.5f, 0.5f, 0.5f},
-            .texCoords={0.0, 1.0},
-        };
-        Vertex rfl = (Vertex){
-            .position = {offset[0] + (float)(x + 1), offset[1] + (float)(y + 1),
-                         offset[2] + (float)(z + 1)},
-            .color = {0.5f, 0.5f, 0.5f},
-            .texCoords={1.0, 0.0},
-        };
+        const vec3 v000 = {fx + 0, fy + 0, fz + 0};
+        const vec3 v100 = {fx + 1, fy + 0, fz + 0};
+        const vec3 v001 = {fx + 0, fy + 0, fz + 1};
+        const vec3 v101 = {fx + 1, fy + 0, fz + 1};
+        const vec3 v010 = {fx + 0, fy + 1, fz + 0};
+        const vec3 v110 = {fx + 1, fy + 1, fz + 0};
+        const vec3 v011 = {fx + 0, fy + 1, fz + 1};
+        const vec3 v111 = {fx + 1, fy + 1, fz + 1};
+
+        const float xoff = BLOCK_TILE_TEX_XSIZE;
+        const float yoff = BLOCK_TILE_TEX_YSIZE;
+
+        // clang-format off
 
         // left face
         if (x == 0 || BLOCKS[pCd->blocks[x - 1][y][z]].transparent) {
-          pVertexes[i++] = lbu;
-          pVertexes[i++] = lfu;
-          pVertexes[i++] = lbl;
-          pVertexes[i++] = lbl;
-          pVertexes[i++] = lfl;
-          pVertexes[i++] = lfu;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_LEFT;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords= {bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+0.0f, by+yoff}};
         }
         // right face
         if (x == CHUNK_X_SIZE - 1 ||
             BLOCKS[pCd->blocks[x + 1][y][z]].transparent) {
-          pVertexes[i++] = rbu;
-          pVertexes[i++] = rfu;
-          pVertexes[i++] = rbl;
-          pVertexes[i++] = rbl;
-          pVertexes[i++] = rfl;
-          pVertexes[i++] = rfu;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_RIGHT;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords= {bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+yoff}};
         }
 
         // upper face
         if (y == 0 || BLOCKS[pCd->blocks[x][y - 1][z]].transparent) {
-          pVertexes[i++] = lbu;
-          pVertexes[i++] = rbu;
-          pVertexes[i++] = lfu;
-          pVertexes[i++] = lfu;
-          pVertexes[i++] = rfu;
-          pVertexes[i++] = rbu;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_UP;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords={bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords={bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords={bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords={bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords={bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords={bx+0.0f, by+yoff}};
         }
         // lower face
         if (y == CHUNK_Y_SIZE - 1 ||
             BLOCKS[pCd->blocks[x][y + 1][z]].transparent) {
-          pVertexes[i++] = lbl;
-          pVertexes[i++] = rbl;
-          pVertexes[i++] = lfl;
-          pVertexes[i++] = lfl;
-          pVertexes[i++] = rfl;
-          pVertexes[i++] = rbl;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_DOWN;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords={bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords={bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords={bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords={bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords={bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords={bx+0.0f, by+yoff}};
         }
 
         // back face
         if (z == 0 || BLOCKS[pCd->blocks[x][y][z - 1]].transparent) {
-          pVertexes[i++] = lbu;
-          pVertexes[i++] = rbu;
-          pVertexes[i++] = lbl;
-          pVertexes[i++] = lbl;
-          pVertexes[i++] = rbl;
-          pVertexes[i++] = rbu;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_BACK;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords= {bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+0.0f, by+yoff}};
         }
 
         // front face
         if (z == CHUNK_Z_SIZE - 1 ||
             BLOCKS[pCd->blocks[x][y][z + 1]].transparent) {
-          pVertexes[i++] = lfu;
-          pVertexes[i++] = rfu;
-          pVertexes[i++] = lfl;
-          pVertexes[i++] = lfl;
-          pVertexes[i++] = rfl;
-          pVertexes[i++] = rfu;
+          const float bx = BLOCK_TILE_TEX_XSIZE*Block_FRONT;
+          const float by = BLOCK_TILE_TEX_YSIZE*bi;
+          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+0.0f, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+xoff, by+0.0f}};
+          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords= {bx+xoff, by+yoff}};
+          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+yoff}};
         }
+        // clang-format on
       }
     }
   }
@@ -214,20 +208,10 @@ static void blocks_gen(                //
         double wz = z + (double)chunkOffset[2];
         double val = open_simplex_noise3(noiseCtx, wx / scale1, wy / scale1,
                                          wz / scale1);
-        if (val > 0.0) {
-          pCd->blocks[x][y][z] = 1; // soil
+        if (val < wy / 10) {
+          pCd->blocks[x][y][z] = 1; // grass
         } else {
           pCd->blocks[x][y][z] = 0; // air
-        }
-      }
-    }
-  }
-  // iterate through blocks again, and for all blocks under air, make them stone
-  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_Z_SIZE-1; z++) {
-        if (pCd->blocks[x][y][z] == 1 && pCd->blocks[x][y][z +1] == 1) {
-          pCd->blocks[x][y][z] = 2;
         }
       }
     }
@@ -265,8 +249,10 @@ static void new_ChunkGeometry(             //
 
 static void delete_ChunkGeometry(ChunkGeometry *geometry,
                                  const VkDevice device) {
-  delete_Buffer(&geometry->vertexBuffer, device);
-  delete_DeviceMemory(&geometry->vertexBufferMemory, device);
+  if (geometry->vertexCount > 0) {
+    delete_Buffer(&geometry->vertexBuffer, device);
+    delete_DeviceMemory(&geometry->vertexBufferMemory, device);
+  }
 }
 
 typedef struct {
