@@ -20,8 +20,8 @@ static void overwriteRectBmp(uint8_t *rgbaBuffer,     //
   uint32_t ysize = (uint32_t)abs(src->img_header.biHeight);
 
   // prevent overflow
-  assert(xoff + xsize < bufferWidthPx);
-  assert(yoff + ysize < bufferHeightPx);
+  assert(xoff + xsize <= bufferWidthPx);
+  assert(yoff + ysize <= bufferHeightPx);
 
   for (uint32_t y = 0; y < ysize; y++) {
     uint32_t bufY = y + yoff;
@@ -98,12 +98,13 @@ static void writePicTexAtlas(                       //
   // now write to area
   overwriteRectBmp(               //
       pTextureAtlas,              //
-      BLOCK_TEXUTRE_ATLAS_WIDTH,  //
-      BLOCK_TEXUTRE_ATLAS_HEIGHT, //
+      BLOCK_TEXTURE_ATLAS_WIDTH,  //
+      BLOCK_TEXTURE_ATLAS_HEIGHT, //
       face * BLOCK_TEXTURE_SIZE,  //
       index * BLOCK_TEXTURE_SIZE, //
       &img                        //
   );
+  bmp_img_free(&img);
 }
 
 void block_buildTextureAtlas(                             //

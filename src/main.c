@@ -145,8 +145,8 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
       &pGlobal->textureAtlasImage,                       //
       &pGlobal->textureAtlasImageMemory,                 //
       textureAtlasData,                                  //
-      (VkExtent2D){.height = BLOCK_TEXUTRE_ATLAS_HEIGHT, //
-                   .width = BLOCK_TEXUTRE_ATLAS_WIDTH},  //
+      (VkExtent2D){.height = BLOCK_TEXTURE_ATLAS_HEIGHT, //
+                   .width = BLOCK_TEXTURE_ATLAS_WIDTH},  //
       pGlobal->device,                                   //
       pGlobal->physicalDevice,                           //
       pGlobal->commandPool,                              //

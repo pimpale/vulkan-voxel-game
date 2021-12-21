@@ -1028,7 +1028,7 @@ void new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertexInputInfo.vertexBindingDescriptionCount = 1;
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-  vertexInputInfo.vertexAttributeDescriptionCount = 2;
+  vertexInputInfo.vertexAttributeDescriptionCount = 3;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssembly = {0};
@@ -1836,7 +1836,7 @@ void new_VertexDisplayDescriptorPoolAndSet(                       //
   imageInfo.imageView = textureImageView;
   imageInfo.sampler = textureSampler;
 
-  VkWriteDescriptorSet descriptorWrite;
+  VkWriteDescriptorSet descriptorWrite = {0};
   descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
   descriptorWrite.dstSet = *pDescriptorSet;
   descriptorWrite.dstBinding = 0;

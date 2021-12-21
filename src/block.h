@@ -23,14 +23,14 @@ const static BlockDef BLOCKS[] = {
 #define BLOCK_TEXTURE_SIZE 16
 
 /// The height in pixels of the texture atlas
-#define BLOCK_TEXUTRE_ATLAS_HEIGHT (BLOCK_TEXTURE_SIZE * BLOCKS_LEN)
+#define BLOCK_TEXTURE_ATLAS_HEIGHT (BLOCK_TEXTURE_SIZE * BLOCKS_LEN)
 
 /// the width in pixels of the texture atlas
-#define BLOCK_TEXUTRE_ATLAS_WIDTH (BLOCK_TEXTURE_SIZE * 6)
+#define BLOCK_TEXTURE_ATLAS_WIDTH (BLOCK_TEXTURE_SIZE * 6)
 
 /// the length in bytes of the texture atlas
 #define BLOCK_TEXTURE_ATLAS_LEN                                                \
-  (BLOCK_TEXUTRE_ATLAS_WIDTH * BLOCK_TEXUTRE_ATLAS_HEIGHT * 4)
+  (BLOCK_TEXTURE_ATLAS_WIDTH  * BLOCK_TEXTURE_ATLAS_HEIGHT* 4)
 
 typedef enum {
   Block_DOWN,

@@ -88,26 +88,31 @@ static uint32_t blocks_mesh_internal( //
             .position = {offset[0] + (float)x, offset[1] + (float)y,
                          offset[2] + (float)z},
             .color = {0.5f, 0.9f, 0.5f},
+            .texCoords={0.0, 1.0},
         };
         Vertex rbu = (Vertex){
             .position = {offset[0] + (float)(x + 1), offset[1] + (float)y,
                          offset[2] + (float)z},
             .color = {0.5f, 0.5f, 0.9f},
+            .texCoords={0.0, 0.0},
         };
         Vertex lfu = (Vertex){
             .position = {offset[0] + (float)x, offset[1] + (float)y,
                          offset[2] + (float)(z + 1)},
             .color = {0.9f, 0.5f, 0.5f},
+            .texCoords={0.0, 1.0},
         };
         Vertex rfu = (Vertex){
             .position = {offset[0] + (float)(x + 1), offset[1] + (float)y,
                          offset[2] + (float)(z + 1)},
             .color = {0.5f, 0.9f, 0.5f},
+            .texCoords={0.0, 0.0},
         };
         Vertex lbl = (Vertex){
             .position = {offset[0] + (float)x, offset[1] + (float)(y + 1),
                          offset[2] + (float)z},
             .color = {0.5f, 0.5f, 0.9f},
+            .texCoords={0.0, 1.0},
         };
         Vertex rbl = (Vertex){
             .position = {offset[0] + (float)(x + 1), offset[1] + (float)(y + 1),
@@ -118,11 +123,13 @@ static uint32_t blocks_mesh_internal( //
             .position = {offset[0] + (float)x, offset[1] + (float)(y + 1),
                          offset[2] + (float)(z + 1)},
             .color = {0.5f, 0.5f, 0.5f},
+            .texCoords={0.0, 1.0},
         };
         Vertex rfl = (Vertex){
             .position = {offset[0] + (float)(x + 1), offset[1] + (float)(y + 1),
                          offset[2] + (float)(z + 1)},
             .color = {0.5f, 0.5f, 0.5f},
+            .texCoords={1.0, 0.0},
         };
 
         // left face
@@ -472,13 +479,14 @@ void wld_update(            //
   }
 }
 
-static bool wld_delete_Geometries(const void *item, void *udata) {
+static bool wld_delete_HashmapData(const void *item, void *udata) {
   const ivec3_Chunk_KVPair *pChunk = item;
   const VkDevice device = udata;
   if (pChunk->pGeometry != NULL) {
     delete_ChunkGeometry(pChunk->pGeometry, device);
     free(pChunk->pGeometry);
   }
+  free(pChunk->pData);
   return true;
 }
 
@@ -499,8 +507,8 @@ void wld_delete_WorldState( //
   delete_ivec3_vec(&pWorldState->ready);
   delete_ivec3_vec(&pWorldState->tounload);
 
-  // iterate through hashmap and free the geometries
-  hashmap_scan(pWorldState->chunk_map, wld_delete_Geometries,
+  // iterate through hashmap and free the geometries and data
+  hashmap_scan(pWorldState->chunk_map, wld_delete_HashmapData,
                pWorldState->device);
 
   // free the map
