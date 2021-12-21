@@ -47,7 +47,6 @@ static void writePicTexAtlas(                       //
     BlockFaceKind face,                             //
     const char *assetPath                           //
 ) {
-
   const char *blockName = BLOCKS[index].name;
 
   const char *faceFilename;
