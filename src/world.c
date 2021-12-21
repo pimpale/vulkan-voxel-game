@@ -68,13 +68,6 @@ static uint32_t blocks_count_vertexes_internal( //
   return faceCount * 6;
 }
 
-static inline void writeVertex(Vertex *pVertex, const vec3 pos,
-                               const vec3 color, const vec2 texCoord) {
-  vec3_dup(pVertex->position, pos);
-  vec3_dup(pVertex->color, color);
-  vec2_dup(pVertex->position, texCoord);
-}
-
 #define V3(x)                                                                  \
   { x[0], x[1], x[2] }
 

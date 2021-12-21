@@ -14,8 +14,8 @@ typedef struct {
 
 const static BlockDef BLOCKS[] = {
     (BlockDef){.transparent = true, .name = "air"},
-    (BlockDef){.transparent = false, .name = "stone"},
     (BlockDef){.transparent = false, .name = "grass"},
+    (BlockDef){.transparent = false, .name = "stone"},
     (BlockDef){.transparent = false, .name = "soil"},
 };
 
