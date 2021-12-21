@@ -915,9 +915,13 @@ void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device) {
   *pRenderPass = VK_NULL_HANDLE;
 }
 
-// creates a new image sampler at binding 0
-void new_SamplerDescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
-                                    const VkDevice device) {
+// makes a new descriptor set layout and pipeline layout
+void new_VertexDisplayPipelineLayoutDescriptorSetLayout(      //
+    VkPipelineLayout *pVertexDisplayPipelineLayout,           //
+    VkDescriptorSetLayout *pVertexDisplayDescriptorSetLayout, //
+    const VkDevice device                                     //
+) {
+  // create a descriptor set at 0 for the sampler
   VkDescriptorSetLayoutBinding samplerLayoutBinding = {0};
   samplerLayoutBinding.binding = 0;
   samplerLayoutBinding.descriptorCount = 1;
@@ -932,17 +936,15 @@ void new_SamplerDescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
   layoutInfo.pBindings = &samplerLayoutBinding;
 
   VkResult ret = vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
-                                             pDescriptorSetLayout);
+                                             pVertexDisplayDescriptorSetLayout);
   if (ret != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
                    "failed to create descriptor set layout with error: %s",
                    vkstrerror(ret));
     PANIC();
   }
-}
 
-void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                     const VkDevice device) {
+  // push our mvp matrix
   VkPushConstantRange pushConstantRange = {0};
   pushConstantRange.offset = 0;
   pushConstantRange.size = sizeof(mat4x4);
@@ -950,11 +952,12 @@ void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {0};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = pVertexDisplayDescriptorSetLayout;
   pipelineLayoutInfo.pushConstantRangeCount = 1;
   pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
   VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
-                                        pPipelineLayout);
+                                        pVertexDisplayPipelineLayout);
   if (res != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
                    "failed to create pipeline layout with error: %s",
@@ -963,10 +966,15 @@ void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
   }
 }
 
-void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
-                           const VkDevice device) {
+void delete_VertexDisplayPipelineLayoutDescriptorSetLayout( //
+    VkPipelineLayout *pPipelineLayout,                      //
+    VkDescriptorSetLayout *pDescriptorSetLayout,            //
+    const VkDevice device                                   //
+) {
   vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
   *pPipelineLayout = VK_NULL_HANDLE;
+  vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
+  *pDescriptorSetLayout = VK_NULL_HANDLE;
 }
 
 void new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
@@ -1774,86 +1782,29 @@ ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
   return (retVal);
 }
 
-ErrVal new_ComputePipeline(VkPipeline *pPipeline,
-                           const VkPipelineLayout pipelineLayout,
-                           const VkShaderModule shaderModule,
-                           const VkDevice device) {
-
-  VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {0};
-  shaderStageCreateInfo.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  shaderStageCreateInfo.module = shaderModule;
-  shaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-  shaderStageCreateInfo.pName = "main";
-
-  VkComputePipelineCreateInfo computePipelineCreateInfo = {0};
-  computePipelineCreateInfo.sType =
-      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  computePipelineCreateInfo.layout = pipelineLayout;
-  computePipelineCreateInfo.stage = shaderStageCreateInfo;
-
-  VkResult ret = vkCreateComputePipelines(
-      device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, NULL, pPipeline);
-  if (ret != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create compute pipelines %s",
-                   vkstrerror(ret));
-    return (ERR_UNKNOWN);
-  }
-  return (ERR_OK);
-}
-
-ErrVal new_ComputeStorageDescriptorSetLayout(
-    VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device) {
-  VkDescriptorSetLayoutBinding storageLayoutBinding = {0};
-  storageLayoutBinding.binding = 0;
-  storageLayoutBinding.descriptorCount = 1;
-  storageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  storageLayoutBinding.pImmutableSamplers = NULL;
-  storageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-  VkDescriptorSetLayoutCreateInfo layoutInfo = {0};
-  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = 1;
-  layoutInfo.pBindings = &storageLayoutBinding;
-  VkResult retVal = vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
-                                                pDescriptorSetLayout);
-  if (retVal != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR,
-                   "failed to create descriptor set layout: %s",
-                   vkstrerror(retVal));
-    return (ERR_UNKNOWN);
-  }
-  return (ERR_OK);
-}
-
-void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
-                                const VkDevice device) {
-  vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
-  *pDescriptorSetLayout = VK_NULL_HANDLE;
-}
-
-ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
-                          const VkDescriptorType descriptorType,
-                          const uint32_t maxAllocFrom, const VkDevice device) {
-  VkDescriptorPoolSize descriptorPoolSize;
-  descriptorPoolSize.type = descriptorType;
-  descriptorPoolSize.descriptorCount = maxAllocFrom;
+// creates a descriptor pool to render an image sampler at binding 0
+void new_VertexDisplayDescriptorPool(                   //
+    VkDescriptorPool *pDescriptorPool,     //
+    const VkDevice device                  //
+) {
+  VkDescriptorPoolSize descriptorPoolSize = {0};
+  descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  descriptorPoolSize.descriptorCount = 1;
 
   VkDescriptorPoolCreateInfo poolInfo = {0};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = 1;
   poolInfo.pPoolSizes = &descriptorPoolSize;
-  poolInfo.maxSets = maxAllocFrom;
+  poolInfo.maxSets = 1;
 
   /* Actually create descriptor pool */
   VkResult ret =
       vkCreateDescriptorPool(device, &poolInfo, NULL, pDescriptorPool);
 
   if (ret != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create descriptor pool; %s",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create descriptor pool; %s",
                    vkstrerror(ret));
-    return (ERR_UNKNOWN);
-  } else {
-    return (ERR_OK);
+    PANIC();
   }
 }
 
@@ -1863,45 +1814,52 @@ void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
   *pDescriptorPool = VK_NULL_HANDLE;
 }
 
-ErrVal new_ComputeBufferDescriptorSet(
-    VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
-    const VkDeviceSize computeBufferSize,
-    const VkDescriptorSetLayout descriptorSetLayout,
-    const VkDescriptorPool descriptorPool, const VkDevice device) {
+void new_DescriptorSet(VkDescriptorSet pDescriptorSet, const VkDescriptorSetLayout descriptorSetLayout) {
+        VkDescriptorSetAllocateInfo allocInfo = {0};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(swapChainImages.size());
+        allocInfo.pSetLayouts = layouts.data();
 
-  VkDescriptorSetAllocateInfo allocateInfo = {0};
-  allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  allocateInfo.descriptorPool = descriptorPool;
-  allocateInfo.descriptorSetCount = 1;
-  allocateInfo.pSetLayouts = &descriptorSetLayout;
-  VkResult allocateDescriptorSetRetVal =
-      vkAllocateDescriptorSets(device, &allocateInfo, pDescriptorSet);
-  if (allocateDescriptorSetRetVal != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to allocate descriptor sets: %s",
-                   vkstrerror(allocateDescriptorSetRetVal));
-    return (ERR_MEMORY);
-  }
+        descriptorSets.resize(swapChainImages.size());
+        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
 
-  VkDescriptorBufferInfo bufferInfo = {0};
-  bufferInfo.buffer = computeBufferDescriptorSet;
-  bufferInfo.range = computeBufferSize;
-  bufferInfo.offset = 0;
+        for (size_t i = 0; i < swapChainImages.size(); i++) {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
 
-  VkWriteDescriptorSet descriptorWrites = {0};
-  descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  descriptorWrites.dstSet = *pDescriptorSet;
-  descriptorWrites.dstBinding = 0;
-  descriptorWrites.dstArrayElement = 0;
-  descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  descriptorWrites.descriptorCount = 1;
-  descriptorWrites.pBufferInfo = &bufferInfo;
-  descriptorWrites.pImageInfo = NULL;
-  descriptorWrites.pTexelBufferView = NULL;
-  vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, NULL);
-  return (ERR_OK);
-}
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = textureImageView;
+            imageInfo.sampler = textureSampler;
 
-void delete_DescriptorSets(VkDescriptorSet **ppDescriptorSets) {
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = descriptorSets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = descriptorSets[i];
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }
+    }
+
+void delete_DescriptorSets(VkDescriptorSet *pDescriptorSets) {
   free(*ppDescriptorSets);
   *ppDescriptorSets = NULL;
 }

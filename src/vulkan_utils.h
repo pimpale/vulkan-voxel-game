@@ -332,37 +332,42 @@ ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,
 
 void delete_RenderPass(VkRenderPass *pRenderPass, const VkDevice device);
 
-void new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                       const VkDevice device);
+void new_VertexDisplayPipelineLayoutDescriptorSetLayout(      //
+    VkPipelineLayout *pVertexDisplayPipelineLayout,           //
+    VkDescriptorSetLayout *pVertexDisplayDescriptorSetLayout, //
+    const VkDevice device                                     //
+);
 
-void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
-                           const VkDevice device);
+void delete_VertexDisplayPipelineLayoutDescriptorSetLayout( //
+    VkPipelineLayout *pPipelineLayout,                      //
+    VkDescriptorSetLayout *pDescriptorSetLayout,            //
+    const VkDevice device                                   //
+);
 
 void new_VertexDisplayPipeline(VkPipeline *pVertexDisplayPipeline,
-                                 const VkDevice device,
-                                 const VkShaderModule vertShaderModule,
-                                 const VkShaderModule fragShaderModule,
-                                 const VkExtent2D extent,
-                                 const VkRenderPass renderPass,
-                                 const VkPipelineLayout pipelineLayout);
+                               const VkDevice device,
+                               const VkShaderModule vertShaderModule,
+                               const VkShaderModule fragShaderModule,
+                               const VkExtent2D extent,
+                               const VkRenderPass renderPass,
+                               const VkPipelineLayout pipelineLayout);
 
 void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device);
 
 void new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
-                       const VkRenderPass renderPass,
-                       const VkImageView imageView,
-                       const VkImageView depthImageView,
-                       const VkExtent2D swapchainExtent);
+                     const VkRenderPass renderPass, const VkImageView imageView,
+                     const VkImageView depthImageView,
+                     const VkExtent2D swapchainExtent);
 
 void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device);
 
 void new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
-                                 const VkDevice device,
-                                 const VkRenderPass renderPass,
-                                 const VkExtent2D swapchainExtent,
-                                 const uint32_t imageCount,
-                                 const VkImageView depthImageView,
-                                 const VkImageView *pSwapchainImageViews);
+                               const VkDevice device,
+                               const VkRenderPass renderPass,
+                               const VkExtent2D swapchainExtent,
+                               const uint32_t imageCount,
+                               const VkImageView depthImageView,
+                               const VkImageView *pSwapchainImageViews);
 
 void delete_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
                                   const uint32_t imageCount,
@@ -471,8 +476,8 @@ void delete_Buffer(VkBuffer *pBuffer, const VkDevice device);
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device);
 
 void copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
-                          const VkDeviceSize deviceSize, const void *source,
-                          const VkDevice device);
+                        const VkDeviceSize deviceSize, const void *source,
+                        const VkDevice device);
 
 void getDepthFormat(VkFormat *pFormat);
 
@@ -489,29 +494,12 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
                           const VkMemoryPropertyFlags memoryPropertyFlags,
                           const VkPhysicalDevice physicalDevice);
 
-ErrVal new_ComputePipeline(VkPipeline *pPipeline,
-                           const VkPipelineLayout pipelineLayout,
-                           const VkShaderModule shaderModule,
-                           const VkDevice device);
-
-ErrVal new_ComputeStorageDescriptorSetLayout(
-    VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device);
-
-void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
-                                const VkDevice device);
-
 ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                           const VkDescriptorType descriptorType,
                           const uint32_t maxAllocFrom, const VkDevice device);
 
 void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                            const VkDevice device);
-
-ErrVal new_ComputeBufferDescriptorSet(
-    VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
-    const VkDeviceSize computeBufferSize,
-    const VkDescriptorSetLayout descriptorSetLayout,
-    const VkDescriptorPool descriptorPool, const VkDevice device);
 
 void delete_DescriptorSets(VkDescriptorSet **ppDescriptorSets);
 
