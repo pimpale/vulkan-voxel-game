@@ -40,7 +40,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 }
 
 /* Creates new VkInstance with sensible defaults */
-ErrVal new_Instance(                            //
+void new_Instance(                            //
     VkInstance *pInstance,                      //
     const uint32_t enabledLayerCount,           //
     const char *const *ppEnabledLayerNames,     //
@@ -134,8 +134,6 @@ ErrVal new_Instance(                            //
 
   // free our list of all the extensions
   free(ppAllExtensionNames);
-
-  return (ERR_OK);
 }
 
 /* Destroys instance created in new_Instance */
@@ -504,9 +502,9 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
   return (ERR_OK);
 }
 
-ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
-                     const VkImage image, const VkFormat format,
-                     const uint32_t aspectMask) {
+void new_ImageView(VkImageView *pImageView, const VkDevice device,
+                   const VkImage image, const VkFormat format,
+                   const uint32_t aspectMask) {
   VkImageViewCreateInfo createInfo = {0};
   createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   createInfo.image = image;
@@ -528,7 +526,6 @@ ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
                    vkstrerror(ret));
     PANIC();
   }
-  return (ERR_OK);
 }
 
 void delete_ImageView(VkImageView *pImageView, VkDevice device) {
@@ -536,7 +533,7 @@ void delete_ImageView(VkImageView *pImageView, VkDevice device) {
   *pImageView = VK_NULL_HANDLE;
 }
 
-ErrVal new_SwapchainImageViews(      //
+void new_SwapchainImageViews(        //
     VkImageView *pImageViews,        //
     const VkImage *pSwapchainImages, //
     const uint32_t imageCount,       //
@@ -544,15 +541,9 @@ ErrVal new_SwapchainImageViews(      //
     const VkFormat format            //
 ) {
   for (uint32_t i = 0; i < imageCount; i++) {
-    ErrVal ret = new_ImageView(&(pImageViews[i]), device, pSwapchainImages[i],
-                               format, VK_IMAGE_ASPECT_COLOR_BIT);
-    if (ret != ERR_OK) {
-      LOG_ERROR(ERR_LEVEL_ERROR, "could not create swap chain image views");
-      delete_SwapchainImageViews(pImageViews, i, device);
-      return (ret);
-    }
+    new_ImageView(&(pImageViews[i]), device, pSwapchainImages[i], format,
+                  VK_IMAGE_ASPECT_COLOR_BIT);
   }
-  return (ERR_OK);
 }
 
 void delete_SwapchainImageViews( //
@@ -564,39 +555,6 @@ void delete_SwapchainImageViews( //
     delete_ImageView(&pImageViews[i], device);
   }
 }
-
-void new_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
-  VkSamplerCreateInfo samplerInfo = {0};
-  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = VK_FILTER_LINEAR;
-  samplerInfo.minFilter = VK_FILTER_LINEAR;
-  // white border to check for error in uv mapping
-  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
-  // we clamp to border to make errors more obvious
-  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  // no anisotropy for now
-  samplerInfo.anisotropyEnable = VK_FALSE;
-  samplerInfo.maxAnisotropy = 1.0f;
-  samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = VK_FALSE;
-  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-  VkResult ret = vkCreateSampler(device, &samplerInfo, NULL, pTextureSampler);
-  if (ret != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create sampler: %s",
-                   vkstrerror(ret));
-    PANIC();
-  }
-}
-
-void delete_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
-  vkDestroySampler(device, *pTextureSampler, NULL);
-  *pTextureSampler = VK_NULL_HANDLE;
-}
-
 static VkCommandBuffer
 createBeginOneTimeCmdBuffer(const VkCommandPool commandPool,
                             const VkDevice device) {
@@ -661,7 +619,7 @@ static void submitEndOneTimeCmdBuffer(VkCommandBuffer buffer,
   delete_Fence(&fence, device);
 }
 
-void transitionImageLayout(          //
+static void transitionImageLayout(   //
     VkImage image,                   //
     UNUSED const VkFormat format,    //
     const VkImageLayout oldLayout,   //
@@ -720,7 +678,7 @@ void transitionImageLayout(          //
   submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
 }
 
-void copyBufferToImage(              //
+static void copyBufferToImage(       //
     VkImage image,                   //
     const VkBuffer buffer,           //
     VkExtent2D dimensions,           //
@@ -748,7 +706,7 @@ void copyBufferToImage(              //
   submitEndOneTimeCmdBuffer(commandBuffer, queue, device);
 }
 
-void createTextureImage(                   //
+void new_TextureImage(                     //
     VkImage *pImage,                       //
     VkDeviceMemory *pImageMemory,          //
     const uint8_t *rgbaPxArr,              //
@@ -758,6 +716,7 @@ void createTextureImage(                   //
     const VkCommandPool commandPool,       //
     const VkQueue queue                    //
 ) {
+
   // each pix has 4 channels
   VkDeviceSize bufferSize = dimensions.height * dimensions.width * 4;
 
@@ -821,6 +780,15 @@ void createTextureImage(                   //
   delete_DeviceMemory(&stagingBufferMemory, device);
 }
 
+void new_TextureImageView(          //
+    VkImageView *pTextureImageView, //
+    const VkImage textureImage,     //
+    const VkDevice device           //
+) {
+  new_ImageView(pTextureImageView, device, textureImage,
+                VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
 ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
                         const uint32_t codeSize, const uint32_t *pCode) {
   VkShaderModuleCreateInfo createInfo = {0};
@@ -833,6 +801,38 @@ ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
     return (ERR_UNKNOWN);
   }
   return (ERR_OK);
+}
+
+void new_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
+  VkSamplerCreateInfo samplerInfo = {0};
+  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  samplerInfo.magFilter = VK_FILTER_LINEAR;
+  samplerInfo.minFilter = VK_FILTER_LINEAR;
+  // white border to check for error in uv mapping
+  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+  // we clamp to border to make errors more obvious
+  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  // no anisotropy for now
+  samplerInfo.anisotropyEnable = VK_FALSE;
+  samplerInfo.maxAnisotropy = 1.0f;
+  samplerInfo.unnormalizedCoordinates = VK_FALSE;
+  samplerInfo.compareEnable = VK_FALSE;
+  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+  VkResult ret = vkCreateSampler(device, &samplerInfo, NULL, pTextureSampler);
+  if (ret != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create sampler: %s",
+                   vkstrerror(ret));
+    PANIC();
+  }
+}
+
+void delete_TextureSampler(VkSampler *pTextureSampler, const VkDevice device) {
+  vkDestroySampler(device, *pTextureSampler, NULL);
+  *pTextureSampler = VK_NULL_HANDLE;
 }
 
 void delete_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device) {
@@ -1006,7 +1006,7 @@ void new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   bindingDescription.stride = sizeof(Vertex);
   bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription attributeDescriptions[2];
+  VkVertexInputAttributeDescription attributeDescriptions[3];
 
   attributeDescriptions[0].binding = 0;
   attributeDescriptions[0].location = 0;
@@ -1017,6 +1017,11 @@ void new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   attributeDescriptions[1].location = 1;
   attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
   attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+  attributeDescriptions[2].binding = 0;
+  attributeDescriptions[2].location = 2;
+  attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+  attributeDescriptions[2].offset = offsetof(Vertex, texCoords);
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo = {0};
   vertexInputInfo.sType =
@@ -1199,6 +1204,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
     const VkPipeline vertexDisplayPipeline,             //
     const VkExtent2D swapchainExtent,                   //
     const mat4x4 cameraTransform,                       //
+    const VkDescriptorSet vertexDisplayDescriptorSet,   //
     const VkClearColorValue clearColor                  //
 ) {
   VkCommandBufferBeginInfo beginInfo = {0};
@@ -1236,7 +1242,9 @@ ErrVal recordVertexDisplayCommandBuffer(                //
   vkCmdPushConstants(commandBuffer, vertexDisplayPipelineLayout,
                      VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4x4),
                      cameraTransform);
-
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          vertexDisplayPipelineLayout, 0, 1,
+                          &vertexDisplayDescriptorSet, 0, NULL);
   // bind all vertex buffers, assume offsets are zero
   for (uint32_t i = 0; i < vertexBufferCount; i++) {
     VkDeviceSize offsets[] = {0};
@@ -1676,7 +1684,7 @@ void copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
   vkUnmapMemory(device, *pDeviceMemory);
 }
 
-ErrVal new_Image(                           //
+void new_Image(                             //
     VkImage *pImage,                        //
     VkDeviceMemory *pImageMemory,           //
     const VkExtent2D dimensions,            //
@@ -1704,9 +1712,9 @@ ErrVal new_Image(                           //
 
   VkResult createImageResult = vkCreateImage(device, &imageInfo, NULL, pImage);
   if (createImageResult != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create image: %s",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create image: %s",
                    vkstrerror(createImageResult));
-    return (ERR_UNKNOWN);
+    PANIC();
   }
 
   VkMemoryRequirements memRequirements;
@@ -1721,29 +1729,32 @@ ErrVal new_Image(                           //
                                            properties, physicalDevice);
 
   if (memGetResult != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_ERROR, "failed to create image: allocation failed");
-    return (ERR_MEMORY);
+    LOG_ERROR(ERR_LEVEL_FATAL,
+              "failed to create image: could not find right memory type");
+    PANIC();
   }
 
   VkResult allocateResult =
       vkAllocateMemory(device, &allocInfo, NULL, pImageMemory);
   if (allocateResult != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create image: %s",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
+                   "failed to create image: could not allocate: %s",
                    vkstrerror(allocateResult));
-    return (ERR_MEMORY);
+    PANIC();
   }
 
   VkResult bindResult = vkBindImageMemory(device, *pImage, *pImageMemory, 0);
   if (bindResult != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create image: %s",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
+                   "failed to create image: could not bind memory: %s",
                    vkstrerror(bindResult));
-    return (ERR_UNKNOWN);
+    PANIC();
   }
-  return (ERR_OK);
 }
 
 void delete_Image(VkImage *pImage, const VkDevice device) {
   vkDestroyImage(device, *pImage, NULL);
+  *pImage = VK_NULL_HANDLE;
 }
 
 /* Gets image format of depth */
@@ -1752,40 +1763,37 @@ void getDepthFormat(VkFormat *pFormat) {
   *pFormat = VK_FORMAT_D32_SFLOAT;
 }
 
-ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
-                      const VkExtent2D swapchainExtent,
-                      const VkPhysicalDevice physicalDevice,
-                      const VkDevice device) {
-  VkFormat depthFormat = {0};
-  getDepthFormat(&depthFormat);
-  ErrVal retVal = new_Image(
-      pImage, pImageMemory, swapchainExtent, depthFormat,
-      VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, physicalDevice, device);
-  if (retVal != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_ERROR, "failed to create depth image");
-    return (retVal);
-  }
-
-  return (ERR_OK);
-}
-
-ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
-                          const VkImage depthImage) {
+void new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
+                    const VkExtent2D swapchainExtent,
+                    const VkPhysicalDevice physicalDevice,
+                    const VkDevice device) {
   VkFormat depthFormat;
   getDepthFormat(&depthFormat);
-  ErrVal retVal = new_ImageView(pImageView, device, depthImage, depthFormat,
-                                VK_IMAGE_ASPECT_DEPTH_BIT);
-  if (retVal != ERR_OK) {
-    LOG_ERROR(ERR_LEVEL_ERROR, "failed to create depth image view");
-  }
-  return (retVal);
+  new_Image(pImage, pImageMemory, swapchainExtent, depthFormat,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, physicalDevice, device);
+}
+
+void new_DepthImageView(VkImageView *pImageView, const VkDevice device,
+                        const VkImage depthImage) {
+  VkFormat depthFormat;
+  getDepthFormat(&depthFormat);
+  new_ImageView(pImageView, device, depthImage, depthFormat,
+                VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 // creates a descriptor pool to render an image sampler at binding 0
-void new_VertexDisplayDescriptorPool(                   //
-    VkDescriptorPool *pDescriptorPool,     //
-    const VkDevice device                  //
+// creates a descriptor set with the given texture sampler and texture image
+// view we can do this since in this application, the descriptors are 100%
+// static
+void new_VertexDisplayDescriptorPoolAndSet(                       //
+    VkDescriptorPool *pDescriptorPool,                            //
+    VkDescriptorSet *pDescriptorSet,                              //
+    const VkDescriptorSetLayout vertexDisplayDescriptorSetLayout, //
+    const VkDevice device,                                        //
+    const VkSampler textureSampler,                               //
+    const VkImageView textureImageView                            //
 ) {
   VkDescriptorPoolSize descriptorPoolSize = {0};
   descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1802,64 +1810,46 @@ void new_VertexDisplayDescriptorPool(                   //
       vkCreateDescriptorPool(device, &poolInfo, NULL, pDescriptorPool);
 
   if (ret != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create descriptor pool; %s",
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to create descriptor pool: %s",
                    vkstrerror(ret));
     PANIC();
   }
+
+  VkDescriptorSetAllocateInfo allocInfo = {0};
+  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = *pDescriptorPool;
+  // we would need an array of these corresponding to each element in the set,
+  // but since we only have 1 descriptor set layout, we are good
+  allocInfo.descriptorSetCount = 1;
+  allocInfo.pSetLayouts = &vertexDisplayDescriptorSetLayout;
+
+  VkResult sets_ret =
+      vkAllocateDescriptorSets(device, &allocInfo, pDescriptorSet);
+  if (sets_ret != VK_SUCCESS) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to allocate descriptor sets: %s",
+                   vkstrerror(ret));
+    PANIC();
+  }
+
+  VkDescriptorImageInfo imageInfo = {0};
+  imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  imageInfo.imageView = textureImageView;
+  imageInfo.sampler = textureSampler;
+
+  VkWriteDescriptorSet descriptorWrite;
+  descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrite.dstSet = *pDescriptorSet;
+  descriptorWrite.dstBinding = 0;
+  descriptorWrite.dstArrayElement = 0;
+  descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  descriptorWrite.descriptorCount = 1;
+  descriptorWrite.pImageInfo = &imageInfo;
+
+  vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
 }
 
 void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                            const VkDevice device) {
   vkDestroyDescriptorPool(device, *pDescriptorPool, NULL);
   *pDescriptorPool = VK_NULL_HANDLE;
-}
-
-void new_DescriptorSet(VkDescriptorSet pDescriptorSet, const VkDescriptorSetLayout descriptorSetLayout) {
-        VkDescriptorSetAllocateInfo allocInfo = {0};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(swapChainImages.size());
-        allocInfo.pSetLayouts = layouts.data();
-
-        descriptorSets.resize(swapChainImages.size());
-        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate descriptor sets!");
-        }
-
-        for (size_t i = 0; i < swapChainImages.size(); i++) {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = uniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = textureImageView;
-            imageInfo.sampler = textureSampler;
-
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-        }
-    }
-
-void delete_DescriptorSets(VkDescriptorSet *pDescriptorSets) {
-  free(*ppDescriptorSets);
-  *ppDescriptorSets = NULL;
 }

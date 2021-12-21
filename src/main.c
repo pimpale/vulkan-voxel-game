@@ -10,6 +10,7 @@
 
 #define APPNAME "BlockRender"
 
+#include "block.h"
 #include "camera.h"
 #include "utils.h"
 #include "vulkan_utils.h"
@@ -41,6 +42,14 @@ typedef struct {
   VkShaderModule vertShaderModule;
   VkRenderPass renderPass;
   VkPipelineLayout graphicsPipelineLayout;
+  VkDescriptorSetLayout graphicsDescriptorSetLayout;
+  // descriptor pool stuff
+  VkDescriptorPool graphicsDescriptorPool;
+  VkDescriptorSet graphicsDescriptorSet;
+  VkImage textureAtlasImage;
+  VkDeviceMemory textureAtlasImageMemory;
+  VkImageView textureAtlasImageView;
+  VkSampler textureAtlasSampler;
   VkCommandBuffer pVertexDisplayCommandBuffers[MAX_FRAMES_IN_FLIGHT];
   VkSemaphore pImageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
   VkSemaphore pRenderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
@@ -128,12 +137,42 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
     free(vertShaderFileContents);
   }
 
-  // Create graphics pipeline
+  // create texture and samplers
+  uint8_t textureAtlasData[BLOCK_TEXTURE_ATLAS_LEN];
+  block_buildTextureAtlas(textureAtlasData, "assets/blocks");
+
+  new_TextureImage(                                      //
+      &pGlobal->textureAtlasImage,                       //
+      &pGlobal->textureAtlasImageMemory,                 //
+      textureAtlasData,                                  //
+      (VkExtent2D){.height = BLOCK_TEXUTRE_ATLAS_HEIGHT, //
+                   .width = BLOCK_TEXUTRE_ATLAS_WIDTH},  //
+      pGlobal->device,                                   //
+      pGlobal->physicalDevice,                           //
+      pGlobal->commandPool,                              //
+      pGlobal->graphicsQueue                             //
+  );
+  new_TextureImageView(&pGlobal->textureAtlasImageView,
+                       pGlobal->textureAtlasImage, pGlobal->device);
+  new_TextureSampler(&pGlobal->textureAtlasSampler, pGlobal->device);
+
+  // Create graphics pipeline layout
   new_VertexDisplayRenderPass(&pGlobal->renderPass, pGlobal->device,
                               pGlobal->surfaceFormat.format);
 
-  new_VertexDisplayPipelineLayout(&pGlobal->graphicsPipelineLayout,
-                                  pGlobal->device);
+  new_VertexDisplayPipelineLayoutDescriptorSetLayout(
+      &pGlobal->graphicsPipelineLayout, &pGlobal->graphicsDescriptorSetLayout,
+      pGlobal->device);
+
+  // create descriptor set using the texture and the descriptor set layout
+  new_VertexDisplayDescriptorPoolAndSet(    //
+      &pGlobal->graphicsDescriptorPool,     //
+      &pGlobal->graphicsDescriptorSet,      //
+      pGlobal->graphicsDescriptorSetLayout, //
+      pGlobal->device,                      //
+      pGlobal->textureAtlasSampler,         //
+      pGlobal->textureAtlasImageView        //
+  );
 
   new_CommandBuffers(pGlobal->pVertexDisplayCommandBuffers,
                      MAX_FRAMES_IN_FLIGHT, pGlobal->commandPool,
@@ -153,6 +192,13 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
 static void delete_GraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   vkDeviceWaitIdle(pGlobal->device);
+
+  delete_DescriptorPool(&pGlobal->graphicsDescriptorPool, pGlobal->device);
+  delete_TextureSampler(&pGlobal->textureAtlasSampler, pGlobal->device);
+  delete_ImageView(&pGlobal->textureAtlasImageView, pGlobal->device);
+  delete_Image(&pGlobal->textureAtlasImage, pGlobal->device);
+  delete_DeviceMemory(&pGlobal->textureAtlasImageMemory, pGlobal->device);
+
   delete_ShaderModule(&pGlobal->fragShaderModule, pGlobal->device);
   delete_ShaderModule(&pGlobal->vertShaderModule, pGlobal->device);
 
@@ -168,7 +214,9 @@ static void delete_GraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
                         pGlobal->device);
   delete_CommandPool(&pGlobal->commandPool, pGlobal->device);
 
-  delete_PipelineLayout(&pGlobal->graphicsPipelineLayout, pGlobal->device);
+  delete_VertexDisplayPipelineLayoutDescriptorSetLayout(
+      &pGlobal->graphicsPipelineLayout, &pGlobal->graphicsDescriptorSetLayout,
+      pGlobal->device);
   delete_RenderPass(&pGlobal->renderPass, pGlobal->device);
   delete_Device(&pGlobal->device);
   delete_Surface(&pGlobal->surface, pGlobal->instance);
@@ -340,6 +388,7 @@ static void drawAppFrame(            //
       pWindow->graphicsPipeline,                                    //
       pWindow->swapchainExtent,                                     //
       mvp,                                                          //
+      pGlobal->graphicsDescriptorSet,                               //
       (VkClearColorValue){.float32 = {0, 0, 0, 0}}                  //
   );
 
@@ -425,9 +474,9 @@ int main(void) {
 
     frameCounter++;
 
-    if(frameCounter % 100 == 0) {
-        vkDeviceWaitIdle(global.device);
-        wld_clearGarbage(&ws);
+    if (frameCounter % 100 == 0) {
+      vkDeviceWaitIdle(global.device);
+      wld_clearGarbage(&ws);
     }
 
     fpsFrameCounter++;

@@ -73,7 +73,7 @@ static void writePicTexAtlas(                       //
 
   // get size of total buffer
   size_t fileNameSize = strlen(assetPath) + strlen("/") + strlen(blockName) +
-                        strlen("/") + strlen(faceFilename);
+                        strlen("/") + strlen(faceFilename) + 1;
   char *fileName = malloc(fileNameSize * sizeof(char));
 
   // build string
@@ -106,7 +106,7 @@ static void writePicTexAtlas(                       //
   );
 }
 
-void buildTextureAtlas(                             //
+void block_buildTextureAtlas(                             //
     uint8_t pTextureAtlas[BLOCK_TEXTURE_ATLAS_LEN], //
     const char *assetPath                           //
 ) {

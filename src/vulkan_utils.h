@@ -37,7 +37,7 @@
 /// Panics if Vulkan is not supported by GLFW
 /// --- CLEANUP ---
 /// To cleanup, call delete_Instance on the created instance
-ErrVal new_Instance(                            //
+void new_Instance(                              //
     VkInstance *pInstance,                      //
     const uint32_t enabledLayerCount,           //
     const char *const *ppEnabledLayerNames,     //
@@ -256,7 +256,7 @@ ErrVal getSwapchainImages(         //
     const VkSwapchainKHR swapchain //
 );
 
-ErrVal new_Image(                           //
+void new_Image(                             //
     VkImage *pImage,                        //
     VkDeviceMemory *pImageMemory,           //
     const VkExtent2D dimensions,            //
@@ -278,7 +278,7 @@ ErrVal new_Image(                           //
 /// * `*pImage` is set to VK_NULL_HANDLE
 void delete_Image(VkImage *pImage, const VkDevice device);
 
-ErrVal new_ImageView(         //
+void new_ImageView(           //
     VkImageView *pImageView,  //
     const VkDevice device,    //
     const VkImage image,      //
@@ -297,7 +297,7 @@ ErrVal new_ImageView(         //
 /// * `*pImageView` is set to VK_NULL_HANDLE
 void delete_ImageView(VkImageView *pImageView, VkDevice device);
 
-ErrVal new_SwapchainImageViews(      //
+void new_SwapchainImageViews(        //
     VkImageView *pImageViews,        //
     const VkImage *pSwapchainImages, //
     const uint32_t imageCount,       //
@@ -406,6 +406,7 @@ ErrVal recordVertexDisplayCommandBuffer(                //
     const VkPipeline vertexDisplayPipeline,             //
     const VkExtent2D swapchainExtent,                   //
     const mat4x4 cameraTransform,                       //
+    const VkDescriptorSet vertexDisplayDescriptorSet,   //
     const VkClearColorValue clearColor                  //
 );
 
@@ -481,26 +482,49 @@ void copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
 
 void getDepthFormat(VkFormat *pFormat);
 
-ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
-                          const VkImage depthImage);
+void new_DepthImageView(VkImageView *pImageView, const VkDevice device,
+                        const VkImage depthImage);
 
-ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
-                      const VkExtent2D swapchainExtent,
-                      const VkPhysicalDevice physicalDevice,
-                      const VkDevice device);
+void new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
+                    const VkExtent2D swapchainExtent,
+                    const VkPhysicalDevice physicalDevice,
+                    const VkDevice device);
 
 ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
                           const uint32_t memoryTypeBits,
                           const VkMemoryPropertyFlags memoryPropertyFlags,
                           const VkPhysicalDevice physicalDevice);
 
-ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
-                          const VkDescriptorType descriptorType,
-                          const uint32_t maxAllocFrom, const VkDevice device);
+void new_TextureImage(                     //
+    VkImage *pImage,                       //
+    VkDeviceMemory *pImageMemory,          //
+    const uint8_t *rgbaPxArr,              //
+    const VkExtent2D dimensions,           //
+    const VkDevice device,                 //
+    const VkPhysicalDevice physicalDevice, //
+    const VkCommandPool commandPool,       //
+    const VkQueue queue                    //
+);
+
+void new_TextureImageView(          //
+    VkImageView *pTextureImageView, //
+    const VkImage textureImage,     //
+    const VkDevice device           //
+);
+
+void new_VertexDisplayDescriptorPoolAndSet(                       //
+    VkDescriptorPool *pDescriptorPool,                            //
+    VkDescriptorSet *pDescriptorSet,                              //
+    const VkDescriptorSetLayout vertexDisplayDescriptorSetLayout, //
+    const VkDevice device,                                        //
+    const VkSampler textureSampler,                               //
+    const VkImageView textureImageView                            //
+);
+
+void new_TextureSampler(VkSampler *pTextureSampler, const VkDevice device);
+void delete_TextureSampler(VkSampler *pTextureSampler, const VkDevice device);
 
 void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
                            const VkDevice device);
-
-void delete_DescriptorSets(VkDescriptorSet **ppDescriptorSets);
 
 #endif /* SRC_VULKAN_UTILS_H_ */

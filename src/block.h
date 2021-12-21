@@ -42,13 +42,13 @@ typedef enum {
 } BlockFaceKind;
 
 // calculates the base UV of a given index (unnormalized coordinates)
-void calculateBaseUV(        //
+void block_calculateBaseUV(        //
     vec3 baseTexCoord,       //
     const BlockIndex i,      //
     const BlockFaceKind face //
 );
 
-void buildTextureAtlas(                             //
+void block_buildTextureAtlas(                             //
     uint8_t pTextureAtlas[BLOCK_TEXTURE_ATLAS_LEN], //
     const char *assetPath                           //
 );
