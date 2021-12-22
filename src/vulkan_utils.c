@@ -485,7 +485,7 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
      */
     for (uint32_t i = 0; i < formatCount; i++) {
       VkSurfaceFormatKHR availableFormat = pSurfaceFormats[i];
-      if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&
+      if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
           availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
         preferredFormat = availableFormat;
       }
@@ -621,7 +621,6 @@ static void submitEndOneTimeCmdBuffer(VkCommandBuffer buffer,
 
 static void transitionImageLayout(   //
     VkImage image,                   //
-    UNUSED const VkFormat format,    //
     const VkImageLayout oldLayout,   //
     const VkImageLayout newLayout,   //
     const VkCommandPool commandPool, //
@@ -753,7 +752,6 @@ void new_TextureImage(                     //
   // prepare image for data transfer
   transitionImageLayout(                    //
       *pImage,                              //
-      VK_FORMAT_R8G8B8A8_SRGB,              //
       VK_IMAGE_LAYOUT_UNDEFINED,            //
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, //
       commandPool,                          //
@@ -767,7 +765,6 @@ void new_TextureImage(                     //
   // prepare image to only be read by shaders
   transitionImageLayout(                        //
       *pImage,                                  //
-      VK_FORMAT_R8G8B8A8_SRGB,                  //
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,     //
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, //
       commandPool,                              //

@@ -6,7 +6,7 @@
 #include "world.h"
 
 // max chunks to generate per tick
-#define MAX_CHUNKS_TO_GENERATE 2
+#define MAX_CHUNKS_TO_GENERATE 1
 // max chunks to mesh per tick
 #define MAX_CHUNKS_TO_MESH 10
 // max chunks to unload per tick
@@ -87,6 +87,7 @@ static uint32_t blocks_mesh_internal( //
           continue;
         }
 
+        // get chunk location
         const float fx = (float)x + offset[0];
         const float fy = (float)y + offset[1];
         const float fz = (float)z + offset[2];
@@ -201,8 +202,12 @@ static void blocks_gen(                //
         double wz = z + (double)chunkOffset[2];
         double val = open_simplex_noise3(noiseCtx, wx / scale1, wy / scale1,
                                          wz / scale1);
-        if (val > 0) {
+        double val2 = open_simplex_noise3(noiseCtx, wx / scale1, (wy - 1) / scale1,
+                                         wz / scale1);
+        if (val > 0 && val2 < 0) {
           pCd->blocks[x][y][z] = 1; // grass
+        } else if(val > 0) {
+          pCd->blocks[x][y][z] = 2; // grass
         } else {
           pCd->blocks[x][y][z] = 0; // air
         }

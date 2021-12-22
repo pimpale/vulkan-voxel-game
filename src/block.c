@@ -2,11 +2,11 @@
 
 #include "errors.h"
 
-#include <libbmp.h>
-
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "farbfeld.h"
 
 // overwrites the texture atlas with bmp data
 static void overwriteRectBmp(uint8_t *rgbaBuffer,     //
@@ -14,10 +14,10 @@ static void overwriteRectBmp(uint8_t *rgbaBuffer,     //
                              uint32_t bufferHeightPx, //
                              uint32_t xoff,           //
                              uint32_t yoff,           //
-                             const bmp_img *src       //
+                             const farbfeld_img *src  //
 ) {
-  uint32_t xsize = (uint32_t)abs(src->img_header.biWidth);
-  uint32_t ysize = (uint32_t)abs(src->img_header.biHeight);
+  uint32_t xsize = src->xsize;
+  uint32_t ysize = src->ysize;
 
   // prevent overflow
   assert(xoff + xsize <= bufferWidthPx);
@@ -30,13 +30,13 @@ static void overwriteRectBmp(uint8_t *rgbaBuffer,     //
       uint32_t bufX = x + xoff;
 
       // calculate pixel index in buffer
-      uint32_t pxIndex = bufY * (bufferWidthPx) + bufX;
+      uint32_t dstPxIndex = bufY * bufferWidthPx + bufX;
+      uint32_t srcPxIndex = y * xsize + x;
       // set colors
-      rgbaBuffer[pxIndex * 4 + 0] = src->img_pixels[y][x].red*2;
-      rgbaBuffer[pxIndex * 4 + 1] = src->img_pixels[y][x].green*2;
-      printf("%u\n", src->img_pixels[y][x].green);
-      rgbaBuffer[pxIndex * 4 + 2] = src->img_pixels[y][x].blue*2;
-      rgbaBuffer[pxIndex * 4 + 3] = 0xFF;
+      rgbaBuffer[dstPxIndex * 4 + 0] = src->data[srcPxIndex * 4 + 0] / 256;
+      rgbaBuffer[dstPxIndex * 4 + 1] = src->data[srcPxIndex * 4 + 1] / 256;
+      rgbaBuffer[dstPxIndex * 4 + 2] = src->data[srcPxIndex * 4 + 2] / 256;
+      rgbaBuffer[dstPxIndex * 4 + 3] = src->data[srcPxIndex * 4 + 3] / 256;
     }
   }
 }
@@ -52,22 +52,22 @@ static void writePicTexAtlas(                       //
   const char *faceFilename;
   switch (face) {
   case Block_DOWN:
-    faceFilename = "down.bmp";
+    faceFilename = "down.ff";
     break;
   case Block_UP:
-    faceFilename = "up.bmp";
+    faceFilename = "up.ff";
     break;
   case Block_LEFT:
-    faceFilename = "left.bmp";
+    faceFilename = "left.ff";
     break;
   case Block_RIGHT:
-    faceFilename = "right.bmp";
+    faceFilename = "right.ff";
     break;
   case Block_BACK:
-    faceFilename = "back.bmp";
+    faceFilename = "back.ff";
     break;
   case Block_FRONT:
-    faceFilename = "front.bmp";
+    faceFilename = "front.ff";
     break;
   }
 
@@ -76,7 +76,6 @@ static void writePicTexAtlas(                       //
                         strlen("/") + strlen(faceFilename) + 1;
   char *fileName = malloc(fileNameSize * sizeof(char));
 
-
   // build string
   strcpy(fileName, assetPath);
   strcat(fileName, "/");
@@ -84,19 +83,20 @@ static void writePicTexAtlas(                       //
   strcat(fileName, "/");
   strcat(fileName, faceFilename);
 
-  printf("%s\n", fileName);
-
-  bmp_img img;
-  enum bmp_error e = bmp_img_read(&img, fileName);
-  if (e != BMP_OK) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not open bmp file at %s", fileName);
+  farbfeld_img img;
+  farbfeld_error e = read_farbfeld_img(&img, fileName);
+  if (e != farbfeld_OK) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not open farbfeld file at: %s", fileName);
     PANIC();
   }
-  free(fileName);
 
   // assert dimensions of image
-  assert(img.img_header.biWidth == BLOCK_TEXTURE_SIZE);
-  assert(img.img_header.biHeight == BLOCK_TEXTURE_SIZE);
+  if(img.xsize != BLOCK_TEXTURE_SIZE || img.ysize != BLOCK_TEXTURE_SIZE) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "expected dimensions %u by %u: %s", BLOCK_TEXTURE_SIZE, BLOCK_TEXTURE_SIZE, fileName);
+    PANIC();
+  }
+
+  free(fileName);
 
   // now write to area
   overwriteRectBmp(               //
@@ -107,10 +107,10 @@ static void writePicTexAtlas(                       //
       index * BLOCK_TEXTURE_SIZE, //
       &img                        //
   );
-  bmp_img_free(&img);
+  free_farbfeld_img(&img);
 }
 
-void block_buildTextureAtlas(                             //
+void block_buildTextureAtlas(                       //
     uint8_t pTextureAtlas[BLOCK_TEXTURE_ATLAS_LEN], //
     const char *assetPath                           //
 ) {
