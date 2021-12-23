@@ -6,17 +6,6 @@
 
 #include "farbfeld.h"
 
-static inline bool read_be_uint32_t(FILE *file, uint32_t *ptr) {
-  uint32_t be;
-  // read 4 bytes out
-  size_t bytes_read = fread(&be, 1, 4, file);
-  if (bytes_read != 4) {
-    return false;
-  }
-  *ptr = be32toh(be);
-  return true;
-}
-
 farbfeld_error read_farbfeld_img( //
     farbfeld_img *img,            //
     const char *filename          //
@@ -27,22 +16,16 @@ farbfeld_error read_farbfeld_img( //
   }
 
   // check header
-  char farbfeld_header[8];
-  size_t header_bytes_read = fread(farbfeld_header, 1, 8, file);
-  if (header_bytes_read != 8 || memcmp(farbfeld_header, "farbfeld", 8) != 0) {
+  char farbfeld_header[16];
+  size_t header_bytes_read = fread(farbfeld_header, 1, 16, file);
+  if (header_bytes_read != 16 || memcmp(farbfeld_header, "farbfeld", 8) != 0) {
     fclose(file);
     return farbfeld_INVALID;
   }
 
   // read height and width
-  uint32_t xsize;
-  uint32_t ysize;
-  bool xsize_successful = read_be_uint32_t(file, &xsize);
-  bool ysize_successful = read_be_uint32_t(file, &ysize);
-  if (!xsize_successful || !ysize_successful) {
-    fclose(file);
-    return farbfeld_INVALID;
-  }
+  uint32_t xsize = be32toh(*(uint32_t *)(farbfeld_header + 8));
+  uint32_t ysize = be32toh(*(uint32_t *)(farbfeld_header + 12));
 
   // size of the data array
   size_t datasize = xsize * ysize * sizeof(uint16_t) * 4;
