@@ -105,8 +105,6 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
 
   // create queues
   getQueue(&pGlobal->graphicsQueue, pGlobal->device, pGlobal->graphicsIndex, 0);
-  printf("main thread queue: %p\n", (void *)pGlobal->graphicsQueue);
-
   getQueue(&pGlobal->presentQueue, pGlobal->device, pGlobal->presentIndex, 0);
 
   // We can create command buffers from the command pool
@@ -415,18 +413,13 @@ int main(void) {
   AppGraphicsGlobalState global;
   new_AppGraphicsGlobalState(&global);
 
-  VkQueue extraQueue;
-  getQueue(&extraQueue, global.device, global.graphicsIndex, 14);
-
-  printf("extra queue: %p\n", (void *)extraQueue);
-
   // set up world generation
   WorldState ws;
   wld_new_WorldState(       //
       &ws,                  //
       (ivec3){0, 0, 0},     //
       42,                   //
-      extraQueue,           //
+      global.graphicsQueue, //
       global.commandPool,   //
       global.device,        //
       global.physicalDevice //

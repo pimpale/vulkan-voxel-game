@@ -9,7 +9,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 INC_DIRS := vendor
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-LDFLAGS := -lm -lvulkan -lglfw -lpthread -fsanitize=address
+LDFLAGS := -lm -lvulkan -lglfw -fsanitize=address
 
 CC := clang
 CFLAGS ?= $(INC_FLAGS) -std=gnu2x -MMD -MP -O0 -g3 -Wall -Weverything -pedantic -Wno-padded -Wno-switch-enum -fsanitize=address
