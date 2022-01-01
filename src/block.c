@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "farbfeld.h"
+#include <farbfeld.h>
 
 // overwrites the texture atlas with bmp data
 static void overwriteRectBmp(uint8_t *rgbaBuffer,     //

@@ -31,6 +31,10 @@ void ivec3_vec_pop(ivec3_vec *vec, ivec3 dest) {
   vec->len--;
 }
 
+void ivec3_vec_clear(ivec3_vec *vec) {
+    vec->len = 0;
+}
+
 void ivec3_vec_get(const ivec3_vec *vec, uint32_t i, ivec3 dest) {
   assert(i < vec->len);
   ivec3_dup(dest, vec->pData[i]);

@@ -86,4 +86,7 @@ static inline bool ivec3_eq(const ivec3 a, const ivec3 b) {
     return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 }
 
+#define V3(x)                                                                  \
+  { x[0], x[1], x[2] }
+
 #endif

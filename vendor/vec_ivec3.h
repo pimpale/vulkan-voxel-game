@@ -12,6 +12,8 @@ void new_ivec3_vec(ivec3_vec** vec);
 void ivec3_vec_push(ivec3_vec* vec, const ivec3 src);
 void ivec3_vec_pop(ivec3_vec* vec, ivec3 dest);
 
+void ivec3_vec_clear(ivec3_vec* vec);
+
 // writes the element at the i'th index to dest
 void ivec3_vec_get(const ivec3_vec* vec, uint32_t i, ivec3 dest);
 

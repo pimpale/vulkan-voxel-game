@@ -5,10 +5,10 @@
 #include "block.h"
 #include "world.h"
 
-// max chunks to generate per tick
-#define MAX_CHUNKS_TO_GENERATE 1
+#define WORKER_THREADS 16
+
 // max chunks to mesh per tick
-#define MAX_CHUNKS_TO_MESH 10
+#define MAX_CHUNKS_TO_MESH 3
 // max chunks to unload per tick
 #define MAX_CHUNKS_TO_UNLOAD 10
 
@@ -16,205 +16,6 @@
 #define RENDER_RADIUS_X 3
 #define RENDER_RADIUS_Y 3
 #define RENDER_RADIUS_Z 3
-
-static uint32_t blocks_count_vertexes_internal( //
-    const ChunkData *pCd                        //
-) {
-  // first look through all blocks and count how many opaque we have
-  uint32_t faceCount = 0;
-
-  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
-        // check that its not transparent
-        if (BLOCKS[pCd->blocks[x][y][z]].transparent) {
-          continue;
-        }
-
-        // left face
-        if (x == 0 || BLOCKS[pCd->blocks[x - 1][y][z]].transparent) {
-          faceCount++;
-        }
-        // right face
-        if (x == CHUNK_X_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x + 1][y][z]].transparent) {
-          faceCount++;
-        }
-
-        // upper face
-        if (y == 0 || BLOCKS[pCd->blocks[x][y - 1][z]].transparent) {
-          faceCount++;
-        }
-        // lower face
-        if (y == CHUNK_Y_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x][y + 1][z]].transparent) {
-          faceCount++;
-        }
-
-        // front face
-        if (z == 0 || BLOCKS[pCd->blocks[x][y][z - 1]].transparent) {
-          faceCount++;
-        }
-        // back face
-        if (z == CHUNK_Z_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x][y][z + 1]].transparent) {
-          faceCount++;
-        }
-      }
-    }
-  }
-
-  // now set answer
-  return faceCount * 6;
-}
-
-#define V3(x)                                                                  \
-  { x[0], x[1], x[2] }
-
-// returns the number of vertexes written
-static uint32_t blocks_mesh_internal( //
-    Vertex *pVertexes,                //
-    const vec3 offset,                //
-    const ChunkData *pCd              //
-) {
-  uint32_t i = 0;
-  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
-        BlockIndex bi = pCd->blocks[x][y][z];
-        // check that its not transparent
-        if (BLOCKS[bi].transparent) {
-          continue;
-        }
-
-        // get chunk location
-        const float fx = (float)x + offset[0];
-        const float fy = (float)y + offset[1];
-        const float fz = (float)z + offset[2];
-
-        // calculate vertexes
-        const vec3 v000 = {fx + 0, fy + 0, fz + 0};
-        const vec3 v100 = {fx + 1, fy + 0, fz + 0};
-        const vec3 v001 = {fx + 0, fy + 0, fz + 1};
-        const vec3 v101 = {fx + 1, fy + 0, fz + 1};
-        const vec3 v010 = {fx + 0, fy + 1, fz + 0};
-        const vec3 v110 = {fx + 1, fy + 1, fz + 0};
-        const vec3 v011 = {fx + 0, fy + 1, fz + 1};
-        const vec3 v111 = {fx + 1, fy + 1, fz + 1};
-
-        const float xoff = BLOCK_TILE_TEX_XSIZE;
-        const float yoff = BLOCK_TILE_TEX_YSIZE;
-
-        // clang-format off
-
-        // left face
-        if (x == 0 || BLOCKS[pCd->blocks[x - 1][y][z]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_LEFT;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+xoff, by+yoff}};
-        }
-        // right face
-        if (x == CHUNK_X_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x + 1][y][z]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_RIGHT;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+xoff, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+xoff, by+yoff}};
-        }
-
-        // upper face
-        if (y == 0 || BLOCKS[pCd->blocks[x][y - 1][z]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_UP;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords={bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords={bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords={bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords={bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords={bx+xoff, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords={bx+xoff, by+0.0f}};
-        }
-        // lower face
-        if (y == CHUNK_Y_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x][y + 1][z]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_DOWN;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords={bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords={bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords={bx+xoff, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords={bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords={bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords={bx+xoff, by+yoff}};
-        }
-
-        // back face
-        if (z == 0 || BLOCKS[pCd->blocks[x][y][z - 1]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_BACK;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v000), .texCoords= {bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v100), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v110), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v010), .texCoords= {bx+xoff, by+yoff}};
-        }
-
-        // front face
-        if (z == CHUNK_Z_SIZE - 1 ||
-            BLOCKS[pCd->blocks[x][y][z + 1]].transparent) {
-          const float bx = BLOCK_TILE_TEX_XSIZE*Block_FRONT;
-          const float by = BLOCK_TILE_TEX_YSIZE*bi;
-          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+xoff, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v001), .texCoords= {bx+0.0f, by+0.0f}};
-          pVertexes[i++] = (Vertex){.position=V3(v011), .texCoords= {bx+0.0f, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v111), .texCoords= {bx+xoff, by+yoff}};
-          pVertexes[i++] = (Vertex){.position=V3(v101), .texCoords= {bx+xoff, by+0.0f}};
-        }
-        // clang-format on
-      }
-    }
-  }
-  return i;
-}
-
-// generate chunk data
-static void blocks_gen(                //
-    ChunkData *pCd,                    //
-    const vec3 chunkOffset,            //
-    const struct osn_context *noiseCtx //
-) {
-  double scale1 = 20.0;
-  for (uint32_t x = 0; x < CHUNK_X_SIZE; x++) {
-    for (uint32_t y = 0; y < CHUNK_Y_SIZE; y++) {
-      for (uint32_t z = 0; z < CHUNK_Z_SIZE; z++) {
-        // calculate world coordinates in blocks
-        double wx = x + (double)chunkOffset[0];
-        double wy = y + (double)chunkOffset[1];
-        double wz = z + (double)chunkOffset[2];
-        double val = open_simplex_noise3(noiseCtx, wx / scale1, wy / scale1,
-                                         wz / scale1);
-        double val2 = open_simplex_noise3(noiseCtx, wx / scale1, (wy - 1) / scale1,
-                                         wz / scale1);
-        if (val > 0 && val2 < 0) {
-          pCd->blocks[x][y][z] = 1; // grass
-        } else if(val > 0) {
-          pCd->blocks[x][y][z] = 2; // grass
-        } else {
-          pCd->blocks[x][y][z] = 0; // air
-        }
-      }
-    }
-  }
-}
 
 struct ChunkGeometry_s {
   uint32_t vertexCount;
@@ -233,11 +34,11 @@ static void new_ChunkGeometry(             //
     const VkQueue queue                    //
 ) {
   // count chunk vertexes
-  c->vertexCount = blocks_count_vertexes_internal(data);
+  c->vertexCount = wu_countChunkDataVertexes(data);
   if (c->vertexCount > 0) {
     // write mesh to vertex
     Vertex *vertexData = malloc(c->vertexCount * sizeof(Vertex));
-    blocks_mesh_internal(vertexData, chunkOffset, data);
+    wu_getVertexesChunkData(vertexData, chunkOffset, data);
     new_VertexBuffer(&c->vertexBuffer, &c->vertexBufferMemory, vertexData,
                      c->vertexCount, device, physicalDevice, commandPool,
                      queue);
@@ -254,8 +55,13 @@ static void delete_ChunkGeometry(ChunkGeometry *geometry,
 }
 
 typedef struct {
+  ChunkData data;
+  volatile bool initialized;
+} ChunkDataState;
+
+typedef struct {
   ivec3 chunkCoord;
-  ChunkData *pData;
+  ChunkDataState *pDataAndState;
   ChunkGeometry *pGeometry;
 } ivec3_Chunk_KVPair;
 
@@ -286,17 +92,15 @@ static uint64_t ivec3_Chunk_KVPair_hash(const void *item, uint64_t seed0,
 void wld_new_WorldState(                  //
     WorldState *pWorldState,              //
     const ivec3 centerLoc,                //
-    const uint32_t seed,                  //
+    worldgen_state *wgstate,              //
     const VkQueue queue,                  //
     const VkCommandPool commandPool,      //
     const VkDevice device,                //
     const VkPhysicalDevice physicalDevice //
 ) {
+  pWorldState->wgstate = wgstate;
   // set center location
   ivec3_dup(pWorldState->centerLoc, centerLoc);
-
-  // set noise
-  open_simplex_noise(seed, &pWorldState->noise1);
 
   // copy vulkan
   pWorldState->device = device;
@@ -306,9 +110,13 @@ void wld_new_WorldState(                  //
 
   // initialize stacks to empty
   new_ivec3_vec(&pWorldState->togenerate);
+  new_ivec3_vec(&pWorldState->generating);
   new_ivec3_vec(&pWorldState->tomesh);
   new_ivec3_vec(&pWorldState->ready);
   new_ivec3_vec(&pWorldState->tounload);
+
+  // initialize threadpool
+  pWorldState->pool = threadpool_create(WORKER_THREADS, MAX_QUEUE, 0);
 
   // initialize garbage heap
   pWorldState->garbage_cap = 16;
@@ -365,13 +173,32 @@ void wld_clearGarbage(WorldState *pWorldState) {
   pWorldState->garbage_len = 0;
 }
 
+// argument struct that the worker thread takes ownership of
+typedef struct {
+  ivec3 worldChunkCoord;
+  ChunkDataState *pDataAndState;
+  const worldgen_state *pWgstate;
+} WorkerThreadData;
+
+static void worker_generate_chunk(UNUSED uint32_t id, void *arg) {
+  WorkerThreadData *pwtd = arg;
+
+  assert(!pwtd->pDataAndState->initialized);
+
+  // generate chunk and then set intitialized to true
+  worldgen_state_gen_chunk(&pwtd->pDataAndState->data, pwtd->worldChunkCoord,
+                           pwtd->pWgstate);
+  pwtd->pDataAndState->initialized = true;
+
+  // free argument
+  free(pwtd);
+}
+
 void wld_update(            //
     WorldState *pWorldState //
 ) {
   // process stuff off the togenerate list
-  for (uint32_t i = 0;
-       i < MAX_CHUNKS_TO_GENERATE && ivec3_vec_len(pWorldState->togenerate) > 0;
-       i++) {
+  for (uint32_t i = 0; ivec3_vec_len(pWorldState->togenerate) > 0; i++) {
     ivec3_Chunk_KVPair c;
     ivec3_vec_pop(pWorldState->togenerate, c.chunkCoord);
 
@@ -385,21 +212,45 @@ void wld_update(            //
       continue;
     }
 
-    // generate chunk, we need to give it the block coordinate to generate at
-    vec3 chunkOffset;
-    worldChunkCoords_to_blockCoords(chunkOffset, c.chunkCoord);
-
-    c.pData = malloc(sizeof(ChunkData));
-    blocks_gen(c.pData, chunkOffset, pWorldState->noise1);
-
-    // no geometry yet
+    // right now, we don't have any geometry or data
+    // We set the initialized flag to false to signal that we haven't yet generated it
+    c.pDataAndState = malloc(sizeof(ChunkDataState));
+    c.pDataAndState->initialized = false;
     c.pGeometry = NULL;
-
-    // push the chunk coord to the chunks to mesh
-    ivec3_vec_push(pWorldState->tomesh, c.chunkCoord);
 
     // hashmap will clone the chunk to load
     hashmap_set(pWorldState->chunk_map, &c);
+
+    WorkerThreadData *arg = malloc(sizeof(WorkerThreadData));
+    *arg = (WorkerThreadData){.pDataAndState = c.pDataAndState,
+                              .pWgstate = pWorldState->wgstate,
+                              .worldChunkCoord = V3(c.chunkCoord)};
+
+    threadpool_error_t e =
+        threadpool_add(pWorldState->pool, worker_generate_chunk, arg, 0);
+    if (e != 0) {
+      LOG_ERROR(ERR_LEVEL_FATAL, "couldn't add task to threadpool!");
+      PANIC();
+    }
+    // push the chunk coord to the chunks to generating vector
+    ivec3_vec_push(pWorldState->generating, c.chunkCoord);
+  }
+
+  // process stuff on the generating list
+  for (int32_t i = (int32_t)ivec3_vec_len(pWorldState->generating) - 1; i >= 0;
+       i--) {
+    ivec3_Chunk_KVPair key;
+    ivec3_vec_get(pWorldState->generating, (uint32_t)i, key.chunkCoord);
+
+    ivec3_Chunk_KVPair* generating = hashmap_get(pWorldState->chunk_map, &key);
+
+    // check if the data is initialized
+    if (generating->pDataAndState->initialized) {
+      // this gets rid of the current chunk coord, but in an O(1) fashion
+      ivec3_vec_swapAndPop(pWorldState->generating, (uint32_t)i);
+      // add this to the tomesh coordinates
+      ivec3_vec_push(pWorldState->tomesh, key.chunkCoord);
+    }
   }
 
   // process stuff on the to mesh list
@@ -421,9 +272,10 @@ void wld_update(            //
     vec3 chunkOffset;
     worldChunkCoords_to_blockCoords(chunkOffset, pChunk->chunkCoord);
 
-    new_ChunkGeometry(pChunk->pGeometry, pChunk->pData, chunkOffset,
-                      pWorldState->device, pWorldState->physicalDevice,
-                      pWorldState->commandPool, pWorldState->queue);
+    new_ChunkGeometry(pChunk->pGeometry, &pChunk->pDataAndState->data,
+                      chunkOffset, pWorldState->device,
+                      pWorldState->physicalDevice, pWorldState->commandPool,
+                      pWorldState->queue);
 
     // push onto the ready list
     // push the chunk coord to the chunks to mesh
@@ -456,7 +308,7 @@ void wld_update(            //
     ivec3_Chunk_KVPair *pChunk =
         hashmap_delete(pWorldState->chunk_map, c.chunkCoord);
 
-    free(pChunk->pData);
+    free(pChunk->pDataAndState);
 
     // put chunk geometry on garbage pile
     wld_pushGarbage(pWorldState, pChunk->pGeometry);
@@ -470,23 +322,30 @@ static bool wld_delete_HashmapData(const void *item, void *udata) {
     delete_ChunkGeometry(pChunk->pGeometry, device);
     free(pChunk->pGeometry);
   }
-  free(pChunk->pData);
+  free(pChunk->pDataAndState);
   return true;
 }
 
 void wld_delete_WorldState( //
     WorldState *pWorldState //
 ) {
+  // wait for generating blocks to finish
+  threadpool_destroy(pWorldState->pool, threadpool_graceful);
+
+  // delete any blocks in the to generate stack
+  ivec3_vec_clear(pWorldState->togenerate);
+
+  // update world stack, clearing the generating stack
+  wld_update(pWorldState);
+
   // clear the garbage
   wld_clearGarbage(pWorldState);
   // free garbage heap
   free(pWorldState->garbage_data);
 
-  // free simplex noise
-  open_simplex_noise_free(pWorldState->noise1);
-
   // free vectors
   delete_ivec3_vec(&pWorldState->togenerate);
+  delete_ivec3_vec(&pWorldState->generating);
   delete_ivec3_vec(&pWorldState->tomesh);
   delete_ivec3_vec(&pWorldState->ready);
   delete_ivec3_vec(&pWorldState->tounload);
@@ -567,3 +426,5 @@ void wld_set_center(         //
     }
   }
 }
+
+

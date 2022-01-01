@@ -6,11 +6,12 @@
 #include <stdint.h>
 #include <vec_ivec3.h>
 
-#include <open-simplex-noise.h>
+#include <threadpool.h>
 
 #include "vulkan_utils.h"
 
 #include "world_utils.h"
+#include "worldgen.h"
 
 typedef struct ChunkGeometry_s ChunkGeometry;
 
@@ -27,9 +28,6 @@ typedef struct {
   // Chunkspace coordinates
   ivec3 centerLoc;
 
-  // noise used to generate more chunks
-  struct osn_context *noise1;
-
   // these are borrowed, not owned,
   // so make sure you delete world state before deleting these
   VkDevice device;
@@ -37,11 +35,19 @@ typedef struct {
   VkQueue queue;
   VkCommandPool commandPool;
 
+  // borrowed, not owned
+  worldgen_state *wgstate;
+
+  // threadpool to allocate tasks to
+  struct threadpool_t *pool;
+
   // hashmap storing chunks
   struct hashmap *chunk_map;
 
   // vector of the coordinates of chunks to generate
   ivec3_vec *togenerate;
+  // vector of the coordinates of chunks that are asynchronously generating
+  ivec3_vec *generating;
   // vector of the coordinates of chunks to mesh
   ivec3_vec *tomesh;
   // vector of the coordinates of ready chunks
@@ -52,15 +58,14 @@ typedef struct {
   // vector of garbage
   uint32_t garbage_cap;
   uint32_t garbage_len;
-  ChunkGeometry** garbage_data;
-
+  ChunkGeometry **garbage_data;
 } WorldState;
 
 /// Creates a new worldState with the given center
 void wld_new_WorldState(                  //
     WorldState *pWorldState,              //
     const ivec3 centerLoc,                //
-    const uint32_t seed,                  //
+    worldgen_state *wgstate,              //
     const VkQueue queue,                  //
     const VkCommandPool commandPool,      //
     const VkDevice device,                //
@@ -79,14 +84,30 @@ void wld_delete_WorldState( //
 ///--- POSTCONDITIONS ---
 /// * if state is UNAVAILABLE returns false
 /// * if state is AVAILABLE, returns true and starts working
-void wld_set_center(   //
+void wld_set_center(         //
     WorldState *pWorldState, //
     const ivec3 centerLoc    //
 );
 
 /// updates the world
-void wld_update( //
-    WorldState *pWorldState       //
+void wld_update(            //
+    WorldState *pWorldState //
+);
+
+/// highlight updates the world's highlighted block and
+void wld_select_face(         //
+    const ivec3 iBlockCoords, //
+    BlockFaceKind face,       //
+    WorldState *pWorldState   //
+);
+
+/// selects the face and block at a location
+bool wld_trace_to_solid(          //
+    ivec3 dest_iBlockCoords,      //
+    BlockFaceKind *dest_face,     //
+    const vec3 position,          //
+    const vec3 direction,         //
+    const WorldState *pWorldState //
 );
 
 /// gets rid of the garbage buffers, make sure none of it is in use

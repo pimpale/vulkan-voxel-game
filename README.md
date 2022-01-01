@@ -31,7 +31,7 @@ We will add these later at some point, but they're not present right now:
 These are pretty cool features for a game, but they aren't really core to the concept of a voxel renderer.
 
 * Lighting
-* Water / Transpareny
+* Water / Transparency
 * Inventory support
 
 ## How to build

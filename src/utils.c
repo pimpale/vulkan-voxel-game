@@ -11,13 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vulkan/vulkan.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "utils.h"
 
-uint64_t getLength(FILE *f) {
+#include "errors.h"
+
+static uint64_t getLength(FILE *f) {
   /* TODO what if the file is modified as we read it? */
   int64_t currentpos = ftell(f);
   fseek(f, 0, SEEK_END);

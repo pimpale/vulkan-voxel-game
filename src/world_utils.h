@@ -1,10 +1,11 @@
-#ifndef WORLD_CONSTANTS_H
-#define WORLD_CONSTANTS_H
+#ifndef WORLD_UTILS_H
+#define WORLD_UTILS_H
 
 #include <ivec3.h>
 #include <linmath.h>
 
 #include "block.h"
+#include "vertex.h"
 
 // Size of chunk in blocks
 #define CHUNK_X_SIZE 32
@@ -16,34 +17,32 @@ typedef struct {
   BlockIndex blocks[CHUNK_X_SIZE][CHUNK_Y_SIZE][CHUNK_Z_SIZE];
 } ChunkData;
 
-// converts from world chunk coordinates to global block coordinates
-static inline void worldChunkCoords_to_iBlockCoords( //
-    ivec3 iBlockCoords,                              //
-    const ivec3 worldChunkCoords                     //
-) {
-  iBlockCoords[0] = worldChunkCoords[0] * CHUNK_X_SIZE;
-  iBlockCoords[1] = worldChunkCoords[1] * CHUNK_Y_SIZE;
-  iBlockCoords[2] = worldChunkCoords[2] * CHUNK_Z_SIZE;
-}
+void worldChunkCoords_to_iBlockCoords( //
+    ivec3 iBlockCoords,                //
+    const ivec3 worldChunkCoords       //
+);
 
-static void blockCoords_to_worldChunkCoords( //
+void blockCoords_to_worldChunkCoords( //
     ivec3 chunkCoord,                 //
     const vec3 blockCoord             //
-) {
-  chunkCoord[0] = (int32_t)(blockCoord[0] / CHUNK_X_SIZE);
-  chunkCoord[1] = (int32_t)(blockCoord[1] / CHUNK_Y_SIZE);
-  chunkCoord[2] = (int32_t)(blockCoord[2] / CHUNK_Z_SIZE);
-}
+);
 
-// converts from world chunk coordinates to global block coordinates
-static void worldChunkCoords_to_blockCoords( //
-    vec3 blockCoords,                            //
-    const ivec3 worldChunkCoords                 //
-) {
-  ivec3 tmp;
-  worldChunkCoords_to_iBlockCoords(tmp, worldChunkCoords);
-  ivec3_to_vec3(blockCoords, tmp);
-}
+void worldChunkCoords_to_blockCoords( //
+    vec3 blockCoords,                 //
+    const ivec3 worldChunkCoords      //
+);
 
+bool wu_loadChunkData(ChunkData* pC, const char* filename);
+
+uint32_t wu_countChunkDataVertexes( //
+    const ChunkData *pCd                        //
+);
+
+
+uint32_t wu_getVertexesChunkData( //
+    Vertex *pVertexes,                //
+    const vec3 offset,                //
+    const ChunkData *pCd              //
+);
 
 #endif

@@ -413,12 +413,14 @@ int main(void) {
   AppGraphicsGlobalState global;
   new_AppGraphicsGlobalState(&global);
 
+
   // set up world generation
+  worldgen_state *pWg = new_worldgen_state(42);
   WorldState ws;
   wld_new_WorldState(       //
       &ws,                  //
       (ivec3){0, 0, 0},     //
-      42,                   //
+      pWg,                   //
       global.graphicsQueue, //
       global.commandPool,   //
       global.device,        //
@@ -487,6 +489,7 @@ int main(void) {
 
   // delete our world generator
   wld_delete_WorldState(&ws);
+  delete_worldgen_state(pWg);
 
   // delete graphics resources
   delete_AppGraphicsWindowState(&window, &global);
