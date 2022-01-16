@@ -44,6 +44,8 @@ Camera new_Camera(const vec3 loc, const VkExtent2D dimensions) {
   // set near and far to 0.01 and 100.0 respectively
   calculate_projection_matrix(cam.projection, dimensions);
 
+  cam.fast = false;
+
   return cam;
 }
 
@@ -52,10 +54,28 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
 }
 
 void updateCamera(Camera *camera, GLFWwindow *pWindow) {
-  float movscale = 0.2f;
+  double x;
+  double y;
+  glfwGetCursorPos(pWindow, &x, &y);
+
+  double dX = x - camera->pX;
+  double dY = y - camera->pY;
+
+  camera->pX = x;
+  camera->pY = y;
+
+  float rotscale = 0.01f;
+
+  camera->yaw += (float)dX * rotscale;
+  camera->pitch -= (float)dY * rotscale;
 
   if (glfwGetKey(pWindow, GLFW_KEY_TAB) == GLFW_PRESS) {
-      movscale *= 10;
+    camera->fast = !camera->fast;
+  }
+
+  float movscale = 0.02f;
+  if (camera->fast) {
+    movscale *= 10;
   }
 
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
@@ -87,21 +107,6 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
     vec3 delta_pos;
     vec3_scale(delta_pos, camera->basis.up, -movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
-  }
-
-  float rotscale = 0.02f;
-
-  if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
-    camera->pitch += rotscale;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    camera->pitch -= rotscale;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
-    camera->yaw -= rotscale;
-  }
-  if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-    camera->yaw += rotscale;
   }
 
   // clamp camera->pitch between 89 degrees

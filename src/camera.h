@@ -28,6 +28,9 @@ typedef struct {
   CameraBasis basis;
   // Projection Matrix
   mat4x4 projection;
+  bool fast;
+  double pX;
+  double pY;
 } Camera;
 
 Camera new_Camera(const vec3 pos, const VkExtent2D dimensions);

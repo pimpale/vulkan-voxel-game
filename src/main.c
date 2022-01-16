@@ -78,6 +78,9 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   /* Create window and pGlobal->surface */
   new_GlfwWindow(&pGlobal->pWindow, APPNAME,
                  (VkExtent2D){.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT});
+
+  glfwSetInputMode(pGlobal->pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
   new_SurfaceFromGLFW(&pGlobal->surface, pGlobal->pWindow, pGlobal->instance);
 
   /* find queues on graphics pGlobal->device */
@@ -366,7 +369,7 @@ static void drawAppFrame(            //
   uint32_t vertexBufferCount;
   wld_count_vertexBuffers(&vertexBufferCount, pWs);
 
- VkBuffer *pVertexBuffers = malloc(vertexBufferCount * sizeof(VkBuffer));
+  VkBuffer *pVertexBuffers = malloc(vertexBufferCount * sizeof(VkBuffer));
   uint32_t *pVertexCounts = malloc(vertexBufferCount * sizeof(uint32_t));
 
   wld_getVertexBuffers(pVertexBuffers, pVertexCounts, pWs);
@@ -462,9 +465,8 @@ int main(void) {
     const vec3 zero = {0.0f, 0.0f, 0.0f};
     vec3_sub(dir, zero, camera.basis.front);
     // attempt to get the highlighted face (if any);
-    bool faceIsHighlighted =
-        wld_trace_to_solid(highlightedIBlockCoords, &highlightedFace,
-                           camera.pos, dir, 8, &ws);
+    bool faceIsHighlighted = wld_trace_to_solid(
+        highlightedIBlockCoords, &highlightedFace, camera.pos, dir, 8, &ws);
     if (faceIsHighlighted) {
       wld_highlight_face(highlightedIBlockCoords, highlightedFace, &ws);
     } else {
