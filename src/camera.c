@@ -54,20 +54,6 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
 }
 
 void updateCamera(Camera *camera, GLFWwindow *pWindow) {
-  double x;
-  double y;
-  glfwGetCursorPos(pWindow, &x, &y);
-
-  double dX = x - camera->pX;
-  double dY = y - camera->pY;
-
-  camera->pX = x;
-  camera->pY = y;
-
-  float rotscale = 0.01f;
-
-  camera->yaw += (float)dX * rotscale;
-  camera->pitch -= (float)dY * rotscale;
 
   if (glfwGetKey(pWindow, GLFW_KEY_TAB) == GLFW_PRESS) {
     camera->fast = !camera->fast;
@@ -108,6 +94,21 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
     vec3_scale(delta_pos, camera->basis.up, -movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
+
+  double x;
+  double y;
+  glfwGetCursorPos(pWindow, &x, &y);
+
+  double dX = x - camera->pX;
+  double dY = y - camera->pY;
+
+  camera->pX = x;
+  camera->pY = y;
+
+  float rotscale = 0.01f;
+
+  camera->yaw += (float)dX * rotscale;
+  camera->pitch -= (float)dY * rotscale;
 
   // clamp camera->pitch between 89 degrees
   camera->pitch = fminf(camera->pitch, RADIANS(89.0f));
