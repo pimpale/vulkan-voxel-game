@@ -52,7 +52,7 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
 }
 
 void updateCamera(Camera *camera, GLFWwindow *pWindow) {
-  float movscale = 0.02f;
+  float movscale = 0.2f;
 
   if (glfwGetKey(pWindow, GLFW_KEY_TAB) == GLFW_PRESS) {
       movscale *= 10;

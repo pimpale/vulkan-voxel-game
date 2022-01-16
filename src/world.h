@@ -61,7 +61,6 @@ typedef struct {
   ChunkGeometry **garbage_data;
 
   bool has_highlight;
-  Vertex highlightVertexes[6];
   VkBuffer highlightVertexBuffer;
   VkDeviceMemory highlightVertexBufferMemory;
 } WorldState;

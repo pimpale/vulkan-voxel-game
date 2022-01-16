@@ -24,7 +24,7 @@ struct ChunkGeometry_s {
   VkDeviceMemory vertexBufferMemory;
 };
 
-ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+static ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                         const Vertex *pVertices, const uint32_t vertexCount,
                         const VkDevice device,
                         const VkPhysicalDevice physicalDevice,
@@ -195,7 +195,7 @@ void wld_new_WorldState(                  //
   ErrVal highlightBufferCreateResult = new_Buffer_DeviceMemory(
       &pWorldState->highlightVertexBuffer,
       &pWorldState->highlightVertexBufferMemory,
-      sizeof(pWorldState->highlightVertexes), physicalDevice, device,
+      sizeof(Vertex)*6, physicalDevice, device,
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -434,6 +434,11 @@ void wld_count_vertexBuffers(     //
 ) {
 
   uint32_t count = 0;
+
+  if(pWorldState->has_highlight) {
+      count++;
+  }
+
   for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
     // get coord
     ivec3_Chunk_KVPair lookup_tmp;
@@ -458,8 +463,15 @@ void wld_getVertexBuffers(        //
     uint32_t *pVertexCounts,      //
     const WorldState *pWorldState //
 ) {
-
   uint32_t count = 0;
+
+
+  if(pWorldState->has_highlight) {
+      pVertexCounts[count] = 6;
+      pVertexBuffers[count] = pWorldState->highlightVertexBuffer;
+      count++;
+  }
+
   for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
     // get coord
     ivec3_Chunk_KVPair lookup_tmp;
@@ -476,6 +488,7 @@ void wld_getVertexBuffers(        //
       count++;
     }
   }
+
 }
 
 void wld_set_center(         //
@@ -525,9 +538,18 @@ static bool block_at(        //
   ivec3 intraChunkOffset;
   ivec3_sub(intraChunkOffset, iBlockCoords, iBlockCoord_Corner);
 
+  assert(intraChunkOffset[0] + iBlockCoord_Corner[0] == iBlockCoords[0]);
+
+  // chunk index
+  ivec3 chunkIndex =  {
+  (intraChunkOffset[0] % CHUNK_X_SIZE + CHUNK_X_SIZE) % CHUNK_X_SIZE,
+  (intraChunkOffset[1] % CHUNK_Y_SIZE + CHUNK_Y_SIZE) % CHUNK_Y_SIZE,
+  (intraChunkOffset[2] % CHUNK_Z_SIZE + CHUNK_Z_SIZE) % CHUNK_Z_SIZE 
+  };
+
   *pBlock = pChunk->pDataAndState->data
-                .blocks[intraChunkOffset[0]][intraChunkOffset[1]]
-                       [intraChunkOffset[2]];
+                .blocks[chunkIndex[0]][chunkIndex[1]]
+                       [chunkIndex[2]];
   return true;
 }
 
@@ -612,12 +634,25 @@ bool wld_trace_to_solid(      //
 
   // Avoids an infinite loop.
   // reject if the direction is zero
-  assert(fabsf(dx) < epsilonf && fabsf(dy) < epsilonf && fabsf(dz) < epsilonf);
+  assert(!(fabsf(dx) < epsilonf && fabsf(dy) < epsilonf && fabsf(dz) < epsilonf));
 
   // Rescale from units of 1 cube-edge to units of 'direction' so we can
   // compare with 't'.
   float radius = (float)(max_dist) / sqrtf(dx * dx + dy * dy + dz * dz);
   while (true) {
+    // get block here
+    ivec3 coord = {x, y, z};
+    BlockIndex bi;
+    bool success = block_at(&bi, pWorldState, coord);
+    if (!success) {
+      break;
+    }
+
+    if (!BLOCKS[bi].transparent) {
+      ivec3_dup(dest_iBlockCoords, coord);
+      return true;
+    }
+
     // tMaxX stores the t-value at which we cross a cube boundary along the
     // X axis, and similarly for Y and Z. Therefore, choosing the least tMax
     // chooses the closest cube boundary. Only the first case of the four
@@ -625,7 +660,7 @@ bool wld_trace_to_solid(      //
     if (tMaxX < tMaxY) {
       if (tMaxX < tMaxZ) {
         if (tMaxX > radius)
-          return false;
+          break;
         // Update which cube we are now in.
         x += stepX;
         // Adjust tMaxX to the next X-oriented boundary crossing.
@@ -634,7 +669,7 @@ bool wld_trace_to_solid(      //
         *dest_face = stepX == 1 ? Block_LEFT : Block_RIGHT;
       } else {
         if (tMaxZ > radius)
-          return false;
+          break;
         z += stepZ;
         tMaxZ += tDeltaZ;
         *dest_face = stepZ == 1 ? Block_BACK : Block_FRONT;
@@ -642,42 +677,44 @@ bool wld_trace_to_solid(      //
     } else {
       if (tMaxY < tMaxZ) {
         if (tMaxY > radius)
-          return false;
+          break;
         y += stepY;
         tMaxY += tDeltaY;
-        *dest_face = stepY == 1 ? Block_DOWN : Block_UP;
+        *dest_face = stepY == 1 ? Block_UP: Block_DOWN;
       } else {
         // Identical to the second case, repeated for simplicity in
         // the conditionals.
         if (tMaxZ > radius)
-          return false;
+          break;
         z += stepZ;
         tMaxZ += tDeltaZ;
         *dest_face = stepZ == 1 ? Block_BACK : Block_FRONT;
       }
     }
-
-    // get block here
-    ivec3 coord = {x, y, z};
-    BlockIndex bi;
-    bool success = block_at(&bi, pWorldState, coord);
-    if (!success) {
-      return false;
-    }
-
-    if (!BLOCKS[bi].transparent) {
-      ivec3_dup(dest_iBlockCoords, coord);
-      return true;
-    }
   }
+
+  return false;
 }
 
 /// highlight updates the world's highlighted block and
-void wld_highlight_face(         //
+void wld_highlight_face(      //
     const ivec3 iBlockCoords, //
     BlockFaceKind face,       //
     WorldState *pWorldState   //
 ) {
-    wu_
+  // get new highlight buffer
+  Vertex highlightVertexes[6];
+  wu_getVertexesHighlight(highlightVertexes, iBlockCoords, face);
+  // update buffer
+  updateBuffer(pWorldState->highlightVertexBuffer, highlightVertexes,
+               sizeof(highlightVertexes), pWorldState->commandPool,
+               pWorldState->queue, pWorldState->device);
+  pWorldState->has_highlight = true;
 }
 
+/// highlight updates the world's highlighted block and
+void wld_clear_highlight_face( //
+    WorldState *pWorldState    //
+) {
+  pWorldState->has_highlight = false;
+}

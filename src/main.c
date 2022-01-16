@@ -366,7 +366,7 @@ static void drawAppFrame(            //
   uint32_t vertexBufferCount;
   wld_count_vertexBuffers(&vertexBufferCount, pWs);
 
-  VkBuffer *pVertexBuffers = malloc(vertexBufferCount * sizeof(VkBuffer));
+ VkBuffer *pVertexBuffers = malloc(vertexBufferCount * sizeof(VkBuffer));
   uint32_t *pVertexCounts = malloc(vertexBufferCount * sizeof(uint32_t));
 
   wld_getVertexBuffers(pVertexBuffers, pVertexCounts, pWs);
@@ -413,14 +413,13 @@ int main(void) {
   AppGraphicsGlobalState global;
   new_AppGraphicsGlobalState(&global);
 
-
   // set up world generation
   worldgen_state *pWg = new_worldgen_state(42);
   WorldState ws;
   wld_new_WorldState(       //
       &ws,                  //
       (ivec3){0, 0, 0},     //
-      pWg,                   //
+      pWg,                  //
       global.graphicsQueue, //
       global.commandPool,   //
       global.device,        //
@@ -454,6 +453,23 @@ int main(void) {
 
     // update world
     wld_update(&ws);
+
+    // project camera
+    ivec3 highlightedIBlockCoords;
+    BlockFaceKind highlightedFace;
+
+    vec3 dir;
+    const vec3 zero = {0.0f, 0.0f, 0.0f};
+    vec3_sub(dir, zero, camera.basis.front);
+    // attempt to get the highlighted face (if any);
+    bool faceIsHighlighted =
+        wld_trace_to_solid(highlightedIBlockCoords, &highlightedFace,
+                           camera.pos, dir, 8, &ws);
+    if (faceIsHighlighted) {
+      wld_highlight_face(highlightedIBlockCoords, highlightedFace, &ws);
+    } else {
+      wld_clear_highlight_face(&ws);
+    }
 
     // check camera chunk location,
     ivec3 camChunkCoord;
