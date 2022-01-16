@@ -24,6 +24,55 @@ struct ChunkGeometry_s {
   VkDeviceMemory vertexBufferMemory;
 };
 
+ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                        const Vertex *pVertices, const uint32_t vertexCount,
+                        const VkDevice device,
+                        const VkPhysicalDevice physicalDevice,
+                        const VkCommandPool commandPool, const VkQueue queue) {
+
+  /* Construct staging buffers */
+  VkDeviceSize bufferSize = sizeof(Vertex) * vertexCount;
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+  ErrVal stagingBufferCreateResult = new_Buffer_DeviceMemory(
+      &stagingBuffer, &stagingBufferMemory, bufferSize, physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  if (stagingBufferCreateResult != ERR_OK) {
+    LOG_ERROR(
+        ERR_LEVEL_FATAL,
+        "failed to create vertex buffer: failed to create staging buffer");
+    PANIC();
+  }
+
+  // Copy data to staging buffer, making sure to clean up leaks
+  copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
+
+  /* Create vertex buffer and allocate memory for it */
+  ErrVal vertexBufferCreateResult = new_Buffer_DeviceMemory(
+      pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  /* Handle errors */
+  if (vertexBufferCreateResult != ERR_OK) {
+    /* Delete the temporary staging buffers */
+    LOG_ERROR(ERR_LEVEL_FATAL, "failed to create vertex buffer");
+    PANIC();
+  }
+
+  /* Copy the data over from the staging buffer to the vertex buffer */
+  copyBuffer(*pBuffer, stagingBuffer, bufferSize, commandPool, queue, device);
+
+  /* Delete the temporary staging buffers */
+  delete_Buffer(&stagingBuffer, device);
+  delete_DeviceMemory(&stagingBufferMemory, device);
+
+  return (ERR_OK);
+}
+
 static void new_ChunkGeometry(             //
     ChunkGeometry *c,                      //
     const ChunkData *data,                 //
@@ -139,6 +188,21 @@ void wld_new_WorldState(                  //
       }
     }
   }
+
+  // set up highlight
+  pWorldState->has_highlight = false;
+
+  ErrVal highlightBufferCreateResult = new_Buffer_DeviceMemory(
+      &pWorldState->highlightVertexBuffer,
+      &pWorldState->highlightVertexBufferMemory,
+      sizeof(pWorldState->highlightVertexes), physicalDevice, device,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  if (highlightBufferCreateResult != ERR_OK) {
+    LOG_ERROR(ERR_LEVEL_FATAL, "failed to create highlight vertex buffer");
+    PANIC();
+  }
 }
 
 static bool wld_shouldBeLoaded(    //
@@ -213,7 +277,8 @@ void wld_update(            //
     }
 
     // right now, we don't have any geometry or data
-    // We set the initialized flag to false to signal that we haven't yet generated it
+    // We set the initialized flag to false to signal that we haven't yet
+    // generated it
     c.pDataAndState = malloc(sizeof(ChunkDataState));
     c.pDataAndState->initialized = false;
     c.pGeometry = NULL;
@@ -242,7 +307,7 @@ void wld_update(            //
     ivec3_Chunk_KVPair key;
     ivec3_vec_get(pWorldState->generating, (uint32_t)i, key.chunkCoord);
 
-    ivec3_Chunk_KVPair* generating = hashmap_get(pWorldState->chunk_map, &key);
+    ivec3_Chunk_KVPair *generating = hashmap_get(pWorldState->chunk_map, &key);
 
     // check if the data is initialized
     if (generating->pDataAndState->initialized) {
@@ -260,7 +325,7 @@ void wld_update(            //
     ivec3_vec_pop(pWorldState->tomesh, chunkToMesh.chunkCoord);
 
     ivec3_Chunk_KVPair *pChunk =
-        hashmap_get(pWorldState->chunk_map, chunkToMesh.chunkCoord);
+        hashmap_get(pWorldState->chunk_map, &chunkToMesh);
 
     if (pChunk->pGeometry != NULL) {
       // if some data already exists, place this geometry in the Garbage heap,
@@ -356,6 +421,11 @@ void wld_delete_WorldState( //
 
   // free the map
   hashmap_free(pWorldState->chunk_map);
+
+  // free the highlights
+  delete_Buffer(&pWorldState->highlightVertexBuffer, pWorldState->device);
+  delete_DeviceMemory(&pWorldState->highlightVertexBufferMemory,
+                      pWorldState->device);
 }
 
 void wld_count_vertexBuffers(     //
@@ -371,7 +441,7 @@ void wld_count_vertexBuffers(     //
 
     // get chunk
     ivec3_Chunk_KVPair *pChunk =
-        hashmap_get(pWorldState->chunk_map, lookup_tmp.chunkCoord);
+        hashmap_get(pWorldState->chunk_map, &lookup_tmp);
 
     // if chunk not empty add
     if (pChunk->pGeometry->vertexCount > 0) {
@@ -397,7 +467,7 @@ void wld_getVertexBuffers(        //
 
     // get chunk
     ivec3_Chunk_KVPair *pChunk =
-        hashmap_get(pWorldState->chunk_map, lookup_tmp.chunkCoord);
+        hashmap_get(pWorldState->chunk_map, &lookup_tmp);
 
     // write data
     if (pChunk->pGeometry->vertexCount > 0) {
@@ -427,4 +497,187 @@ void wld_set_center(         //
   }
 }
 
+static bool block_at(        //
+    BlockIndex *pBlock,      //
+    WorldState *pWorldState, //
+    const ivec3 iBlockCoords //
+) {
+
+  vec3 blockCoords;
+  ivec3_to_vec3(blockCoords, iBlockCoords);
+
+  // get world chunk coord
+  ivec3_Chunk_KVPair lookup_tmp;
+  blockCoords_to_worldChunkCoords(lookup_tmp.chunkCoord, blockCoords);
+
+  // get chunk
+  ivec3_Chunk_KVPair *pChunk = hashmap_get(pWorldState->chunk_map, &lookup_tmp);
+
+  if (pChunk == NULL || !pChunk->pDataAndState->initialized) {
+    return false;
+  }
+
+  // get corner block of world chunk
+  ivec3 iBlockCoord_Corner;
+  worldChunkCoords_to_iBlockCoords(iBlockCoord_Corner, pChunk->chunkCoord);
+
+  // get intra-chunk offset
+  ivec3 intraChunkOffset;
+  ivec3_sub(intraChunkOffset, iBlockCoords, iBlockCoord_Corner);
+
+  *pBlock = pChunk->pDataAndState->data
+                .blocks[intraChunkOffset[0]][intraChunkOffset[1]]
+                       [intraChunkOffset[2]];
+  return true;
+}
+
+static int32_t signum(float x) { return x > 0 ? 1 : x < 0 ? -1 : 0; }
+
+static float intbound(float s, float ds) {
+  // Some kind of edge case, see:
+  // http://gamedev.stackexchange.com/questions/47362/cast-ray-to-select-block-in-voxel-game#comment160436_49423
+  bool sIsInteger = roundf(s) == s;
+  if (ds < 0 && sIsInteger)
+    return 0;
+
+  float ceils;
+  if (s == 0.0f) {
+    ceils = 1.0f;
+  } else {
+    ceils = ceilf(s);
+  }
+
+  return (ds > 0 ? ceils - s : s - floorf(s)) / fabsf(ds);
+}
+
+const static float epsilonf = 0.001f;
+
+/**
+ * Call the callback with (x,y,z,value,face) of all blocks along the line
+ * segment from point 'origin' in vector direction 'direction' of length
+ * 'radius'. 'radius' may be infinite.
+ *
+ * 'face' is the normal vector of the face of that block that was entered.
+ * It should not be used after the callback returns.
+ *
+ * If the callback returns a true value, the traversal will be stopped.
+ */
+bool wld_trace_to_solid(      //
+    ivec3 dest_iBlockCoords,  //
+    BlockFaceKind *dest_face, //
+    const vec3 origin,        //
+    const vec3 direction,     //
+    const uint32_t max_dist,  //
+    WorldState *pWorldState   //
+) {
+  // From "A Fast Voxel Traversal Algorithm for Ray Tracing"
+  // by John Amanatides and Andrew Woo, 1987
+  // <http://www.cse.yorku.ca/~amana/research/grid.pdf>
+  // <http://citeseer.ist.psu.edu/viewdoc/summary?doi=10.1.1.42.3443>
+  // Extensions to the described algorithm:
+  //   • Imposed a distance limit.
+  //   • The face passed through to reach the current cube is provided to
+  //     the callback.
+
+  // The foundation of this algorithm is a parameterized representation of
+  // the provided ray,
+  //                    origin + t * direction,
+  // except that t is not actually stored; rather, at any given point in the
+  // traversal, we keep track of the *greater* t values which we would have
+  // if we took a step sufficient to cross a cube boundary along that axis
+  // (i.e. change the integer part of the coordinate) in the variables
+  // tMaxX, tMaxY, and tMaxZ.
+
+  // Cube containing origin point.
+  int32_t x = (int32_t)(origin[0]);
+  int32_t y = (int32_t)(origin[1]);
+  int32_t z = (int32_t)(origin[2]);
+  // Break out direction vector.
+  float dx = direction[0];
+  float dy = direction[1];
+  float dz = direction[2];
+  // Direction to increment x,y,z when stepping.
+  int32_t stepX = signum(dx);
+  int32_t stepY = signum(dy);
+  int32_t stepZ = signum(dz);
+  // See description above. The initial values depend on the fractional
+  // part of the origin.
+  float tMaxX = intbound(origin[0], dx);
+  float tMaxY = intbound(origin[1], dy);
+  float tMaxZ = intbound(origin[2], dz);
+  // The change in t when taking a step (always positive).
+  float tDeltaX = (float)stepX / dx;
+  float tDeltaY = (float)stepY / dy;
+  float tDeltaZ = (float)stepZ / dz;
+
+  // Avoids an infinite loop.
+  // reject if the direction is zero
+  assert(fabsf(dx) < epsilonf && fabsf(dy) < epsilonf && fabsf(dz) < epsilonf);
+
+  // Rescale from units of 1 cube-edge to units of 'direction' so we can
+  // compare with 't'.
+  float radius = (float)(max_dist) / sqrtf(dx * dx + dy * dy + dz * dz);
+  while (true) {
+    // tMaxX stores the t-value at which we cross a cube boundary along the
+    // X axis, and similarly for Y and Z. Therefore, choosing the least tMax
+    // chooses the closest cube boundary. Only the first case of the four
+    // has been commented in detail.
+    if (tMaxX < tMaxY) {
+      if (tMaxX < tMaxZ) {
+        if (tMaxX > radius)
+          return false;
+        // Update which cube we are now in.
+        x += stepX;
+        // Adjust tMaxX to the next X-oriented boundary crossing.
+        tMaxX += tDeltaX;
+        // Record the normal vector of the cube face we entered.
+        *dest_face = stepX == 1 ? Block_LEFT : Block_RIGHT;
+      } else {
+        if (tMaxZ > radius)
+          return false;
+        z += stepZ;
+        tMaxZ += tDeltaZ;
+        *dest_face = stepZ == 1 ? Block_BACK : Block_FRONT;
+      }
+    } else {
+      if (tMaxY < tMaxZ) {
+        if (tMaxY > radius)
+          return false;
+        y += stepY;
+        tMaxY += tDeltaY;
+        *dest_face = stepY == 1 ? Block_DOWN : Block_UP;
+      } else {
+        // Identical to the second case, repeated for simplicity in
+        // the conditionals.
+        if (tMaxZ > radius)
+          return false;
+        z += stepZ;
+        tMaxZ += tDeltaZ;
+        *dest_face = stepZ == 1 ? Block_BACK : Block_FRONT;
+      }
+    }
+
+    // get block here
+    ivec3 coord = {x, y, z};
+    BlockIndex bi;
+    bool success = block_at(&bi, pWorldState, coord);
+    if (!success) {
+      return false;
+    }
+
+    if (!BLOCKS[bi].transparent) {
+      ivec3_dup(dest_iBlockCoords, coord);
+      return true;
+    }
+  }
+}
+
+/// highlight updates the world's highlighted block and
+void wld_highlight_face(         //
+    const ivec3 iBlockCoords, //
+    BlockFaceKind face,       //
+    WorldState *pWorldState   //
+) {
+    wu_
+}
 

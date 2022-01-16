@@ -32,17 +32,22 @@ void worldChunkCoords_to_blockCoords( //
     const ivec3 worldChunkCoords      //
 );
 
-bool wu_loadChunkData(ChunkData* pC, const char* filename);
+bool wu_loadChunkData(ChunkData *pC, const char *filename);
 
 uint32_t wu_countChunkDataVertexes( //
-    const ChunkData *pCd                        //
+    const ChunkData *pCd            //
 );
 
-
 uint32_t wu_getVertexesChunkData( //
-    Vertex *pVertexes,                //
-    const vec3 offset,                //
-    const ChunkData *pCd              //
+    Vertex *pVertexes,            //
+    const vec3 offset,            //
+    const ChunkData *pCd          //
+);
+
+void wu_getVertexesHighlight( //
+    Vertex pVertexes[6],      //
+    const ivec3 iBlockCoords, //
+    const BlockFaceKind face  //
 );
 
 #endif

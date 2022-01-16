@@ -59,6 +59,11 @@ typedef struct {
   uint32_t garbage_cap;
   uint32_t garbage_len;
   ChunkGeometry **garbage_data;
+
+  bool has_highlight;
+  Vertex highlightVertexes[6];
+  VkBuffer highlightVertexBuffer;
+  VkDeviceMemory highlightVertexBufferMemory;
 } WorldState;
 
 /// Creates a new worldState with the given center
@@ -95,9 +100,14 @@ void wld_update(            //
 );
 
 /// highlight updates the world's highlighted block and
-void wld_select_face(         //
+void wld_highlight_face(         //
     const ivec3 iBlockCoords, //
     BlockFaceKind face,       //
+    WorldState *pWorldState   //
+);
+
+/// highlight updates the world's highlighted block and
+void wld_clear_highlight_face(         //
     WorldState *pWorldState   //
 );
 
@@ -105,9 +115,10 @@ void wld_select_face(         //
 bool wld_trace_to_solid(          //
     ivec3 dest_iBlockCoords,      //
     BlockFaceKind *dest_face,     //
-    const vec3 position,          //
+    const vec3 origin,            //
     const vec3 direction,         //
-    const WorldState *pWorldState //
+    const uint32_t max_dist,      //
+    WorldState *pWorldState //
 );
 
 /// gets rid of the garbage buffers, make sure none of it is in use

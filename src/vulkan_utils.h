@@ -455,12 +455,6 @@ ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
 
 void delete_Surface(VkSurfaceKHR *pSurface, const VkInstance instance);
 
-ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const Vertex *pVertices, const uint32_t vertexCount,
-                        const VkDevice device,
-                        const VkPhysicalDevice physicalDevice,
-                        const VkCommandPool commandPool, const VkQueue queue);
-
 ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                                const VkDeviceSize size,
                                const VkPhysicalDevice physicalDevice,
@@ -468,7 +462,11 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                                const VkBufferUsageFlags usage,
                                const VkMemoryPropertyFlags properties);
 
-ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
+void copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
+                const VkDeviceSize size, const VkCommandPool commandPool,
+                const VkQueue queue, const VkDevice device);
+
+void updateBuffer(VkBuffer destinationBuffer, const void *pSource,
                   const VkDeviceSize size, const VkCommandPool commandPool,
                   const VkQueue queue, const VkDevice device);
 

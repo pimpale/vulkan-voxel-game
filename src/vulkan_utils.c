@@ -40,7 +40,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 }
 
 /* Creates new VkInstance with sensible defaults */
-void new_Instance(                            //
+void new_Instance(                              //
     VkInstance *pInstance,                      //
     const uint32_t enabledLayerCount,           //
     const char *const *ppEnabledLayerNames,     //
@@ -1500,56 +1500,6 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
   return (ERR_MEMORY);
 }
 
-ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const Vertex *pVertices, const uint32_t vertexCount,
-                        const VkDevice device,
-                        const VkPhysicalDevice physicalDevice,
-                        const VkCommandPool commandPool, const VkQueue queue) {
-  /* Construct staging buffers */
-  VkDeviceSize bufferSize = sizeof(Vertex) * vertexCount;
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  ErrVal stagingBufferCreateResult = new_Buffer_DeviceMemory(
-      &stagingBuffer, &stagingBufferMemory, bufferSize, physicalDevice, device,
-      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-  if (stagingBufferCreateResult != ERR_OK) {
-    LOG_ERROR(
-        ERR_LEVEL_FATAL,
-        "failed to create vertex buffer: failed to create staging buffer");
-    PANIC();
-  }
-
-  // Copy data to staging buffer, making sure to clean up leaks
-  copyToDeviceMemory(&stagingBufferMemory, bufferSize, pVertices, device);
-
-  /* Create vertex buffer and allocate memory for it */
-  ErrVal vertexBufferCreateResult = new_Buffer_DeviceMemory(
-      pBuffer, pBufferMemory, bufferSize, physicalDevice, device,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-  /* Handle errors */
-  if (vertexBufferCreateResult != ERR_OK) {
-    /* Delete the temporary staging buffers */
-    LOG_ERROR(ERR_LEVEL_ERROR, "failed to create vertex buffer");
-    delete_Buffer(&stagingBuffer, device);
-    delete_DeviceMemory(&stagingBufferMemory, device);
-    return (vertexBufferCreateResult);
-  }
-
-  /* Copy the data over from the staging buffer to the vertex buffer */
-  copyBuffer(*pBuffer, stagingBuffer, bufferSize, commandPool, queue, device);
-
-  /* Delete the temporary staging buffers */
-  delete_Buffer(&stagingBuffer, device);
-  delete_DeviceMemory(&stagingBufferMemory, device);
-
-  return (ERR_OK);
-}
-
 ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
                                const VkDeviceSize size,
                                const VkPhysicalDevice physicalDevice,
@@ -1598,9 +1548,9 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
 }
 
 // submits a copy to the queue, you'll later need to wait for idle
-ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
-                  const VkDeviceSize size, const VkCommandPool commandPool,
-                  const VkQueue queue, const VkDevice device) {
+void copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
+                const VkDeviceSize size, const VkCommandPool commandPool,
+                const VkQueue queue, const VkDevice device) {
 
   VkCommandBuffer copyCommandBuffer =
       createBeginOneTimeCmdBuffer(commandPool, device);
@@ -1610,7 +1560,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
                   &copyRegion);
 
   submitEndOneTimeCmdBuffer(copyCommandBuffer, queue, device);
-  return (ERR_OK);
+  return;
 }
 
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
@@ -1621,6 +1571,20 @@ void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device) {
   vkFreeMemory(device, *pDeviceMemory, NULL);
   *pDeviceMemory = VK_NULL_HANDLE;
+}
+
+// updates, you'll later need to wait for idle
+void updateBuffer(VkBuffer destinationBuffer, const void *pSource,
+                  const VkDeviceSize size, const VkCommandPool commandPool,
+                  const VkQueue queue, const VkDevice device) {
+
+  VkCommandBuffer copyCommandBuffer =
+      createBeginOneTimeCmdBuffer(commandPool, device);
+
+  vkCmdUpdateBuffer(copyCommandBuffer, destinationBuffer, 0, size, pSource);
+
+  submitEndOneTimeCmdBuffer(copyCommandBuffer, queue, device);
+  return;
 }
 
 // creates a command buffer that hasn't yet been begun

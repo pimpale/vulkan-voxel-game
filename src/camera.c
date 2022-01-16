@@ -44,8 +44,6 @@ Camera new_Camera(const vec3 loc, const VkExtent2D dimensions) {
   // set near and far to 0.01 and 100.0 respectively
   calculate_projection_matrix(cam.projection, dimensions);
 
-  cam.fast = false;
-
   return cam;
 }
 
@@ -54,10 +52,10 @@ void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
 }
 
 void updateCamera(Camera *camera, GLFWwindow *pWindow) {
-  float movscale = camera->fast ? 0.2f : 0.02f;
+  float movscale = 0.02f;
 
   if (glfwGetKey(pWindow, GLFW_KEY_TAB) == GLFW_PRESS) {
-    camera->fast = !camera->fast;
+      movscale *= 10;
   }
 
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {

@@ -28,8 +28,6 @@ typedef struct {
   CameraBasis basis;
   // Projection Matrix
   mat4x4 projection;
-  // whether the player is fast
-  bool fast;
 } Camera;
 
 Camera new_Camera(const vec3 pos, const VkExtent2D dimensions);
