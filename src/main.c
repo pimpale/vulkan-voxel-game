@@ -466,7 +466,7 @@ int main(void) {
     vec3_sub(dir, zero, camera.basis.front);
     // attempt to get the highlighted face (if any);
     bool faceIsHighlighted = wld_trace_to_solid(
-        highlightedIBlockCoords, &highlightedFace, camera.pos, dir, 8, &ws);
+        highlightedIBlockCoords, &highlightedFace, camera.pos, dir, 800, &ws);
     if (faceIsHighlighted) {
       wld_highlight_face(highlightedIBlockCoords, highlightedFace, &ws);
     } else {

@@ -66,12 +66,16 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
 
   if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
     vec3 delta_pos;
-    vec3_scale(delta_pos, camera->basis.front, -movscale);
+    vec3_mul_cross(delta_pos, camera->basis.right, worldup);
+    vec3_norm(delta_pos, delta_pos);
+    vec3_scale(delta_pos, delta_pos, movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
     vec3 delta_pos;
-    vec3_scale(delta_pos, camera->basis.front, movscale);
+    vec3_mul_cross(delta_pos, camera->basis.right, worldup);
+    vec3_norm(delta_pos, delta_pos);
+    vec3_scale(delta_pos, delta_pos, -movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
@@ -84,14 +88,14 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
     vec3_scale(delta_pos, camera->basis.right, -movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
-  if (glfwGetKey(pWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+  if (glfwGetKey(pWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(pWindow, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
     vec3 delta_pos;
-    vec3_scale(delta_pos, camera->basis.up, movscale);
+    vec3_scale(delta_pos, worldup, movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
   if (glfwGetKey(pWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
     vec3 delta_pos;
-    vec3_scale(delta_pos, camera->basis.up, -movscale);
+    vec3_scale(delta_pos, worldup, -movscale);
     vec3_add(camera->pos, camera->pos, delta_pos);
   }
 
