@@ -8,7 +8,7 @@
 #define WORKER_THREADS 16
 
 // max chunks to mesh per tick
-#define MAX_CHUNKS_TO_MESH 3
+#define MAX_CHUNKS_TO_MESH 1
 // max chunks to unload per tick
 #define MAX_CHUNKS_TO_UNLOAD 10
 
@@ -611,9 +611,9 @@ bool wld_trace_to_solid(      //
   // tMaxX, tMaxY, and tMaxZ.
 
   // Cube containing origin point.
-  int32_t x = (int32_t)(origin[0]);
-  int32_t y = (int32_t)(origin[1]);
-  int32_t z = (int32_t)(origin[2]);
+  int32_t x = (int32_t)(floorf(origin[0]));
+  int32_t y = (int32_t)(floorf(origin[1]));
+  int32_t z = (int32_t)(floorf(origin[2]));
   // Break out direction vector.
   float dx = direction[0];
   float dy = direction[1];
