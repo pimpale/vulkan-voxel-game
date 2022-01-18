@@ -50,4 +50,16 @@ void wu_getVertexesHighlight( //
     const BlockFaceKind face  //
 );
 
+void wu_getVertexesHighlight( //
+    Vertex pVertexes[6],      //
+    const ivec3 iBlockCoords, //
+    const BlockFaceKind face  //
+);
+
+void wu_getAdjacentBlock(        //
+    ivec3 destiBlockCoords,      //
+    const ivec3 srciBlockCoords, //
+    const BlockFaceKind face     //
+);
+
 #endif

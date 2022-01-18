@@ -316,3 +316,42 @@ void wu_getVertexesHighlight( //
   }
   // clang-format on
 }
+
+void wu_getAdjacentBlock(        //
+    ivec3 destiBlockCoords,      //
+    const ivec3 srciBlockCoords, //
+    const BlockFaceKind face     //
+) {
+  switch (face) {
+  case Block_LEFT: {
+    ivec3 normal = {-1.0f, 0.0f, 0.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  case Block_RIGHT: {
+    ivec3 normal = {1.0f, 0.0f, 0.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  case Block_UP: {
+    ivec3 normal = {0.0f, -1.0f, 0.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  case Block_DOWN: {
+    ivec3 normal = {0.0f, 1.0f, 0.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  case Block_BACK: {
+    ivec3 normal = {0.0f, 0.0f, -1.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  case Block_FRONT: {
+    ivec3 normal = {0.0f, 0.0f, 1.0f};
+    ivec3_add(destiBlockCoords, srciBlockCoords, normal);
+    break;
+  }
+  }
+}
