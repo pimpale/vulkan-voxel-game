@@ -24,11 +24,11 @@ struct ChunkGeometry_s {
   VkDeviceMemory vertexBufferMemory;
 };
 
-static ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const Vertex *pVertices, const uint32_t vertexCount,
-                        const VkDevice device,
-                        const VkPhysicalDevice physicalDevice,
-                        const VkCommandPool commandPool, const VkQueue queue) {
+static ErrVal
+new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
+                 const Vertex *pVertices, const uint32_t vertexCount,
+                 const VkDevice device, const VkPhysicalDevice physicalDevice,
+                 const VkCommandPool commandPool, const VkQueue queue) {
 
   /* Construct staging buffers */
   VkDeviceSize bufferSize = sizeof(Vertex) * vertexCount;
@@ -194,8 +194,8 @@ void wld_new_WorldState(                  //
 
   ErrVal highlightBufferCreateResult = new_Buffer_DeviceMemory(
       &pWorldState->highlightVertexBuffer,
-      &pWorldState->highlightVertexBufferMemory,
-      sizeof(Vertex)*6, physicalDevice, device,
+      &pWorldState->highlightVertexBufferMemory, sizeof(Vertex) * 6,
+      physicalDevice, device,
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -400,8 +400,7 @@ void wld_delete_WorldState( //
   // delete any blocks in the to generate stack
   ivec3_vec_clear(pWorldState->togenerate);
 
-  // update world stack, clearing the generating stack
-  wld_update(pWorldState);
+  // go through each 
 
   // clear the garbage
   wld_clearGarbage(pWorldState);
@@ -435,9 +434,11 @@ void wld_count_vertexBuffers(     //
 
   uint32_t count = 0;
 
-  if(pWorldState->has_highlight) {
-      count++;
+  if (pWorldState->has_highlight) {
+    count++;
   }
+
+
 
   for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
     // get coord
@@ -454,6 +455,21 @@ void wld_count_vertexBuffers(     //
     }
   }
 
+  for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->tomesh); i++) {
+    // get coord
+    ivec3_Chunk_KVPair lookup_tmp;
+    ivec3_vec_get(pWorldState->tomesh, i, lookup_tmp.chunkCoord);
+
+    // get chunk
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_get(pWorldState->chunk_map, &lookup_tmp);
+
+    // if chunk exists and is not empty add
+    if (pChunk->pGeometry != NULL && pChunk->pGeometry->vertexCount > 0) {
+      count++;
+    }
+  }
+
   *pVertexBufferCount = count;
 }
 
@@ -465,11 +481,10 @@ void wld_getVertexBuffers(        //
 ) {
   uint32_t count = 0;
 
-
-  if(pWorldState->has_highlight) {
-      pVertexCounts[count] = 6;
-      pVertexBuffers[count] = pWorldState->highlightVertexBuffer;
-      count++;
+  if (pWorldState->has_highlight) {
+    pVertexCounts[count] = 6;
+    pVertexBuffers[count] = pWorldState->highlightVertexBuffer;
+    count++;
   }
 
   for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->ready); i++) {
@@ -483,6 +498,23 @@ void wld_getVertexBuffers(        //
 
     // write data
     if (pChunk->pGeometry->vertexCount > 0) {
+      pVertexCounts[count] = pChunk->pGeometry->vertexCount;
+      pVertexBuffers[count] = pChunk->pGeometry->vertexBuffer;
+      count++;
+    }
+  }
+
+  for (uint32_t i = 0; i < ivec3_vec_len(pWorldState->tomesh); i++) {
+    // get coord
+    ivec3_Chunk_KVPair lookup_tmp;
+    ivec3_vec_get(pWorldState->tomesh, i, lookup_tmp.chunkCoord);
+
+    // get chunk
+    ivec3_Chunk_KVPair *pChunk =
+        hashmap_get(pWorldState->chunk_map, &lookup_tmp);
+
+    // write data
+    if (pChunk->pGeometry != NULL && pChunk->pGeometry->vertexCount > 0) {
       pVertexCounts[count] = pChunk->pGeometry->vertexCount;
       pVertexBuffers[count] = pChunk->pGeometry->vertexBuffer;
       count++;
@@ -510,12 +542,11 @@ void wld_set_center(         //
   }
 }
 
-static bool block_at(        //
-    BlockIndex *pBlock,      //
-    WorldState *pWorldState, //
-    const ivec3 iBlockCoords //
+bool wld_get_block_at( //
+    BlockIndex *pBlock,       //
+    WorldState *pWorldState,  //
+    const ivec3 iBlockCoords  //
 ) {
-
   vec3 blockCoords;
   ivec3_to_vec3(blockCoords, iBlockCoords);
 
@@ -541,15 +572,67 @@ static bool block_at(        //
   assert(intraChunkOffset[0] + iBlockCoord_Corner[0] == iBlockCoords[0]);
 
   // chunk index
-  ivec3 chunkIndex =  {
-  (intraChunkOffset[0] % CHUNK_X_SIZE + CHUNK_X_SIZE) % CHUNK_X_SIZE,
-  (intraChunkOffset[1] % CHUNK_Y_SIZE + CHUNK_Y_SIZE) % CHUNK_Y_SIZE,
-  (intraChunkOffset[2] % CHUNK_Z_SIZE + CHUNK_Z_SIZE) % CHUNK_Z_SIZE 
-  };
+  ivec3 chunkIndex = {
+      (intraChunkOffset[0] % CHUNK_X_SIZE + CHUNK_X_SIZE) % CHUNK_X_SIZE,
+      (intraChunkOffset[1] % CHUNK_Y_SIZE + CHUNK_Y_SIZE) % CHUNK_Y_SIZE,
+      (intraChunkOffset[2] % CHUNK_Z_SIZE + CHUNK_Z_SIZE) % CHUNK_Z_SIZE};
 
   *pBlock = pChunk->pDataAndState->data
-                .blocks[chunkIndex[0]][chunkIndex[1]]
-                       [chunkIndex[2]];
+                .blocks[chunkIndex[0]][chunkIndex[1]][chunkIndex[2]];
+  return true;
+}
+
+bool wld_set_block_at( //
+    BlockIndex block,         //
+    WorldState *pWorldState,  //
+    const ivec3 iBlockCoords  //
+) {
+  vec3 blockCoords;
+  ivec3_to_vec3(blockCoords, iBlockCoords);
+
+  // get world chunk coord
+  ivec3_Chunk_KVPair lookup_tmp;
+  blockCoords_to_worldChunkCoords(lookup_tmp.chunkCoord, blockCoords);
+
+  // get chunk
+  ivec3_Chunk_KVPair *pChunk = hashmap_get(pWorldState->chunk_map, &lookup_tmp);
+
+  if (pChunk == NULL || !pChunk->pDataAndState->initialized) {
+    return false;
+  }
+
+  // get corner block of world chunk
+  ivec3 iBlockCoord_Corner;
+  worldChunkCoords_to_iBlockCoords(iBlockCoord_Corner, pChunk->chunkCoord);
+
+  // get intra-chunk offset
+  ivec3 intraChunkOffset;
+  ivec3_sub(intraChunkOffset, iBlockCoords, iBlockCoord_Corner);
+
+  assert(intraChunkOffset[0] + iBlockCoord_Corner[0] == iBlockCoords[0]);
+
+  // chunk index
+  ivec3 chunkIndex = {
+      (intraChunkOffset[0] % CHUNK_X_SIZE + CHUNK_X_SIZE) % CHUNK_X_SIZE,
+      (intraChunkOffset[1] % CHUNK_Y_SIZE + CHUNK_Y_SIZE) % CHUNK_Y_SIZE,
+      (intraChunkOffset[2] % CHUNK_Z_SIZE + CHUNK_Z_SIZE) % CHUNK_Z_SIZE};
+
+  pChunk->pDataAndState->data
+      .blocks[chunkIndex[0]][chunkIndex[1]][chunkIndex[2]] = block;
+
+  // if the block is in the ready vec, then put it back into the needs_mesh
+  for (int32_t i = (int32_t)ivec3_vec_len(pWorldState->ready) - 1; i >= 0;
+       i--) {
+    ivec3 chunkCoords;
+    ivec3_vec_get(pWorldState->ready, (uint32_t)i, chunkCoords);
+    if (ivec3_eq(pChunk->chunkCoord, chunkCoords)) {
+      // this gets rid of the current chunk coord, but in an O(1) fashion
+      ivec3_vec_swapAndPop(pWorldState->ready, (uint32_t)i);
+      // add this to the unload coordinates
+      ivec3_vec_push(pWorldState->tomesh, chunkCoords);
+    }
+  }
+
   return true;
 }
 
@@ -634,7 +717,8 @@ bool wld_trace_to_solid(      //
 
   // Avoids an infinite loop.
   // reject if the direction is zero
-  assert(!(fabsf(dx) < epsilonf && fabsf(dy) < epsilonf && fabsf(dz) < epsilonf));
+  assert(
+      !(fabsf(dx) < epsilonf && fabsf(dy) < epsilonf && fabsf(dz) < epsilonf));
 
   // Rescale from units of 1 cube-edge to units of 'direction' so we can
   // compare with 't'.
@@ -643,7 +727,7 @@ bool wld_trace_to_solid(      //
     // get block here
     ivec3 coord = {x, y, z};
     BlockIndex bi;
-    bool success = block_at(&bi, pWorldState, coord);
+    bool success = wld_get_block_at(&bi, pWorldState, coord);
     if (!success) {
       break;
     }
@@ -680,7 +764,7 @@ bool wld_trace_to_solid(      //
           break;
         y += stepY;
         tMaxY += tDeltaY;
-        *dest_face = stepY == 1 ? Block_UP: Block_DOWN;
+        *dest_face = stepY == 1 ? Block_UP : Block_DOWN;
       } else {
         // Identical to the second case, repeated for simplicity in
         // the conditionals.

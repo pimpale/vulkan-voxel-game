@@ -79,7 +79,9 @@ static void new_AppGraphicsGlobalState(AppGraphicsGlobalState *pGlobal) {
   new_GlfwWindow(&pGlobal->pWindow, APPNAME,
                  (VkExtent2D){.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT});
 
+  // configure glfw
   glfwSetInputMode(pGlobal->pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(pGlobal->pWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
   new_SurfaceFromGLFW(&pGlobal->surface, pGlobal->pWindow, pGlobal->instance);
 
@@ -469,6 +471,9 @@ int main(void) {
         highlightedIBlockCoords, &highlightedFace, camera.pos, dir, 800, &ws);
     if (faceIsHighlighted) {
       wld_highlight_face(highlightedIBlockCoords, highlightedFace, &ws);
+      if(glfwGetMouseButton(global.pWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        wld_set_block_at(0, &ws, highlightedIBlockCoords);
+      }
     } else {
       wld_clear_highlight_face(&ws);
     }

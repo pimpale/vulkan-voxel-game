@@ -99,25 +99,25 @@ void wld_update(            //
 );
 
 /// highlight updates the world's highlighted block and
-void wld_highlight_face(         //
+void wld_highlight_face(      //
     const ivec3 iBlockCoords, //
     BlockFaceKind face,       //
     WorldState *pWorldState   //
 );
 
 /// highlight updates the world's highlighted block and
-void wld_clear_highlight_face(         //
-    WorldState *pWorldState   //
+void wld_clear_highlight_face( //
+    WorldState *pWorldState    //
 );
 
 /// selects the face and block at a location
-bool wld_trace_to_solid(          //
-    ivec3 dest_iBlockCoords,      //
-    BlockFaceKind *dest_face,     //
-    const vec3 origin,            //
-    const vec3 direction,         //
-    const uint32_t max_dist,      //
-    WorldState *pWorldState //
+bool wld_trace_to_solid(      //
+    ivec3 dest_iBlockCoords,  //
+    BlockFaceKind *dest_face, //
+    const vec3 origin,        //
+    const vec3 direction,     //
+    const uint32_t max_dist,  //
+    WorldState *pWorldState   //
 );
 
 /// gets rid of the garbage buffers, make sure none of it is in use
@@ -144,4 +144,15 @@ void wld_getVertexBuffers(        //
     const WorldState *pWorldState //
 );
 
+bool wld_get_block_at(       //
+    BlockIndex *pBlock,      //
+    WorldState *pWorldState, //
+    const ivec3 iBlockCoords //
+);
+
+bool wld_set_block_at(       //
+    BlockIndex block,        //
+    WorldState *pWorldState, //
+    const ivec3 iBlockCoords //
+);
 #endif

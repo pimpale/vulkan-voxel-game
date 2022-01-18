@@ -115,8 +115,8 @@ void updateCamera(Camera *camera, GLFWwindow *pWindow) {
   camera->pitch -= (float)dY * rotscale;
 
   // clamp camera->pitch between 89 degrees
-  camera->pitch = fminf(camera->pitch, RADIANS(89.0f));
-  camera->pitch = fmaxf(camera->pitch, RADIANS(-89.0f));
+  camera->pitch = fminf(camera->pitch, RADIANS(89.9f));
+  camera->pitch = fmaxf(camera->pitch, RADIANS(-89.9f));
 
   // rebuild basis vectors
   camera->basis = new_CameraBasis(camera->pitch, camera->yaw);
