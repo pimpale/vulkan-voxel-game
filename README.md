@@ -71,4 +71,5 @@ I also referenced my prior example project: <https://github.com/pimpale/vulkan-t
 * `linmath.h`, which can be found at <https://github.com/datenwolf/linmath.h>
 * `hashmap.c`, which can be found at <https://github.com/tidwall/hashmap.c>
 * `open-simplex-noise.h`, which can be found at <https://github.com/smcameron/open-simplex-noise-in-c>
+* `threadpool.h`, which can be found at <https://github.com/mbrossard/threadpool>
 
