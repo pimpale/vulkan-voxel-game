@@ -32,8 +32,6 @@
 #define NORM_CONSTANT_3D (103.0)
 #define NORM_CONSTANT_4D (30.0)
 	
-#define DEFAULT_SEED (0LL)
-
 struct osn_context {
 	int16_t *perm;
 	int16_t *permGradIndex3D;
@@ -133,10 +131,10 @@ static int allocate_perm(struct osn_context *ctx, int nperm, int ngrad)
 		free(ctx->perm);
 	if (ctx->permGradIndex3D)
 		free(ctx->permGradIndex3D);
-	ctx->perm = (int16_t *) malloc(sizeof(*ctx->perm) * nperm); 
+	ctx->perm = (int16_t *) malloc(sizeof(*ctx->perm) * (size_t)nperm); 
 	if (!ctx->perm)
 		return -ENOMEM;
-	ctx->permGradIndex3D = (int16_t *) malloc(sizeof(*ctx->permGradIndex3D) * ngrad);
+	ctx->permGradIndex3D = (int16_t *) malloc(sizeof(*ctx->permGradIndex3D) * (size_t)ngrad);
 	if (!ctx->permGradIndex3D) {
 		free(ctx->perm);
 		return -ENOMEM;
@@ -151,11 +149,11 @@ int open_simplex_noise_init_perm(struct osn_context *ctx, int16_t p[], int nelem
 	rc = allocate_perm(ctx, nelements, 256);
 	if (rc)
 		return rc;
-	memcpy(ctx->perm, p, sizeof(*ctx->perm) * nelements);
+	memcpy(ctx->perm, p, sizeof(*ctx->perm) * (size_t)nelements);
 		
 	for (i = 0; i < 256; i++) {
 		/* Since 3D has 24 gradients, simple bitmask won't work, so precompute modulo array. */
-		ctx->permGradIndex3D[i] = (int16_t)((ctx->perm[i] % (ARRAYSIZE(gradients3D) / 3)) * 3);
+		ctx->permGradIndex3D[i] = (int16_t)(((size_t)ctx->perm[i] % (ARRAYSIZE(gradients3D) / 3)) * 3);
 	}
 	return 0;
 }
@@ -189,7 +187,7 @@ int open_simplex_noise(int64_t seed, struct osn_context **ctx)
 	perm = (*ctx)->perm;
 	permGradIndex3D = (*ctx)->permGradIndex3D;
 
-	uint64_t seedU = seed;
+	uint64_t seedU = (uint64_t)seed;
 	for (i = 0; i < 256; i++)
 		source[i] = (int16_t) i;
 	seedU = seedU * 6364136223846793005ULL + 1442695040888963407ULL;
@@ -197,11 +195,11 @@ int open_simplex_noise(int64_t seed, struct osn_context **ctx)
 	seedU = seedU * 6364136223846793005ULL + 1442695040888963407ULL;
 	for (i = 255; i >= 0; i--) {
 		seedU = seedU * 6364136223846793005ULL + 1442695040888963407ULL;
-		r = (int)((seedU + 31) % (i + 1));
+		r = (int)((seedU + 31) % ((uint64_t)i + 1));
 		if (r < 0)
 			r += (i + 1);
 		perm[i] = source[r];
-		permGradIndex3D[i] = (short)((perm[i] % (ARRAYSIZE(gradients3D) / 3)) * 3);
+		permGradIndex3D[i] = (short)(((size_t)perm[i] % (ARRAYSIZE(gradients3D) / 3)) * 3);
 		source[r] = source[i];
 	}
 	return 0;

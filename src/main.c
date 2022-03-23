@@ -471,11 +471,14 @@ int main(void) {
         highlightedIBlockCoords, &highlightedFace, camera.pos, dir, 800, &ws);
     if (faceIsHighlighted) {
       wld_highlight_face(highlightedIBlockCoords, highlightedFace, &ws);
-      if(glfwGetMouseButton(global.pWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+      if (glfwGetMouseButton(global.pWindow, GLFW_MOUSE_BUTTON_LEFT) ==
+          GLFW_PRESS) {
         wld_set_block_at(0, &ws, highlightedIBlockCoords);
-      } else if(glfwGetMouseButton(global.pWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+      } else if (glfwGetMouseButton(global.pWindow, GLFW_MOUSE_BUTTON_RIGHT) ==
+                 GLFW_PRESS) {
         ivec3 toPlaceIBlockCoords;
-        wu_getAdjacentBlock(toPlaceIBlockCoords, highlightedIBlockCoords, highlightedFace);
+        wu_getAdjacentBlock(toPlaceIBlockCoords, highlightedIBlockCoords,
+                            highlightedFace);
         wld_set_block_at(1, &ws, toPlaceIBlockCoords);
       }
     } else {

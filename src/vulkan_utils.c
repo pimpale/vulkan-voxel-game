@@ -1371,7 +1371,7 @@ ErrVal getNextSwapchainImage(           //
   VkResult nextImageResult = vkAcquireNextImageKHR(
       device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE,
       pImageIndex);
-  if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR) {
+  if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR || nextImageResult  == VK_SUBOPTIMAL_KHR) {
     // If the window has been resized, the result will be an out of date error,
     // meaning that the swap chain must be resized
     return (ERR_OUTOFDATE);
