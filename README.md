@@ -1,4 +1,4 @@
-# Vulkan Voxel Renderer
+# Vulkan Voxel Game
 
 ![Game Screenshot](./screenshots/1.png)
 
